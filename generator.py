@@ -5,6 +5,7 @@ Pulls news and generates reports based on specifications.
 """
 
 import os
+import sys
 import json
 from datetime import datetime
 from configurator import Configurator
@@ -194,8 +195,6 @@ class Generator:
 
 def main():
     """CLI interface for the Generator."""
-    import sys
-    
     if len(sys.argv) < 2:
         print("Usage: python generator.py [generate|generate-all] [spec_name]")
         sys.exit(1)

@@ -4,8 +4,8 @@ Configurator App - PU Observatory Tool
 Allows users to create specifications for news reports.
 """
 
-import json
 import os
+import sys
 import yaml
 from datetime import datetime
 
@@ -97,8 +97,6 @@ class Configurator:
 
 def main():
     """CLI interface for the Configurator."""
-    import sys
-    
     if len(sys.argv) < 2:
         print("Usage: python configurator.py [create|list|update|delete]")
         sys.exit(1)

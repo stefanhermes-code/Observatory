@@ -5,6 +5,7 @@ Manages the entire Observatory process including scheduling and monitoring.
 """
 
 import os
+import sys
 import json
 from datetime import datetime
 from configurator import Configurator
@@ -184,8 +185,6 @@ class Admin:
 
 def main():
     """CLI interface for the Admin."""
-    import sys
-    
     admin = Admin()
     
     if len(sys.argv) < 2:
