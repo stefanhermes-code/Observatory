@@ -20,7 +20,14 @@ def get_openai_client() -> Optional[object]:
     if not OPENAI_AVAILABLE:
         return None
     
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    except (AttributeError, FileNotFoundError, RuntimeError):
+        # Not running in Streamlit or secrets not available, use environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
+    
     if not api_key:
         return None
     
@@ -123,9 +130,15 @@ def upload_company_list_to_assistant(
         raise Exception("OpenAI client not available. Check OPENAI_API_KEY.")
     
     if assistant_id is None:
-        assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+        # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+        try:
+            import streamlit as st
+            assistant_id = st.secrets.get("OPENAI_ASSISTANT_ID") or os.getenv("OPENAI_ASSISTANT_ID")
+        except (AttributeError, FileNotFoundError, RuntimeError):
+            # Not running in Streamlit or secrets not available, use environment variables
+            assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
         if not assistant_id:
-            raise Exception("Assistant ID not provided and OPENAI_ASSISTANT_ID not set.")
+            raise Exception("Assistant ID not provided and OPENAI_ASSISTANT_ID not set in Streamlit Cloud secrets or .env file.")
     
     # Load and format company list
     company_data = load_company_list(company_list_path)
@@ -148,7 +161,13 @@ def upload_company_list_to_assistant(
         
         # Step 2: Get or create vector store for the Assistant
         # First, check if vector store ID is in .env
-        vector_store_id = os.getenv("OPENAI_VECTOR_STORE_ID")
+        # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+        try:
+            import streamlit as st
+            vector_store_id = st.secrets.get("OPENAI_VECTOR_STORE_ID") or os.getenv("OPENAI_VECTOR_STORE_ID")
+        except (AttributeError, FileNotFoundError, RuntimeError):
+            # Not running in Streamlit or secrets not available, use environment variables
+            vector_store_id = os.getenv("OPENAI_VECTOR_STORE_ID")
         
         if vector_store_id:
             print(f"[INFO] Using vector store from .env: {vector_store_id}")

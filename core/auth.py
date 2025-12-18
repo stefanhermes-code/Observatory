@@ -20,10 +20,27 @@ def check_owner_role(user_email: str) -> bool:
     admin_users = get_all_admin_users()
     admin_emails = [u['email'].lower() for u in admin_users]
     
-    # Also check environment variable for backward compatibility
-    owner_emails = os.getenv("OWNER_EMAILS", "").split(",")
-    owner_emails = [e.strip().lower() for e in owner_emails if e.strip()]
-    admin_emails.extend(owner_emails)
+    # Also check environment variable/Streamlit secrets for backward compatibility
+    try:
+        import streamlit as st
+        owner_email = st.secrets.get("OWNER_EMAIL") or os.getenv("OWNER_EMAIL")
+        owner_emails_env = os.getenv("OWNER_EMAILS", "")
+        if owner_email:
+            admin_emails.append(owner_email.lower())
+        if owner_emails_env:
+            owner_emails = owner_emails_env.split(",")
+            owner_emails = [e.strip().lower() for e in owner_emails if e.strip()]
+            admin_emails.extend(owner_emails)
+    except (AttributeError, FileNotFoundError, RuntimeError):
+        # Not running in Streamlit, use environment variables
+        owner_email = os.getenv("OWNER_EMAIL")
+        owner_emails_env = os.getenv("OWNER_EMAILS", "")
+        if owner_email:
+            admin_emails.append(owner_email.lower())
+        if owner_emails_env:
+            owner_emails = owner_emails_env.split(",")
+            owner_emails = [e.strip().lower() for e in owner_emails if e.strip()]
+            admin_emails.extend(owner_emails)
     
     return user_email.lower() in admin_emails
 

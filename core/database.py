@@ -26,11 +26,18 @@ def get_supabase_client() -> object:
     if not SUPABASE_AVAILABLE:
         raise Exception("supabase-py library is not installed. Install with: pip install supabase")
     
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_ANON_KEY")
+    # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+    try:
+        import streamlit as st
+        supabase_url = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
+        supabase_key = st.secrets.get("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_ANON_KEY")
+    except (AttributeError, FileNotFoundError, RuntimeError):
+        # Not running in Streamlit or secrets not available, use environment variables
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_ANON_KEY")
     
     if not supabase_url or not supabase_key:
-        raise Exception("Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file.")
+        raise Exception("Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in Streamlit Cloud secrets or .env file.")
     
     try:
         client = create_client(supabase_url, supabase_key)

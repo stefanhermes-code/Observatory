@@ -21,7 +21,13 @@ def get_openai_client() -> Optional[object]:
     if not OPENAI_AVAILABLE:
         return None
     
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    except (AttributeError, FileNotFoundError, RuntimeError):
+        # Not running in Streamlit or secrets not available, use environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
     
@@ -228,7 +234,13 @@ def execute_assistant(run_package: Dict) -> Dict:
         Dictionary with 'content' (generated text) and 'metadata'
     """
     client = get_openai_client()
-    assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+    # Try Streamlit secrets first (for Streamlit Cloud), then environment variables (for local .env)
+    try:
+        import streamlit as st
+        assistant_id = st.secrets.get("OPENAI_ASSISTANT_ID") or os.getenv("OPENAI_ASSISTANT_ID")
+    except (AttributeError, FileNotFoundError, RuntimeError):
+        # Not running in Streamlit or secrets not available, use environment variables
+        assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
     
     if not client or not assistant_id:
         # Simulate OpenAI response for development
