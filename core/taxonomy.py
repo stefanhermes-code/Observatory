@@ -1,6 +1,6 @@
 """
 Core taxonomy definitions for the PU Observatory platform.
-Contains the 11-category model and region lists.
+Contains the 10-category model and region lists.
 """
 
 # The 10 deliverable categories for PU Observatory
