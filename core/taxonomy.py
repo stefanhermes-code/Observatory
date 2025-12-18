@@ -3,7 +3,7 @@ Core taxonomy definitions for the PU Observatory platform.
 Contains the 11-category model and region lists.
 """
 
-# The 11 deliverable categories for PU Observatory
+# The 10 deliverable categories for PU Observatory
 PU_CATEGORIES = [
     {
         "id": "company_news",

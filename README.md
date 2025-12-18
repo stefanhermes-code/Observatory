@@ -226,7 +226,6 @@ OWNER_PASSWORD = "your_admin_password"
 7. Capacity & Asset Moves
 8. M&A and Partnerships
 9. Early-Warning Signals
-10. Custom Alerts & Updates
 11. Executive-Ready Briefings
 
 ### Frequency Options
