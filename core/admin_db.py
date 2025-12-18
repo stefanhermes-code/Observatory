@@ -244,23 +244,63 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
 def get_recent_runs(limit: int = 10) -> List[Dict]:
     """Get recent newsletter generation runs with specification names."""
     supabase = get_supabase_client()
-    result = supabase.table("newsletter_runs")\
-        .select("*, newsletter_specifications(newsletter_name)")\
-        .order("created_at", desc=True)\
-        .limit(limit)\
-        .execute()
     
-    runs = result.data if result.data else []
-    # Flatten the nested specification name
-    for run in runs:
-        if run.get("newsletter_specifications"):
-            spec = run["newsletter_specifications"]
-            if isinstance(spec, list) and len(spec) > 0:
-                run["newsletter_name"] = spec[0].get("newsletter_name", "Unknown")
-            elif isinstance(spec, dict):
-                run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
-    
-    return runs
+    try:
+        # Try nested select first (more efficient)
+        result = supabase.table("newsletter_runs")\
+            .select("*, newsletter_specifications(newsletter_name)")\
+            .order("created_at", desc=True)\
+            .limit(limit)\
+            .execute()
+        
+        runs = result.data if result.data else []
+        # Flatten the nested specification name
+        for run in runs:
+            if run.get("newsletter_specifications"):
+                spec = run["newsletter_specifications"]
+                if isinstance(spec, list) and len(spec) > 0:
+                    run["newsletter_name"] = spec[0].get("newsletter_name", "Unknown")
+                elif isinstance(spec, dict):
+                    run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
+                del run["newsletter_specifications"]
+        
+        return runs
+    except Exception as e:
+        # Fallback: Get runs and specs separately, then join manually
+        try:
+            # Get runs
+            runs_result = supabase.table("newsletter_runs")\
+                .select("*")\
+                .order("created_at", desc=True)\
+                .limit(limit)\
+                .execute()
+            
+            runs = runs_result.data if runs_result.data else []
+            
+            if not runs:
+                return []
+            
+            # Get all specification IDs
+            spec_ids = [run.get("specification_id") for run in runs if run.get("specification_id")]
+            
+            if spec_ids:
+                # Get specifications
+                specs_result = supabase.table("newsletter_specifications")\
+                    .select("id, newsletter_name")\
+                    .in_("id", spec_ids)\
+                    .execute()
+                
+                specs_dict = {spec["id"]: spec.get("newsletter_name", "Unknown") for spec in (specs_result.data if specs_result.data else [])}
+                
+                # Add newsletter_name to each run
+                for run in runs:
+                    spec_id = run.get("specification_id")
+                    run["newsletter_name"] = specs_dict.get(spec_id, "Unknown")
+            
+            return runs
+        except Exception as fallback_error:
+            # If even fallback fails, return empty list
+            return []
 
 
 def get_audit_logs(limit: int = 50) -> List[Dict]:
