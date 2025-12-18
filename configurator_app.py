@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE
 from core.validation import validate_specification
-from core.database import create_specification_request, get_taxonomy_data
+from core.database import create_specification_request, update_specification_request, get_taxonomy_data
 from core.pricing import calculate_price, format_price
 
 # Page configuration
@@ -97,6 +97,8 @@ if "specification" not in st.session_state:
     }
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
+if "request_id" not in st.session_state:
+    st.session_state.request_id = None
 
 # Header with logo
 logo_path = "Background Documentation/PU Observatory logo V3.png"
@@ -122,6 +124,82 @@ st.markdown("""
         tailored to your specific needs and delivered on your preferred schedule.
     </div>
 """, unsafe_allow_html=True)
+
+# How it works section
+with st.expander("📖 How It Works", expanded=False):
+    st.markdown("""
+    ### Step-by-Step Process
+    
+    1. **Define Intelligence Scope** - Select the categories of intelligence you want to track (e.g., Company News, Capacity Changes, Market Developments)
+    
+    2. **Select Regions** - Choose the geographic regions you want to monitor (e.g., EMEA, Americas, Asia)
+    
+    3. **Choose Frequency** - Select how often you want to receive updates:
+       - **Monthly**: Strategic overview, themes, and outlook ($19/user/month)
+       - **Weekly**: Operational monitoring with context ($39/user/month)
+       - **Daily**: Continuous monitoring, early-warning signals ($119/user/month)
+    
+    4. **Name Your Intelligence Source** - Give your customized intelligence source a name
+    
+    5. **Provide Company Information** - Enter your company details and contact information
+    
+    6. **Review & Submit** - Review your selections and see the pricing, then submit your request
+    
+    ### What Happens Next?
+    
+    - Your request will be reviewed by our team
+    - You'll receive an invoice via email
+    - After payment, your intelligence source will be activated
+    - You'll receive login credentials to access the Generator app
+    - Start generating customized intelligence reports on your schedule
+    """)
+
+# Pricing Guide section
+with st.expander("💰 Pricing Guide", expanded=False):
+    st.markdown("""
+    ### How Pricing Works
+    
+    **Pricing is per user, per month** - All plans include full Observatory platform access.
+    
+    #### Cadence Pricing (Core)
+    
+    The frequency you choose determines the base price:
+    
+    | Frequency | Description | Price per User/Month | Price per User/Year |
+    |-----------|-------------|---------------------|-------------------|
+    | **Monthly** | Strategic overview, themes, and outlook | $19 | $228 |
+    | **Weekly** | Operational monitoring with context | $39 | $468 |
+    | **Daily** | Continuous monitoring, early-warning signals | $119 | $1,428 |
+    
+    #### Scope Packages
+    
+    Your selection of categories and regions determines your package tier:
+    
+    | Package | Categories | Regions | Description |
+    |---------|-----------|---------|-------------|
+    | **Starter** | Up to 3 | 1 | Focused coverage |
+    | **Medium** | Up to 6 | 2 | Balanced coverage |
+    | **Pro** | Up to 9 | Up to 4 | Comprehensive coverage |
+    | **Enterprise** | Custom | Custom | Full customization |
+    
+    **Note:** Scope determines your package tier, but all plans include access to the full Observatory platform and all deliverables.
+    
+    #### Example Calculations
+    
+    - **Monthly with 3 categories, 1 region**: $19/user/month = **$228/user/year**
+    - **Weekly with 6 categories, 2 regions**: $39/user/month = **$468/user/year**
+    - **Daily with 9 categories, 4 regions**: $119/user/month = **$1,428/user/year**
+    
+    #### What's Included
+    
+    All plans include access to:
+    - News Digest
+    - Industry Context & Insight
+    - Capacity & Asset Moves
+    - Competitive Developments
+    - Regulation & Sustainability
+    - Executive Briefings (where applicable)
+    """)
 
 # Get taxonomy data
 taxonomy_data = get_taxonomy_data()
@@ -157,6 +235,29 @@ if not st.session_state.submitted:
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
     
+    # Real-time price estimate (prominently displayed) - only show if all required fields are present
+    if len(selected_categories) > 0 and len(st.session_state.specification.get("regions", [])) > 0 and st.session_state.specification.get("frequency"):
+        try:
+            from core.pricing import calculate_price, format_price
+            price_data = calculate_price(
+                categories=selected_categories,
+                regions=st.session_state.specification.get("regions", []),
+                frequency=st.session_state.specification.get("frequency", "monthly")
+            )
+            st.markdown(f"""
+                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
+                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
+                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
+                        {format_price(price_data)}
+                    </div>
+                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
+                        {format_price(price_data, show_per_user=True)} ({st.session_state.specification.get('frequency', 'monthly').title()} cadence)
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception:
+            pass
+    
     # Step 2: Region Selection - Checkboxes like categories
     st.markdown('<p class="step-header">Step 2: Select Regions</p>', unsafe_allow_html=True)
     st.write("Select one or more regions to monitor:")
@@ -181,6 +282,29 @@ if not st.session_state.submitted:
     if len(selected_regions) == 0:
         st.warning("⚠️ Please select at least one region to continue.")
     
+    # Update real-time price estimate if all required fields are present
+    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0 and st.session_state.specification.get("frequency"):
+        try:
+            from core.pricing import calculate_price, format_price
+            price_data = calculate_price(
+                categories=st.session_state.specification.get("categories", []),
+                regions=selected_regions,
+                frequency=st.session_state.specification.get("frequency", "monthly")
+            )
+            st.markdown(f"""
+                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
+                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
+                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
+                        {format_price(price_data)}
+                    </div>
+                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
+                        {format_price(price_data, show_per_user=True)} ({st.session_state.specification.get('frequency', 'monthly').title()} cadence)
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception:
+            pass
+    
     # Step 3: Frequency Selection
     st.markdown('<p class="step-header">Step 3: Choose Frequency</p>', unsafe_allow_html=True)
     st.write("Select how often you want to receive your newsletter:")
@@ -197,6 +321,29 @@ if not st.session_state.submitted:
     )
     
     st.session_state.specification["frequency"] = selected_frequency
+    
+    # Update real-time price estimate after frequency selection
+    if len(st.session_state.specification.get("categories", [])) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
+        try:
+            from core.pricing import calculate_price, format_price
+            price_data = calculate_price(
+                categories=st.session_state.specification.get("categories", []),
+                regions=st.session_state.specification.get("regions", []),
+                frequency=selected_frequency
+            )
+            st.markdown(f"""
+                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
+                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
+                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
+                        {format_price(price_data)}
+                    </div>
+                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
+                        {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence)
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception:
+            pass
     
     # Step 4: Intelligence Source Name
     st.markdown('<p class="step-header">Step 4: Name Your Intelligence Source</p>', unsafe_allow_html=True)
@@ -384,29 +531,56 @@ if not st.session_state.submitted:
             for error in errors:
                 st.error(f"• {error}")
         else:
-            # Create specification request
+            # Create or update specification request
             try:
-                result = create_specification_request(
-                    newsletter_name=spec["newsletter_name"],
-                    industry_code=INDUSTRY_CODE,
-                    categories=spec["categories"],
-                    regions=spec["regions"],
-                    frequency=spec["frequency"],
-                    company_name=spec["company_name"],
-                    contact_email=spec["contact_email"],
-                    first_name=spec.get("first_name", ""),
-                    last_name=spec.get("last_name", ""),
-                    street=spec.get("street", ""),
-                    house_number=spec.get("house_number", ""),
-                    city=spec.get("city", ""),
-                    zip_code=spec.get("zip_code", ""),
-                    country=spec.get("country", ""),
-                    vat_number=spec.get("vat_number", "")
-                )
+                # Check if we're updating an existing request
+                if st.session_state.get("request_id"):
+                    # Update existing request
+                    result = update_specification_request(
+                        request_id=st.session_state.request_id,
+                        newsletter_name=spec["newsletter_name"],
+                        industry_code=INDUSTRY_CODE,
+                        categories=spec["categories"],
+                        regions=spec["regions"],
+                        frequency=spec["frequency"],
+                        company_name=spec["company_name"],
+                        contact_email=spec["contact_email"],
+                        first_name=spec.get("first_name", ""),
+                        last_name=spec.get("last_name", ""),
+                        street=spec.get("street", ""),
+                        house_number=spec.get("house_number", ""),
+                        city=spec.get("city", ""),
+                        zip_code=spec.get("zip_code", ""),
+                        country=spec.get("country", ""),
+                        vat_number=spec.get("vat_number", "")
+                    )
+                    st.success("✅ Specification updated successfully!")
+                else:
+                    # Create new request
+                    result = create_specification_request(
+                        newsletter_name=spec["newsletter_name"],
+                        industry_code=INDUSTRY_CODE,
+                        categories=spec["categories"],
+                        regions=spec["regions"],
+                        frequency=spec["frequency"],
+                        company_name=spec["company_name"],
+                        contact_email=spec["contact_email"],
+                        first_name=spec.get("first_name", ""),
+                        last_name=spec.get("last_name", ""),
+                        street=spec.get("street", ""),
+                        house_number=spec.get("house_number", ""),
+                        city=spec.get("city", ""),
+                        zip_code=spec.get("zip_code", ""),
+                        country=spec.get("country", ""),
+                        vat_number=spec.get("vat_number", "")
+                    )
                 
                 # Store the request ID for confirmation
                 st.session_state.request_id = result.get("id", "unknown")
-                st.session_state.submission_timestamp = result.get("submission_timestamp", datetime.utcnow().isoformat())
+                if "submission_timestamp" in result:
+                    st.session_state.submission_timestamp = result.get("submission_timestamp")
+                elif not st.session_state.get("submission_timestamp"):
+                    st.session_state.submission_timestamp = datetime.utcnow().isoformat()
                 st.session_state.submitted = True
                 # Don't rerun - let the success content render immediately below
                 
@@ -425,7 +599,20 @@ if st.session_state.submitted:
         frequency=spec["frequency"]
     )
     
-    st.success("✅ Your specification request has been submitted successfully!")
+    if st.session_state.get("request_id") and st.session_state.get("submission_timestamp"):
+        # Check if this is an update (has updated_at different from submission_timestamp)
+        st.success("✅ Your specification request has been updated successfully!")
+    else:
+        st.success("✅ Your specification request has been submitted successfully!")
+    
+    # Edit Specification button
+    col_edit1, col_edit2, col_edit3 = st.columns([1, 2, 1])
+    with col_edit2:
+        if st.button("✏️ Edit Specification", type="secondary", use_container_width=True):
+            st.session_state.submitted = False
+            st.rerun()
+    
+    st.markdown("---")
     
     # Show confirmation details
     request_id = st.session_state.get("request_id", "N/A")

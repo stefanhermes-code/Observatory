@@ -101,6 +101,61 @@ def create_specification_request(
     return result.data[0]
 
 
+def update_specification_request(
+    request_id: str,
+    newsletter_name: str,
+    industry_code: str,
+    categories: list,
+    regions: list,
+    frequency: str,
+    company_name: str,
+    contact_email: str,
+    first_name: str = "",
+    last_name: str = "",
+    street: str = "",
+    house_number: str = "",
+    city: str = "",
+    zip_code: str = "",
+    country: str = "",
+    vat_number: str = ""
+) -> dict:
+    """
+    Update an existing specification request in the database.
+    
+    Returns the updated specification record.
+    """
+    supabase = get_supabase_client()
+    
+    specification = {
+        "newsletter_name": newsletter_name,
+        "industry_code": industry_code,
+        "categories": categories,  # List of category IDs
+        "regions": regions,  # List of region names
+        "frequency": frequency,
+        "company_name": company_name,
+        "contact_email": contact_email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "street": street,
+        "house_number": house_number,
+        "city": city,
+        "zip_code": zip_code,
+        "country": country,
+        "vat_number": vat_number,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+    
+    result = supabase.table("specification_requests")\
+        .update(specification)\
+        .eq("id", request_id)\
+        .execute()
+    
+    if not result.data or len(result.data) == 0:
+        raise Exception(f"Failed to update specification request {request_id}: database returned no data")
+    
+    return result.data[0]
+
+
 def get_taxonomy_data():
     """Retrieve taxonomy data (categories and regions) from database or return defaults."""
     try:
