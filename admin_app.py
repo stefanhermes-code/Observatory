@@ -429,7 +429,7 @@ elif page == "📥 Process Requests":
                             st.success("Specification activated!")
                             st.rerun()
                 elif req.get('status') == 'paid_activated':
-                    st.info("Ready to assign to workspace")
+                    st.info("Ready to assign to company")
             
             with col4:
                 if st.button("❌ Reject", key=f"reject_{req.get('id')}"):
@@ -613,15 +613,15 @@ elif page == "🏢 Companies":
 elif page == "👤 Users":
     st.markdown('<p class="main-header">User Management</p>', unsafe_allow_html=True)
     
-    # Select workspace
+    # Select company
     workspaces = get_all_workspaces()
     
     if not workspaces:
-        st.warning("No workspaces available. Create a workspace first.")
+        st.warning("No companies available. Create a company first.")
     else:
         workspace_options = {ws.get('id'): f"{ws.get('name')} - {ws.get('company_name')}" for ws in workspaces}
         selected_workspace_id = st.selectbox(
-            "Select Workspace",
+            "Select Company",
             options=list(workspace_options.keys()),
             format_func=lambda x: workspace_options[x]
         )
@@ -657,9 +657,10 @@ elif page == "👤 Users":
                                         "add_workspace_member",
                                         st.session_state.user_email,
                                         {"workspace_id": selected_workspace_id, "member_email": member_email, "role": member_role},
-                                        f"Added {member_email} as {member_role} to workspace with password"
+                                        f"Added {member_email} as {member_role} to company with password"
                                     )
-                                    st.success(f"✅ Added {member_email} to workspace with password set!")
+                                    st.success(f"✅ Added {member_email} to company with password set!")
+                                    st.info(f"📧 **Password for {member_email}:** `{member_password}` - Please share this with the user securely.")
                                     st.rerun()
                         else:
                             st.error("Please enter an email address")
@@ -850,7 +851,7 @@ elif page == "📰 Intelligence Specifications":
     with col1:
         status_filter = st.selectbox("Filter by Status", ["All", "active", "paused"])
     with col2:
-        workspace_filter = st.selectbox("Filter by Workspace", ["All"] + [ws.get('name') for ws in get_all_workspaces()])
+        workspace_filter = st.selectbox("Filter by Company", ["All"] + [ws.get('name') for ws in get_all_workspaces()])
     
     # Get specifications
     specifications = get_newsletter_specifications()
@@ -873,7 +874,7 @@ elif page == "📰 Intelligence Specifications":
                 st.write("**Newsletter Name:**", spec.get('newsletter_name'))
                 st.write("**Frequency:**", spec.get('frequency', '').title())
                 st.write("**Status:**", status)
-                st.write("**Workspace:**", spec.get('workspace_id', 'Unknown'))
+                st.write("**Company:**", spec.get('workspace_id', 'Unknown'))
             
             with col2:
                 st.write("**Categories:**", len(spec.get('categories', [])))
@@ -1403,8 +1404,8 @@ HTC Global
                                         {"workspace_id": workspace_id, "company_name": company_name, "member_email": contact_email},
                                         f"Automatically created workspace for {company_name} and added {contact_email} as owner (default password: {default_password})"
                                     )
-                                    st.info(f"✅ Created workspace for {company_name} and added {contact_email} as owner")
-                                    st.warning(f"⚠️ **Default password set:** {default_password} - User should change this on first login.")
+                                    st.success(f"✅ Company workspace created and user added!")
+                                    st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
                                 else:
                                     workspace_id = matching_workspace.get('id')
                                     
@@ -1419,7 +1420,7 @@ HTC Global
                                         if not has_password_set(contact_email):
                                             default_password = f"{company_name.replace(' ', '')}2025"
                                             set_workspace_user_password(contact_email, default_password, workspace_id)
-                                            st.warning(f"⚠️ **Default password set:** {default_password} - User should change this on first login.")
+                                            st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
                                         
                                         log_audit_action(
                                             "auto_add_member_to_existing_workspace",
@@ -1429,7 +1430,7 @@ HTC Global
                                         )
                                         st.info(f"✅ Added {contact_email} as owner to existing workspace")
                                 
-                                # Assign request to workspace (creates intelligence specification)
+                                # Assign request to company (creates intelligence specification)
                                 if assign_request_to_workspace(req.get('id'), workspace_id):
                                     # Update status to paid_activated
                                     update_specification_request_status(req.get('id'), "paid_activated")
@@ -1443,7 +1444,7 @@ HTC Global
                                     st.balloons()
                                     st.rerun()
                                 else:
-                                    st.error("Failed to assign request to workspace")
+                                    st.error("Failed to assign request to company")
                     
                     # Show status for paid_activated requests
                     if req.get('status') == 'paid_activated':
