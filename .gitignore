@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Streamlit
+# Note: .streamlit/config.toml is committed, but secrets should be in Streamlit Cloud
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+all_documents.txt
+extracted_text.txt
+
+# Temporary files
+~$*
+*.tmp
+*.html  # Generated HTML reports/invoices (keep templates, ignore generated)
+*.pdf   # Generated PDFs (keep templates, ignore generated)
+
+# Locked files (move manually when OneDrive finishes syncing)
+Keys etc.htm
+
+# Admin users file (contains passwords)
+admin_users.json
+workspace_users.json
+
+# Generated files
+merged_companies.txt
+test_company_list.json
+

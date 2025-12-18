@@ -1,0 +1,18 @@
+# Streamlit Cloud Configuration
+# This file is optional and can be used to configure Streamlit settings
+
+[theme]
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
+
+[server]
+# Enable CORS for API calls if needed
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+

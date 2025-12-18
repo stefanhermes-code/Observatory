@@ -1,0 +1,2181 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-12-17",
+  "companies": [
+    {
+      "name": "Adient plc",
+      "aliases": [],
+      "value_chain_position": [
+        "end-use manufacturers (automotive components)",
+        "end-use (auto parts)",
+        "converter / moulder",
+        "converter"
+      ],
+      "regions": [
+        "asia",
+        "europe",
+        "global",
+        "na"
+      ],
+      "status": "active",
+      "notes": "HQ: Ireland/USA"
+    },
+    {
+      "name": "Air Liquide",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Albemarle Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Arkema",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Asahi Kasei",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Ashoka PU Foam",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Asia Polyurethane Manufacturing (APU)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Aster",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Auping",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "BASF (PU Systems)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "BASF SE",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers",
+        "system house"
+      ],
+      "regions": [
+        "apac",
+        "americas",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: Germany"
+    },
+    {
+      "name": "BCI Holding (Baalbaki Chem. Ind.)",
+      "aliases": [],
+      "value_chain_position": [
+        "System house",
+        "Polyol producer"
+      ],
+      "regions": [
+        "Middle East",
+        "Africa",
+        "Europe"
+      ],
+      "status": "active",
+      "notes": "HQ: UAE (orig. Lebanon)"
+    },
+    {
+      "name": "Bensons for Beds",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Beter Bed (M line)",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Boeing Company",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "Americas",
+        "EMEA",
+        "APAC"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Carlisle Polyurethane Systems (Carlisle Companies)",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "global export"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Carpenter Co.",
+      "aliases": [],
+      "value_chain_position": [
+        "foam manufacturers (incl. moulders)",
+        "foam manufacturer",
+        "converter"
+      ],
+      "regions": [
+        "global",
+        "americas",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Casper",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "USA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Clariant",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "COIM S.p.A.",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer",
+        "System house"
+      ],
+      "regions": [
+        "Europe",
+        "Americas",
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: Italy"
+    },
+    {
+      "name": "Colorex",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Covestro (BaySystems)",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: Germany"
+    },
+    {
+      "name": "Covestro (Systems)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Covestro AG",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers",
+        "system house"
+      ],
+      "regions": [
+        "apac",
+        "americas",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: Germany"
+    },
+    {
+      "name": "Dolidol (Uni Confort Maroc)",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "End-use mfr"
+      ],
+      "regions": [
+        "W. Africa"
+      ],
+      "status": "active",
+      "notes": "HQ: Morocco"
+    },
+    {
+      "name": "Dorado Bathware (Example SME)",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: Thailand"
+    },
+    {
+      "name": "Dorelan",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Dormeo (Studio Moderna)",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Dow",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Dow (PU Systems)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Dow Chemical Company",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer",
+        "System house"
+      ],
+      "regions": [
+        "Americas",
+        "EMEA",
+        "APAC"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Dow Polyurethane Systems",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Dunlopillo",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Emery Oleochemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Asia",
+        "Europe",
+        "Americas"
+      ],
+      "status": "active",
+      "notes": "HQ: Malaysia"
+    },
+    {
+      "name": "Emma",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Era Polymers",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "APAC",
+        "Export"
+      ],
+      "status": "active",
+      "notes": "HQ: Australia"
+    },
+    {
+      "name": "Ergoflex",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Evonik",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Evonik Industries",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: Germany"
+    },
+    {
+      "name": "Expanded Polymer Systems",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Faurecia (FORVIA)",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Moulder"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: France"
+    },
+    {
+      "name": "Flexipol",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Foamcraft, Inc.",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Fabricator"
+      ],
+      "regions": [
+        "North America"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "FoamPartner",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Form Sünger (Erciyes Anadolu Holding)",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Formosa Plastics",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "FORVIA (Faurecia)",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (automotive components)"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "FSI",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "FSI (Foam Supplies, Inc.)",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "North America",
+        "EMEA",
+        "APAC"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "FSI India",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Future Foam, Inc.",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Americas"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "General Plastics Mfg.",
+      "aliases": [],
+      "value_chain_position": [
+        "foam manufacturer",
+        "converter / moulder",
+        "converter"
+      ],
+      "regions": [
+        "export",
+        "americas"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "GNFC (Guj. Narmada Valley Fert.)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "South Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: India"
+    },
+    {
+      "name": "Growchem",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Hanwha Solutions",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Asia-Pacific"
+      ],
+      "status": "active",
+      "notes": "HQ: South Korea"
+    },
+    {
+      "name": "Harrison Spinks",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Hot Mark Systems",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Huntsman (Dubai systems house)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "Middle East"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Huntsman Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers",
+        "system house"
+      ],
+      "regions": [
+        "apac",
+        "global",
+        "americas",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Huntsman Polyurethane Systems",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Hypnos Beds",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Hästens",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "ICL Group",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: Israel"
+    },
+    {
+      "name": "IKEA",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "IKEA (Ingka Group)",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer (retail)"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: Sweden"
+    },
+    {
+      "name": "INEOS",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "INOAC Corp.",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Asia",
+        "North America"
+      ],
+      "status": "active",
+      "notes": "HQ: Japan"
+    },
+    {
+      "name": "Interplasp",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "KareFoam",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Kingsdown",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Kingspan Group",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "EMEA",
+        "Americas",
+        "APAC"
+      ],
+      "status": "active",
+      "notes": "HQ: Ireland"
+    },
+    {
+      "name": "Kumho Mitsui Chemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Asia-Pacific"
+      ],
+      "status": "active",
+      "notes": "HQ: South Korea"
+    },
+    {
+      "name": "Lanxess AG",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers"
+      ],
+      "regions": [
+        "global",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: Germany"
+    },
+    {
+      "name": "Lear Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "end-use manufacturers (automotive components)",
+        "end-use (auto parts)",
+        "converter / moulder",
+        "converter"
+      ],
+      "regions": [
+        "asia",
+        "europe",
+        "global",
+        "na"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "LG Chem",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Linde",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Livon Techno Foams",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Lotte Chemical",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Lubrizol",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "LyondellBasell",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Magna International",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Moulder"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: Canada"
+    },
+    {
+      "name": "Magniflex",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Manali Petrochemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "South Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: India"
+    },
+    {
+      "name": "Meenakshi Polymers",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Moulder"
+      ],
+      "regions": [
+        "South Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: India"
+    },
+    {
+      "name": "Mitsubishi Chemical Group",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Mitsui Chemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Mitsui Chemicals, Inc.",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Asia",
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": "HQ: Japan"
+    },
+    {
+      "name": "Momentive Performance Materials",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "NEVEON (Greiner)",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Europe",
+        "Asia",
+        "NA"
+      ],
+      "status": "active",
+      "notes": "HQ: Austria"
+    },
+    {
+      "name": "Nike, Inc.",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "OCI",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Pearl Polyurethane Systems",
+      "aliases": [],
+      "value_chain_position": [
+        "system house",
+        "system houses"
+      ],
+      "regions": [
+        "asia",
+        "middle east"
+      ],
+      "status": "active",
+      "notes": "HQ: UAE"
+    },
+    {
+      "name": "Petronas Chemicals (Perstorp)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Europe",
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: Malaysia/Sweden"
+    },
+    {
+      "name": "PETRONAS Chemicals Group (PCG)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Pikolin",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Polytek Urethane",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "PTT Global Chemical (PTTGC)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Purcom Química",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "Latin America"
+      ],
+      "status": "active",
+      "notes": "HQ: Brazil"
+    },
+    {
+      "name": "Purepol",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Recticel / Engineered Foams",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Recticel S.A.",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter",
+        "End-use mfr"
+      ],
+      "regions": [
+        "global sales"
+      ],
+      "status": "active",
+      "notes": "HQ: Belgium"
+    },
+    {
+      "name": "Reliance Industries",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Relyon",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Repsol S.A.",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Europe",
+        "LatAm"
+      ],
+      "status": "active",
+      "notes": "HQ: Spain"
+    },
+    {
+      "name": "Rogers Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Americas",
+        "EMEA",
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "RÜHL PUROMER",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "SABIC",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Middle East"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "SABIC (Saudi Basic Ind.)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Middle East"
+      ],
+      "status": "active",
+      "notes": "HQ: Saudi Arabia"
+    },
+    {
+      "name": "Sadara Chemical Co.",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Middle East"
+      ],
+      "status": "active",
+      "notes": "HQ: Saudi Arabia"
+    },
+    {
+      "name": "SCG Chemicals (SCGC)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Sekisui Chemical Co.",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Asia",
+        "Europe",
+        "NA"
+      ],
+      "status": "active",
+      "notes": "HQ: Japan"
+    },
+    {
+      "name": "Serta Simmons Bedding",
+      "aliases": [],
+      "value_chain_position": [
+        "end-use manufacturers (mattress/bedding)",
+        "end-use manufacturer"
+      ],
+      "regions": [
+        "north america",
+        "global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Shakun Industries",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Shandong INOV Polyurethane",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical mfr",
+        "System house"
+      ],
+      "regions": [
+        "global export"
+      ],
+      "status": "active",
+      "notes": "HQ: China"
+    },
+    {
+      "name": "Sheela Foam Ltd.",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "End-use mfr"
+      ],
+      "regions": [
+        "recent"
+      ],
+      "status": "active",
+      "notes": "HQ: India"
+    },
+    {
+      "name": "Shell Chemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Shell Plc (Shell Chemicals)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: UK / Netherlands"
+    },
+    {
+      "name": "Shree Krishna Polyurethane (SKPI)",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Silentnight",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Simba",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Sinomax Group",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "End-use mfr"
+      ],
+      "regions": [
+        "Asia",
+        "North America"
+      ],
+      "status": "active",
+      "notes": "HQ: Hong Kong/China"
+    },
+    {
+      "name": "Sinopec",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "SK Chemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "SKC Co. (SK pucore)",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Asia-Pacific"
+      ],
+      "status": "active",
+      "notes": "HQ: South Korea"
+    },
+    {
+      "name": "Sleep Number Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "end-use manufacturers (mattress/bedding)",
+        "end-use manufacturer"
+      ],
+      "regions": [
+        "north america",
+        "usa"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Sleepeezee",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Solvay",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Spring Air",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Stepan Company",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Sumitomo Chemical",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturers"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Sunpreeth Engineers",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Moulder"
+      ],
+      "regions": [
+        "South Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: India"
+    },
+    {
+      "name": "Synthesia Technology",
+      "aliases": [],
+      "value_chain_position": [
+        "System house",
+        "Polyol producer"
+      ],
+      "regions": [
+        "Europe",
+        "Americas"
+      ],
+      "status": "active",
+      "notes": "HQ: Spain"
+    },
+    {
+      "name": "Systemhouse Group",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Tandy Innovative Chemicals",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Tempur Sealy International",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (mattress/bedding)"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Tempur-Sealy International",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "Americas",
+        "EMEA",
+        "APAC"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "The Vita Group",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "UK",
+        "EU"
+      ],
+      "status": "active",
+      "notes": "HQ: UK"
+    },
+    {
+      "name": "Tosoh Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers"
+      ],
+      "regions": [
+        "asia",
+        "apac"
+      ],
+      "status": "active",
+      "notes": "HQ: Japan"
+    },
+    {
+      "name": "Toyota Boshoku Corp.",
+      "aliases": [],
+      "value_chain_position": [
+        "end-use manufacturers (automotive components)",
+        "converter / moulder"
+      ],
+      "regions": [
+        "asia",
+        "apac",
+        "americas"
+      ],
+      "status": "active",
+      "notes": "HQ: Japan"
+    },
+    {
+      "name": "TS Tech",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturers (automotive components)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "UFP Technologies, Inc.",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Fabricator"
+      ],
+      "regions": [
+        "North America"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Vencorex",
+      "aliases": [],
+      "value_chain_position": [
+        "Chemical manufacturer"
+      ],
+      "regions": [
+        "Europe",
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: France/Thailand"
+    },
+    {
+      "name": "Vikudha Malaysia",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Vita Group",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Vitafoam (Nigeria) PLC",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "End-use mfr"
+      ],
+      "regions": [
+        "Africa"
+      ],
+      "status": "active",
+      "notes": "HQ: Nigeria"
+    },
+    {
+      "name": "Wanhua (Systems)",
+      "aliases": [],
+      "value_chain_position": [
+        "System houses"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Wanhua (Wanhua Chemical)",
+      "aliases": [],
+      "value_chain_position": [
+        "System house"
+      ],
+      "regions": [
+        "Asia",
+        "EMEA"
+      ],
+      "status": "active",
+      "notes": "HQ: China"
+    },
+    {
+      "name": "Wanhua Chemical Group",
+      "aliases": [],
+      "value_chain_position": [
+        "chemical manufacturer",
+        "chemical manufacturers"
+      ],
+      "regions": [
+        "apac",
+        "americas",
+        "emea"
+      ],
+      "status": "active",
+      "notes": "HQ: China"
+    },
+    {
+      "name": "Wansern Foam Industry",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturers (incl. moulders)"
+      ],
+      "regions": [
+        "APAC"
+      ],
+      "status": "active",
+      "notes": ""
+    },
+    {
+      "name": "Whirlpool Corporation",
+      "aliases": [],
+      "value_chain_position": [
+        "End-use manufacturer"
+      ],
+      "regions": [
+        "Global"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Wisconsin Foam Products",
+      "aliases": [],
+      "value_chain_position": [
+        "Converter / Fabricator"
+      ],
+      "regions": [
+        "North America"
+      ],
+      "status": "active",
+      "notes": "HQ: USA"
+    },
+    {
+      "name": "Woodbridge (Woodbridge Foam Corp)",
+      "aliases": [],
+      "value_chain_position": [
+        "Foam manufacturer",
+        "Converter"
+      ],
+      "regions": [
+        "Americas",
+        "Europe",
+        "Asia"
+      ],
+      "status": "active",
+      "notes": "HQ: Canada"
+    }
+  ],
+  "categories": {
+    "end-use manufacturers (automotive components)": [
+      "Adient plc",
+      "Lear Corporation",
+      "Toyota Boshoku Corp."
+    ],
+    "end-use (auto parts)": [
+      "Adient plc",
+      "Lear Corporation"
+    ],
+    "converter / moulder": [
+      "Adient plc",
+      "General Plastics Mfg.",
+      "Lear Corporation",
+      "Toyota Boshoku Corp."
+    ],
+    "converter": [
+      "Adient plc",
+      "Carpenter Co.",
+      "General Plastics Mfg.",
+      "Lear Corporation"
+    ],
+    "Chemical manufacturers": [
+      "Air Liquide",
+      "Arkema",
+      "Asahi Kasei",
+      "Aster",
+      "Clariant",
+      "Dow",
+      "Evonik",
+      "Formosa Plastics",
+      "INEOS",
+      "LG Chem",
+      "Linde",
+      "Lotte Chemical",
+      "Lubrizol",
+      "LyondellBasell",
+      "Mitsubishi Chemical Group",
+      "Mitsui Chemicals",
+      "OCI",
+      "PETRONAS Chemicals Group (PCG)",
+      "PTT Global Chemical (PTTGC)",
+      "Reliance Industries",
+      "SABIC",
+      "SCG Chemicals (SCGC)",
+      "Shell Chemicals",
+      "Sinopec",
+      "SK Chemicals",
+      "Solvay",
+      "Sumitomo Chemical"
+    ],
+    "Chemical manufacturer": [
+      "Albemarle Corporation",
+      "COIM S.p.A.",
+      "Dow Chemical Company",
+      "Emery Oleochemicals",
+      "Evonik Industries",
+      "GNFC (Guj. Narmada Valley Fert.)",
+      "Hanwha Solutions",
+      "ICL Group",
+      "Kumho Mitsui Chemicals",
+      "Manali Petrochemicals",
+      "Mitsui Chemicals, Inc.",
+      "Momentive Performance Materials",
+      "Petronas Chemicals (Perstorp)",
+      "Repsol S.A.",
+      "SABIC (Saudi Basic Ind.)",
+      "Sadara Chemical Co.",
+      "Shell Plc (Shell Chemicals)",
+      "SKC Co. (SK pucore)",
+      "Stepan Company",
+      "Vencorex"
+    ],
+    "Foam manufacturers (incl. moulders)": [
+      "Ashoka PU Foam",
+      "Flexipol",
+      "FoamPartner",
+      "Form Sünger (Erciyes Anadolu Holding)",
+      "Interplasp",
+      "KareFoam",
+      "Livon Techno Foams",
+      "Purepol",
+      "Recticel / Engineered Foams",
+      "Shree Krishna Polyurethane (SKPI)",
+      "Vita Group",
+      "Wansern Foam Industry"
+    ],
+    "System houses": [
+      "Asia Polyurethane Manufacturing (APU)",
+      "BASF (PU Systems)",
+      "Colorex",
+      "Covestro (Systems)",
+      "Dow (PU Systems)",
+      "Expanded Polymer Systems",
+      "FSI",
+      "FSI India",
+      "Growchem",
+      "Hot Mark Systems",
+      "Huntsman (Dubai systems house)",
+      "Polytek Urethane",
+      "RÜHL PUROMER",
+      "Shakun Industries",
+      "Systemhouse Group",
+      "Tandy Innovative Chemicals",
+      "Vikudha Malaysia",
+      "Wanhua (Systems)"
+    ],
+    "End-use manufacturers (mattress/bedding)": [
+      "Auping",
+      "Bensons for Beds",
+      "Beter Bed (M line)",
+      "Casper",
+      "Dorelan",
+      "Dormeo (Studio Moderna)",
+      "Dunlopillo",
+      "Emma",
+      "Ergoflex",
+      "Harrison Spinks",
+      "Hypnos Beds",
+      "Hästens",
+      "IKEA",
+      "Kingsdown",
+      "Magniflex",
+      "Pikolin",
+      "Relyon",
+      "Silentnight",
+      "Simba",
+      "Sleepeezee",
+      "Spring Air",
+      "Tempur Sealy International"
+    ],
+    "chemical manufacturer": [
+      "BASF SE",
+      "Covestro AG",
+      "Huntsman Corporation",
+      "Lanxess AG",
+      "Tosoh Corporation",
+      "Wanhua Chemical Group"
+    ],
+    "chemical manufacturers": [
+      "BASF SE",
+      "Covestro AG",
+      "Huntsman Corporation",
+      "Lanxess AG",
+      "Tosoh Corporation",
+      "Wanhua Chemical Group"
+    ],
+    "system house": [
+      "BASF SE",
+      "Covestro AG",
+      "Huntsman Corporation",
+      "Pearl Polyurethane Systems"
+    ],
+    "System house": [
+      "BCI Holding (Baalbaki Chem. Ind.)",
+      "Carlisle Polyurethane Systems (Carlisle Companies)",
+      "COIM S.p.A.",
+      "Covestro (BaySystems)",
+      "Dow Chemical Company",
+      "Dow Polyurethane Systems",
+      "Era Polymers",
+      "FSI (Foam Supplies, Inc.)",
+      "Huntsman Polyurethane Systems",
+      "Purcom Química",
+      "Shandong INOV Polyurethane",
+      "Synthesia Technology",
+      "Wanhua (Wanhua Chemical)"
+    ],
+    "Polyol producer": [
+      "BCI Holding (Baalbaki Chem. Ind.)",
+      "Synthesia Technology"
+    ],
+    "End-use manufacturer": [
+      "Boeing Company",
+      "Dorado Bathware (Example SME)",
+      "Kingspan Group",
+      "Nike, Inc.",
+      "Tempur-Sealy International",
+      "Whirlpool Corporation"
+    ],
+    "foam manufacturers (incl. moulders)": [
+      "Carpenter Co."
+    ],
+    "foam manufacturer": [
+      "Carpenter Co.",
+      "General Plastics Mfg."
+    ],
+    "Foam manufacturer": [
+      "Dolidol (Uni Confort Maroc)",
+      "Future Foam, Inc.",
+      "INOAC Corp.",
+      "NEVEON (Greiner)",
+      "Recticel S.A.",
+      "Rogers Corporation",
+      "Sekisui Chemical Co.",
+      "Sheela Foam Ltd.",
+      "Sinomax Group",
+      "The Vita Group",
+      "Vitafoam (Nigeria) PLC",
+      "Woodbridge (Woodbridge Foam Corp)"
+    ],
+    "End-use mfr": [
+      "Dolidol (Uni Confort Maroc)",
+      "Recticel S.A.",
+      "Sheela Foam Ltd.",
+      "Sinomax Group",
+      "Vitafoam (Nigeria) PLC"
+    ],
+    "Converter / Moulder": [
+      "Faurecia (FORVIA)",
+      "Magna International",
+      "Meenakshi Polymers",
+      "Sunpreeth Engineers"
+    ],
+    "Converter / Fabricator": [
+      "Foamcraft, Inc.",
+      "UFP Technologies, Inc.",
+      "Wisconsin Foam Products"
+    ],
+    "End-use manufacturers (automotive components)": [
+      "FORVIA (Faurecia)",
+      "TS Tech"
+    ],
+    "Converter": [
+      "Future Foam, Inc.",
+      "INOAC Corp.",
+      "NEVEON (Greiner)",
+      "Recticel S.A.",
+      "Rogers Corporation",
+      "Sekisui Chemical Co.",
+      "The Vita Group",
+      "Woodbridge (Woodbridge Foam Corp)"
+    ],
+    "End-use manufacturer (retail)": [
+      "IKEA (Ingka Group)"
+    ],
+    "system houses": [
+      "Pearl Polyurethane Systems"
+    ],
+    "end-use manufacturers (mattress/bedding)": [
+      "Serta Simmons Bedding",
+      "Sleep Number Corporation"
+    ],
+    "end-use manufacturer": [
+      "Serta Simmons Bedding",
+      "Sleep Number Corporation"
+    ],
+    "Chemical mfr": [
+      "Shandong INOV Polyurethane"
+    ]
+  }
+}

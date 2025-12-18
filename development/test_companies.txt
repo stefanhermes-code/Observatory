@@ -1,0 +1,30 @@
+BASF
+Aliases: BASF SE, BASF Corporation
+Position: MDI Producer, TDI Producer, Polyols Producer, Systems
+Regions: EMEA, North America, China, SEA
+Notes: Major MDI and polyols producer
+---
+Covestro
+Aliases: Covestro AG, Covestro LLC
+Position: MDI Producer, TDI Producer, Polyols Producer, Systems
+Regions: EMEA, North America, China, SEA
+Notes: Major MDI and TDI producer, spun off from Bayer
+---
+Dow Chemical
+Aliases: Dow, Dow Inc., Dow Chemical Company
+Position: MDI Producer, Polyols Producer, Systems
+Regions: North America, EMEA, China, SEA
+Notes: Major polyols and systems producer
+---
+Huntsman
+Aliases: Huntsman Corporation, Huntsman International
+Position: MDI Producer, Polyols Producer, Systems
+Regions: North America, EMEA, China
+Notes: MDI and polyols producer
+---
+Wanhua Chemical
+Aliases: Wanhua, Wanhua Chemical Group
+Position: MDI Producer, TDI Producer, Polyols Producer
+Regions: China, EMEA, North America
+Notes: Largest MDI producer globally
+

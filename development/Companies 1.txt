@@ -1,0 +1,95 @@
+Company	PU value-chain link	Primary region
+BASF	Chemical manufacturers	EMEA
+Covestro	Chemical manufacturers	EMEA
+Wanhua Chemical	Chemical manufacturers	APAC
+Huntsman	Chemical manufacturers	Global
+Dow	Chemical manufacturers	Global
+INEOS	Chemical manufacturers	EMEA
+LyondellBasell	Chemical manufacturers	Global
+Sinopec	Chemical manufacturers	APAC
+Solvay	Chemical manufacturers	EMEA
+Aster	Chemical manufacturers	APAC
+Lubrizol	Chemical manufacturers	Global
+Evonik	Chemical manufacturers	EMEA
+LANXESS	Chemical manufacturers	EMEA
+Clariant	Chemical manufacturers	EMEA
+Arkema	Chemical manufacturers	EMEA
+SABIC	Chemical manufacturers	Middle East
+OCI	Chemical manufacturers	EMEA
+Shell Chemicals	Chemical manufacturers	Global
+Linde	Chemical manufacturers	Global
+Air Liquide	Chemical manufacturers	EMEA
+LG Chem	Chemical manufacturers	APAC
+Lotte Chemical	Chemical manufacturers	APAC
+SK Chemicals	Chemical manufacturers	APAC
+Mitsui Chemicals	Chemical manufacturers	APAC
+Mitsubishi Chemical Group	Chemical manufacturers	APAC
+Sumitomo Chemical	Chemical manufacturers	APAC
+Tosoh	Chemical manufacturers	APAC
+Asahi Kasei	Chemical manufacturers	APAC
+Reliance Industries	Chemical manufacturers	APAC
+PTT Global Chemical (PTTGC)	Chemical manufacturers	APAC
+SCG Chemicals (SCGC)	Chemical manufacturers	APAC
+PETRONAS Chemicals Group (PCG)	Chemical manufacturers	APAC
+Formosa Plastics	Chemical manufacturers	APAC
+Systemhouse Group	System houses	EMEA
+RÜHL PUROMER	System houses	EMEA
+Pearl Polyurethane Systems	System houses	Middle East
+Huntsman (Dubai systems house)	System houses	Middle East
+Asia Polyurethane Manufacturing (APU)	System houses	APAC
+Colorex	System houses	APAC
+Growchem	System houses	APAC
+Hot Mark Systems	System houses	APAC
+Vikudha Malaysia	System houses	APAC
+FSI	System houses	Global
+FSI India	System houses	APAC
+Tandy Innovative Chemicals	System houses	APAC
+Expanded Polymer Systems	System houses	APAC
+Polytek Urethane	System houses	APAC
+Shakun Industries	System houses	APAC
+BASF (PU Systems)	System houses	Global
+Dow (PU Systems)	System houses	Global
+Covestro (Systems)	System houses	Global
+Wanhua (Systems)	System houses	APAC
+Vita Group	Foam manufacturers (incl. moulders)	EMEA
+Carpenter Co.	Foam manufacturers (incl. moulders)	Global
+Recticel / Engineered Foams	Foam manufacturers (incl. moulders)	EMEA
+FoamPartner	Foam manufacturers (incl. moulders)	EMEA
+Interplasp	Foam manufacturers (incl. moulders)	EMEA
+Purepol	Foam manufacturers (incl. moulders)	EMEA
+Form Sünger (Erciyes Anadolu Holding)	Foam manufacturers (incl. moulders)	EMEA
+Wansern Foam Industry	Foam manufacturers (incl. moulders)	APAC
+Shree Krishna Polyurethane (SKPI)	Foam manufacturers (incl. moulders)	APAC
+Livon Techno Foams	Foam manufacturers (incl. moulders)	APAC
+Flexipol	Foam manufacturers (incl. moulders)	APAC
+KareFoam	Foam manufacturers (incl. moulders)	APAC
+Ashoka PU Foam	Foam manufacturers (incl. moulders)	APAC
+IKEA	End-use manufacturers (mattress/bedding)	EMEA
+Pikolin	End-use manufacturers (mattress/bedding)	EMEA
+Silentnight	End-use manufacturers (mattress/bedding)	EMEA
+Emma	End-use manufacturers (mattress/bedding)	EMEA
+Simba	End-use manufacturers (mattress/bedding)	EMEA
+Magniflex	End-use manufacturers (mattress/bedding)	EMEA
+Dormeo (Studio Moderna)	End-use manufacturers (mattress/bedding)	EMEA
+Serta Simmons Bedding	End-use manufacturers (mattress/bedding)	Global
+Hypnos Beds	End-use manufacturers (mattress/bedding)	EMEA
+Harrison Spinks	End-use manufacturers (mattress/bedding)	EMEA
+Bensons for Beds	End-use manufacturers (mattress/bedding)	EMEA
+Relyon	End-use manufacturers (mattress/bedding)	EMEA
+Dorelan	End-use manufacturers (mattress/bedding)	EMEA
+Auping	End-use manufacturers (mattress/bedding)	EMEA
+Beter Bed (M line)	End-use manufacturers (mattress/bedding)	EMEA
+Sleepeezee	End-use manufacturers (mattress/bedding)	EMEA
+Ergoflex	End-use manufacturers (mattress/bedding)	EMEA
+Dunlopillo	End-use manufacturers (mattress/bedding)	EMEA
+Tempur Sealy International	End-use manufacturers (mattress/bedding)	Global
+Sleep Number	End-use manufacturers (mattress/bedding)	USA
+Casper	End-use manufacturers (mattress/bedding)	USA
+Kingsdown	End-use manufacturers (mattress/bedding)	Global
+Spring Air	End-use manufacturers (mattress/bedding)	Global
+Hästens	End-use manufacturers (mattress/bedding)	EMEA
+Adient	End-use manufacturers (automotive components)	Global
+Lear	End-use manufacturers (automotive components)	Global
+FORVIA (Faurecia)	End-use manufacturers (automotive components)	Global
+Toyota Boshoku	End-use manufacturers (automotive components)	APAC
+TS Tech	End-use manufacturers (automotive components)	APAC

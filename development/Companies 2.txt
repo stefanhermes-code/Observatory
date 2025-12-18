@@ -1,0 +1,75 @@
+Company	HQ Country	Primary Regions	Value-Chain Role(s)
+BASF SE	Germany	Global (EMEA, Americas, APAC)	Chemical manufacturer; System house
+Covestro AG	Germany	Global (EMEA, Americas, APAC)	Chemical manufacturer; System house
+Dow Chemical Company	USA	Global (Americas, EMEA, APAC)	Chemical manufacturer; System house
+Huntsman Corporation	USA	Global (Americas, EMEA, APAC)	Chemical manufacturer; System house
+Wanhua Chemical Group	China	Global (APAC, EMEA, Americas)	Chemical manufacturer
+Mitsui Chemicals, Inc.	Japan	Asia, EMEA	Chemical manufacturer
+SKC Co. (SK pucore)	South Korea	Asia-Pacific	Chemical manufacturer
+Kumho Mitsui Chemicals	South Korea	Asia-Pacific	Chemical manufacturer
+Hanwha Solutions	South Korea	Asia-Pacific	Chemical manufacturer
+Tosoh Corporation	Japan	Asia	Chemical manufacturer
+GNFC (Guj. Narmada Valley Fert.)	India	South Asia	Chemical manufacturer
+Manali Petrochemicals	India	South Asia	Chemical manufacturer
+Sadara Chemical Co.	Saudi Arabia	Middle East	Chemical manufacturer
+SABIC (Saudi Basic Ind.)	Saudi Arabia	Middle East	Chemical manufacturer
+Shell Plc (Shell Chemicals)	UK / Netherlands	Global	Chemical manufacturer
+Repsol S.A.	Spain	Europe, LatAm	Chemical manufacturer
+Vencorex	France/Thailand	Europe, Asia	Chemical manufacturer
+Petronas Chemicals (Perstorp)	Malaysia/Sweden	Europe, Asia	Chemical manufacturer
+Evonik Industries	Germany	Global	Chemical manufacturer
+Momentive Performance Materials	USA	Global	Chemical manufacturer
+Lanxess AG	Germany	Global	Chemical manufacturer
+ICL Group	Israel	Global	Chemical manufacturer
+Albemarle Corporation	USA	Global	Chemical manufacturer
+Stepan Company	USA	Global	Chemical manufacturer
+COIM S.p.A.	Italy	Europe, Americas, Asia	Chemical manufacturer; System house
+Emery Oleochemicals	Malaysia	Asia, Europe, Americas	Chemical manufacturer
+Carlisle Polyurethane Systems (Carlisle Companies)	USA	North America (global export)	System house
+FSI (Foam Supplies, Inc.)	USA	North America, EMEA, APAC	System house
+BCI Holding (Baalbaki Chem. Ind.)	UAE (orig. Lebanon)	Middle East, Africa, Europe	System house; Polyol producer
+Pearl Polyurethane Systems	UAE	Middle East, Asia	System house
+Synthesia Technology	Spain	Europe, Americas	System house; Polyol producer
+Era Polymers	Australia	APAC, Export	System house
+Purcom Química	Brazil	Latin America	System house
+Shandong INOV Polyurethane	China	Asia (global export)	Chemical mfr; System house
+Dow Polyurethane Systems	USA	Global	System house
+Huntsman Polyurethane Systems	USA	Global	System house
+Covestro (BaySystems)	Germany	Global	System house
+Wanhua (Wanhua Chemical)	China	Asia, EMEA	System house
+Carpenter Co.	USA	Americas, EMEA	Foam manufacturer; Converter
+Recticel S.A.	Belgium	Europe (global sales)	Foam manufacturer; Converter; End-use mfr
+The Vita Group	UK	Europe (UK, EU), US	Foam manufacturer; Converter
+Woodbridge (Woodbridge Foam Corp)	Canada	Americas, Europe, Asia	Foam manufacturer; Converter
+Sekisui Chemical Co.	Japan	Asia, Europe, NA	Foam manufacturer; Converter
+NEVEON (Greiner)	Austria	Europe, Asia, NA	Foam manufacturer; Converter
+Future Foam, Inc.	USA	Americas	Foam manufacturer; Converter
+Rogers Corporation	USA	Americas, EMEA, Asia	Foam manufacturer; Converter
+INOAC Corp.	Japan	Asia, North America	Foam manufacturer; Converter
+Sheela Foam Ltd.	India	South Asia, EU (recent)	Foam manufacturer; End-use mfr
+Sinomax Group	Hong Kong/China	Asia, North America	Foam manufacturer; End-use mfr
+Dolidol (Uni Confort Maroc)	Morocco	Africa (W. Africa)	Foam manufacturer; End-use mfr
+General Plastics Mfg.	USA	Americas, Export	Foam manufacturer; Converter
+Vitafoam (Nigeria) PLC	Nigeria	Africa	Foam manufacturer; End-use mfr
+Lear Corporation	USA	Global (NA, Europe, Asia)	Converter / Moulder
+Adient plc	Ireland/USA	Global (NA, Europe, Asia)	Converter / Moulder
+Faurecia (FORVIA)	France	Global	Converter / Moulder
+Toyota Boshoku Corp.	Japan	Asia, Americas	Converter / Moulder
+Magna International	Canada	Global	Converter / Moulder
+UFP Technologies, Inc.	USA	North America	Converter / Fabricator
+Foamcraft, Inc.	USA	North America	Converter / Fabricator
+Wisconsin Foam Products	USA	North America	Converter / Fabricator
+Meenakshi Polymers	India	South Asia	Converter / Moulder
+Sunpreeth Engineers	India	South Asia	Converter / Moulder
+General Plastics Mfg.	USA	Americas	Converter / Moulder
+Tempur-Sealy International	USA	Global (Americas, EMEA, APAC)	End-use manufacturer
+Serta Simmons Bedding	USA	North America	End-use manufacturer
+Sleep Number Corporation	USA	North America	End-use manufacturer
+IKEA (Ingka Group)	Sweden	Global	End-use manufacturer (retail)
+Lear Corporation	USA	Global	Converter; End-use (auto parts)
+Adient plc	Ireland/USA	Global	Converter; End-use (auto parts)
+Kingspan Group	Ireland	Global (EMEA, Americas, APAC)	End-use manufacturer
+Whirlpool Corporation	USA	Global	End-use manufacturer
+Nike, Inc.	USA	Global	End-use manufacturer
+Boeing Company	USA	Global (Americas, EMEA, APAC)	End-use manufacturer
+Dorado Bathware (Example SME)	Thailand	Asia	End-use manufacturer

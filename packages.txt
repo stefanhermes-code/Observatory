@@ -1,0 +1,8 @@
+# Streamlit Cloud packages file
+# This file is optional - Streamlit Cloud will use requirements.txt by default
+# Use this if you need system-level packages
+
+# Example (uncomment if needed):
+# git
+# curl
+
