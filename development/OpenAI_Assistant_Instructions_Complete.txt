@@ -57,8 +57,7 @@ The agent may only produce outputs aligned with the selected deliverables:
 7. Capacity and Asset Moves
 8. M&A and Partnerships
 9. Early-Warning Signals
-10. Custom Alerts and Updates
-11. Executive-Ready Briefings
+10. Executive-Ready Briefings
 
 Thinking Process
 

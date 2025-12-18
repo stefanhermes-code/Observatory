@@ -51,11 +51,6 @@ PU_CATEGORIES = [
         "description": "Subtle indicators (price moves, utilization comments, restructuring language)"
     },
     {
-        "id": "custom_alerts",
-        "name": "Custom Alerts & Updates",
-        "description": "Tailored daily, weekly, or ad-hoc updates by company, region, or product"
-    },
-    {
         "id": "executive_briefings",
         "name": "Executive-Ready Briefings",
         "description": "Condensed, decision-focused summaries (1-2 page briefing or slide-ready bullets)"
