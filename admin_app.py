@@ -845,14 +845,38 @@ elif page == "🔐 Administrators":
                             if len(new_password) < 6:
                                 st.error("Password must be at least 6 characters.")
                             else:
-                                update_admin_password(user.get('email'), new_password)
+                                admin_email = user.get('email')
+                                update_admin_password(admin_email, new_password)
                                 log_audit_action(
                                     "change_admin_password",
                                     st.session_state.user_email,
-                                    {"admin_email": user.get('email')},
-                                    f"Changed password for {user.get('email')}"
+                                    {"admin_email": admin_email},
+                                    f"Changed password for {admin_email}"
                                 )
                                 st.success("✅ Password updated!")
+                                st.info(f"📧 **New password for {admin_email}:** `{new_password}` - Please share this with the user securely.")
+                                
+                                # Mailto button to send password
+                                subject = quote("Your PU Observatory Admin Password Has Been Reset")
+                                body = quote(f"""Hello,
+
+Your admin password for the Polyurethane Observatory platform has been reset.
+
+New login credentials:
+Email: {admin_email}
+Password: {new_password}
+
+⚠️ IMPORTANT: Please change your password after your first login for security.
+
+Access the Admin app at: [Your Streamlit URL]
+
+If you did not request this password reset, please contact the system administrator immediately.
+
+Best regards,
+PU Observatory Admin""")
+                                mailto_link = f"mailto:{admin_email}?subject={subject}&body={body}"
+                                st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email New Password to Admin</a>', unsafe_allow_html=True)
+                                
                                 st.rerun()
             
             with col3:
