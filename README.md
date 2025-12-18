@@ -226,7 +226,7 @@ OWNER_PASSWORD = "your_admin_password"
 7. Capacity & Asset Moves
 8. M&A and Partnerships
 9. Early-Warning Signals
-11. Executive-Ready Briefings
+10. Executive-Ready Briefings
 
 ### Frequency Options
 - **Daily**: Continuous monitoring, early-warning signals (1 report per day)
