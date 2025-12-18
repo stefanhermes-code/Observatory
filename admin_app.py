@@ -459,16 +459,16 @@ elif page == "🏢 Companies":
     - Track billing and subscriptions per organization
     - Organize intelligence sources by customer
     
-    When a specification request is approved and paid, a company workspace is automatically created. 
+    When a specification request is approved and paid, a company is automatically created. 
     You can also manually create and manage companies here.
     """)
     
     st.markdown("---")
     
-    # Create new company workspace
-    with st.expander("➕ Create New Company Workspace", expanded=False):
+    # Create new company
+    with st.expander("➕ Create New Company", expanded=False):
         with st.form("create_workspace"):
-            ws_name = st.text_input("Company Workspace Name")
+            ws_name = st.text_input("Company Name")
             company_name = st.text_input("Company Name")
             contact_email = st.text_input("Contact Email")
             
@@ -481,7 +481,7 @@ elif page == "🏢 Companies":
                         {"workspace_id": workspace.get('id')},
                         f"Created company workspace: {ws_name}"
                     )
-                    st.success(f"✅ Company workspace '{ws_name}' created!")
+                    st.success(f"✅ Company '{ws_name}' created!")
                     st.rerun()
                 else:
                     st.error("Please fill in all fields")
@@ -507,7 +507,7 @@ elif page == "🏢 Companies":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.write("**Company Workspace Name:**", ws.get('name'))
+                    st.write("**Company Name:**", ws.get('name'))
                     st.write("**Company:**", ws.get('company_name'))
                     st.write("**Contact:**", ws.get('contact_email'))
                     
@@ -552,10 +552,10 @@ elif page == "🏢 Companies":
                 
                 st.markdown("---")
                 
-                # Edit company workspace
-                with st.expander("✏️ Edit Company Workspace Details", expanded=False):
+                # Edit company
+                with st.expander("✏️ Edit Company Details", expanded=False):
                     with st.form(f"edit_workspace_{ws.get('id')}"):
-                        new_name = st.text_input("Company Workspace Name", value=ws.get('name', ''), key=f"name_{ws.get('id')}")
+                        new_name = st.text_input("Company Name", value=ws.get('name', ''), key=f"name_{ws.get('id')}")
                         new_company = st.text_input("Company Name", value=ws.get('company_name', ''), key=f"company_{ws.get('id')}")
                         new_email = st.text_input("Contact Email", value=ws.get('contact_email', ''), key=f"email_{ws.get('id')}")
                         
@@ -567,7 +567,7 @@ elif page == "🏢 Companies":
                                 {"workspace_id": ws.get('id')},
                                 f"Updated company workspace details"
                             )
-                            st.success("Company workspace updated!")
+                            st.success("Company updated!")
                             st.rerun()
     else:
         st.info("No company workspaces yet. Create one above!")
@@ -835,7 +835,7 @@ elif page == "📰 Intelligence Specifications":
     
     st.info("""
     **Intelligence Specifications** are the active, approved configurations that define what intelligence 
-    sources are being generated for each workspace. Each specification includes:
+    sources are being generated for each company. Each specification includes:
     - Categories to track (e.g., company news, capacity changes)
     - Regions to monitor (e.g., EMEA, Americas, Asia)
     - Generation frequency (daily, weekly, monthly)
@@ -1404,7 +1404,7 @@ HTC Global
                                         {"workspace_id": workspace_id, "company_name": company_name, "member_email": contact_email},
                                         f"Automatically created workspace for {company_name} and added {contact_email} as owner (default password: {default_password})"
                                     )
-                                    st.success(f"✅ Company workspace created and user added!")
+                                    st.success(f"✅ Company created and user added!")
                                     st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
                                 else:
                                     workspace_id = matching_workspace.get('id')
@@ -1428,7 +1428,7 @@ HTC Global
                                             {"workspace_id": workspace_id, "member_email": contact_email},
                                             f"Added {contact_email} as owner to existing workspace for {company_name}"
                                         )
-                                        st.info(f"✅ Added {contact_email} as owner to existing workspace")
+                                        st.info(f"✅ Added {contact_email} as owner to existing company")
                                 
                                 # Assign request to company (creates intelligence specification)
                                 if assign_request_to_workspace(req.get('id'), workspace_id):
