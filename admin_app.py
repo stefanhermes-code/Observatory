@@ -661,6 +661,27 @@ elif page == "👤 Users":
                                     )
                                     st.success(f"✅ Added {member_email} to company with password set!")
                                     st.info(f"📧 **Password for {member_email}:** `{member_password}` - Please share this with the user securely.")
+                                    
+                                    # Mailto button to send password
+                                    from urllib.parse import quote
+                                    subject = quote("Your PU Observatory Login Credentials")
+                                    body = quote(f"""Hello,
+
+Your account has been created for the Polyurethane Observatory platform.
+
+Login credentials:
+Email: {member_email}
+Password: {member_password}
+
+Please change your password after your first login.
+
+Access the Generator app at: [Your Streamlit URL]
+
+Best regards,
+PU Observatory Admin""")
+                                    mailto_link = f"mailto:{member_email}?subject={subject}&body={body}"
+                                    st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email Password to User</a>', unsafe_allow_html=True)
+                                    
                                     st.rerun()
                         else:
                             st.error("Please enter an email address")
@@ -1406,6 +1427,26 @@ HTC Global
                                     )
                                     st.success(f"✅ Company created and user added!")
                                     st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
+                                    
+                                    # Mailto button to send password
+                                    from urllib.parse import quote
+                                    subject = quote("Your PU Observatory Login Credentials")
+                                    body = quote(f"""Hello,
+
+Your company account has been created for the Polyurethane Observatory platform.
+
+Login credentials:
+Email: {contact_email}
+Password: {default_password}
+
+⚠️ IMPORTANT: Please change your password after your first login.
+
+Access the Generator app at: [Your Streamlit URL]
+
+Best regards,
+PU Observatory Admin""")
+                                    mailto_link = f"mailto:{contact_email}?subject={subject}&body={body}"
+                                    st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email Password to User</a>', unsafe_allow_html=True)
                                 else:
                                     workspace_id = matching_workspace.get('id')
                                     
@@ -1421,6 +1462,26 @@ HTC Global
                                             default_password = f"{company_name.replace(' ', '')}2025"
                                             set_workspace_user_password(contact_email, default_password, workspace_id)
                                             st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
+                                            
+                                            # Mailto button to send password
+                                            from urllib.parse import quote
+                                            subject = quote("Your PU Observatory Login Credentials")
+                                            body = quote(f"""Hello,
+
+Your account has been added to the Polyurethane Observatory platform.
+
+Login credentials:
+Email: {contact_email}
+Password: {default_password}
+
+⚠️ IMPORTANT: Please change your password after your first login.
+
+Access the Generator app at: [Your Streamlit URL]
+
+Best regards,
+PU Observatory Admin""")
+                                            mailto_link = f"mailto:{contact_email}?subject={subject}&body={body}"
+                                            st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email Password to User</a>', unsafe_allow_html=True)
                                         
                                         log_audit_action(
                                             "auto_add_member_to_existing_workspace",
