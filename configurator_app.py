@@ -289,29 +289,6 @@ if not st.session_state.submitted:
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
     
-    # Real-time price estimate (prominently displayed) - only show if all required fields are present
-    if len(selected_categories) > 0 and len(st.session_state.specification.get("regions", [])) > 0 and st.session_state.specification.get("frequency"):
-        try:
-            from core.pricing import calculate_price, format_price
-            price_data = calculate_price(
-                categories=selected_categories,
-                regions=st.session_state.specification.get("regions", []),
-                frequency=st.session_state.specification.get("frequency", "monthly")
-            )
-            st.markdown(f"""
-                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
-                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
-                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
-                        {format_price(price_data)}
-                    </div>
-                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                        {format_price(price_data, show_per_user=True)} ({st.session_state.specification.get('frequency', 'monthly').title()} cadence)
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-        except Exception:
-            pass
-    
     # Step 2: Region Selection - Checkboxes like categories
     st.markdown('<p class="step-header">Step 2: Select Regions</p>', unsafe_allow_html=True)
     st.write("Select one or more regions to monitor:")
@@ -336,29 +313,6 @@ if not st.session_state.submitted:
     if len(selected_regions) == 0:
         st.warning("⚠️ Please select at least one region to continue.")
     
-    # Update real-time price estimate if all required fields are present
-    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0 and st.session_state.specification.get("frequency"):
-        try:
-            from core.pricing import calculate_price, format_price
-            price_data = calculate_price(
-                categories=st.session_state.specification.get("categories", []),
-                regions=selected_regions,
-                frequency=st.session_state.specification.get("frequency", "monthly")
-            )
-            st.markdown(f"""
-                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
-                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
-                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
-                        {format_price(price_data)}
-                    </div>
-                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                        {format_price(price_data, show_per_user=True)} ({st.session_state.specification.get('frequency', 'monthly').title()} cadence)
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-        except Exception:
-            pass
-    
     # Step 3: Frequency Selection
     st.markdown('<p class="step-header">Step 3: Choose Frequency</p>', unsafe_allow_html=True)
     st.write("Select how often you want to receive your newsletter:")
@@ -376,7 +330,7 @@ if not st.session_state.submitted:
     
     st.session_state.specification["frequency"] = selected_frequency
     
-    # Update real-time price estimate after frequency selection
+    # Real-time price estimate (prominently displayed) - shown once after step 3 is completed
     if len(st.session_state.specification.get("categories", [])) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
         try:
             from core.pricing import calculate_price, format_price
@@ -398,6 +352,8 @@ if not st.session_state.submitted:
             """, unsafe_allow_html=True)
         except Exception:
             pass
+    
+    st.markdown("---")
     
     # Step 4: Intelligence Source Name
     st.markdown('<p class="step-header">Step 4: Name Your Intelligence Source</p>', unsafe_allow_html=True)
