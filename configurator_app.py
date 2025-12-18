@@ -156,50 +156,104 @@ with st.expander("📖 How It Works", expanded=False):
 
 # Pricing Guide section
 with st.expander("💰 Pricing Guide", expanded=False):
+    st.markdown("### How Pricing Works")
+    st.markdown("**Pricing is per user, per month** - All plans include full Observatory platform access.")
+    
+    st.markdown("#### Cadence Pricing (Core)")
+    st.markdown("The frequency you choose determines the base price:")
+    
+    # Cadence pricing table using HTML
     st.markdown("""
-    ### How Pricing Works
+    <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+        <thead>
+            <tr style="background-color: #1f77b4; color: white;">
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Frequency</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Description</th>
+                <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Price per User/Month</th>
+                <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">Price per User/Year</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Monthly</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Strategic overview, themes, and outlook</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$19</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$228</td>
+            </tr>
+            <tr style="background-color: #f9f9f9;">
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Weekly</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Operational monitoring with context</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$39</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$468</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Daily</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Continuous monitoring, early-warning signals</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$119</td>
+                <td style="padding: 0.75rem; text-align: right; border: 1px solid #ddd;">$1,428</td>
+            </tr>
+        </tbody>
+    </table>
+    """, unsafe_allow_html=True)
     
-    **Pricing is per user, per month** - All plans include full Observatory platform access.
+    st.markdown("#### Scope Packages")
+    st.markdown("Your selection of categories and regions determines your package tier:")
     
-    #### Cadence Pricing (Core)
+    # Scope packages table using HTML
+    st.markdown("""
+    <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+        <thead>
+            <tr style="background-color: #1f77b4; color: white;">
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Package</th>
+                <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Categories</th>
+                <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Regions</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Starter</strong></td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 3</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">1</td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Focused coverage</td>
+            </tr>
+            <tr style="background-color: #f9f9f9;">
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Medium</strong></td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 6</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">2</td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Balanced coverage</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Pro</strong></td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 9</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 4</td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Comprehensive coverage</td>
+            </tr>
+            <tr style="background-color: #f9f9f9;">
+                <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Enterprise</strong></td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
+                <td style="padding: 0.75rem; border: 1px solid #ddd;">Full customization</td>
+            </tr>
+        </tbody>
+    </table>
+    """, unsafe_allow_html=True)
     
-    The frequency you choose determines the base price:
+    st.markdown("**Note:** Scope determines your package tier, but all plans include access to the full Observatory platform and all deliverables.")
     
-    | Frequency | Description | Price per User/Month | Price per User/Year |
-    |-----------|-------------|---------------------|-------------------|
-    | **Monthly** | Strategic overview, themes, and outlook | $19 | $228 |
-    | **Weekly** | Operational monitoring with context | $39 | $468 |
-    | **Daily** | Continuous monitoring, early-warning signals | $119 | $1,428 |
+    st.markdown("#### Example Calculations")
+    st.markdown("- **Monthly** with 3 categories, 1 region: $19/user/month = **$228/user/year**")
+    st.markdown("- **Weekly** with 6 categories, 2 regions: $39/user/month = **$468/user/year**")
+    st.markdown("- **Daily** with 9 categories, 4 regions: $119/user/month = **$1,428/user/year**")
     
-    #### Scope Packages
-    
-    Your selection of categories and regions determines your package tier:
-    
-    | Package | Categories | Regions | Description |
-    |---------|-----------|---------|-------------|
-    | **Starter** | Up to 3 | 1 | Focused coverage |
-    | **Medium** | Up to 6 | 2 | Balanced coverage |
-    | **Pro** | Up to 9 | Up to 4 | Comprehensive coverage |
-    | **Enterprise** | Custom | Custom | Full customization |
-    
-    **Note:** Scope determines your package tier, but all plans include access to the full Observatory platform and all deliverables.
-    
-    #### Example Calculations
-    
-    - **Monthly with 3 categories, 1 region**: $19/user/month = **$228/user/year**
-    - **Weekly with 6 categories, 2 regions**: $39/user/month = **$468/user/year**
-    - **Daily with 9 categories, 4 regions**: $119/user/month = **$1,428/user/year**
-    
-    #### What's Included
-    
-    All plans include access to:
-    - News Digest
-    - Industry Context & Insight
-    - Capacity & Asset Moves
-    - Competitive Developments
-    - Regulation & Sustainability
-    - Executive Briefings (where applicable)
-    """)
+    st.markdown("#### What's Included")
+    st.markdown("All plans include access to:")
+    st.markdown("- News Digest")
+    st.markdown("- Industry Context & Insight")
+    st.markdown("- Capacity & Asset Moves")
+    st.markdown("- Competitive Developments")
+    st.markdown("- Regulation & Sustainability")
+    st.markdown("- Executive Briefings (where applicable)")
 
 # Get taxonomy data
 taxonomy_data = get_taxonomy_data()
