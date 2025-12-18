@@ -138,12 +138,12 @@ if page == "📊 Dashboard":
     all_runs = get_recent_runs(100)  # Get more for performance metrics
     recent_runs = all_runs[:5]
     
-    # Calculate performance metrics
-    from datetime import datetime, timedelta
-    now = datetime.utcnow()
-    last_24h = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 86400]
-    last_7d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 604800]
-    last_30d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 2592000]
+  # Calculate performance metrics
+  from datetime import datetime, timedelta, timezone
+  now = datetime.now(timezone.utc)  # Use timezone-aware datetime
+  last_24h = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 86400]
+  last_7d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 604800]
+  last_30d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 2592000]
     
     active_specs = [s for s in specifications if s.get("status") == "active"]
     paused_specs = [s for s in specifications if s.get("status") == "paused"]
