@@ -630,6 +630,38 @@ elif page == "👤 Users":
             st.markdown("---")
             
             # Add new member
+            # Check if we just added a member (from session state)
+            add_member_key = f"member_added_{selected_workspace_id}"
+            if add_member_key in st.session_state:
+                saved_info = st.session_state[add_member_key]
+                st.success(f"✅ Added {saved_info['email']} to company with password set!")
+                st.info(f"📧 **Password for {saved_info['email']}:** `{saved_info['password']}` - Please share this with the user securely.")
+                
+                # Mailto button to send password
+                from urllib.parse import quote
+                subject = quote("Your PU Observatory Login Credentials")
+                body = quote(f"""Hello,
+
+Your account has been created for the Polyurethane Observatory platform.
+
+Login credentials:
+Email: {saved_info['email']}
+Password: {saved_info['password']}
+
+Please change your password after your first login.
+
+Access the Generator app at: [Your Streamlit URL]
+
+Best regards,
+PU Observatory Admin""")
+                mailto_link = f"mailto:{saved_info['email']}?subject={subject}&body={body}"
+                st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email Password to User</a>', unsafe_allow_html=True)
+                
+                # Clear button to dismiss
+                if st.button("✓ Done", key=f"clear_add_{selected_workspace_id}"):
+                    del st.session_state[add_member_key]
+                    st.rerun()
+            
             with st.expander("➕ Add New Member", expanded=False):
                 with st.form("add_member"):
                     member_email = st.text_input("Member Email", placeholder="user@company.com")
@@ -659,29 +691,11 @@ elif page == "👤 Users":
                                         {"workspace_id": selected_workspace_id, "member_email": member_email, "role": member_role},
                                         f"Added {member_email} as {member_role} to company with password"
                                     )
-                                    st.success(f"✅ Added {member_email} to company with password set!")
-                                    st.info(f"📧 **Password for {member_email}:** `{member_password}` - Please share this with the user securely.")
-                                    
-                                    # Mailto button to send password
-                                    from urllib.parse import quote
-                                    subject = quote("Your PU Observatory Login Credentials")
-                                    body = quote(f"""Hello,
-
-Your account has been created for the Polyurethane Observatory platform.
-
-Login credentials:
-Email: {member_email}
-Password: {member_password}
-
-Please change your password after your first login.
-
-Access the Generator app at: [Your Streamlit URL]
-
-Best regards,
-PU Observatory Admin""")
-                                    mailto_link = f"mailto:{member_email}?subject={subject}&body={body}"
-                                    st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email Password to User</a>', unsafe_allow_html=True)
-                                    
+                                    # Store password info in session state
+                                    st.session_state[add_member_key] = {
+                                        "email": member_email,
+                                        "password": member_password
+                                    }
                                     st.rerun()
                         else:
                             st.error("Please enter an email address")
@@ -734,6 +748,40 @@ PU Observatory Admin""")
                                     st.rerun()
                             
                             # Set/Reset password
+                            # Check if we just set a password (from session state)
+                            password_key = f"password_set_{member.get('id')}"
+                            if password_key in st.session_state:
+                                saved_info = st.session_state[password_key]
+                                st.success(f"✅ Password set for {saved_info['email']}!")
+                                st.info(f"📧 **New password for {saved_info['email']}:** `{saved_info['password']}` - Please share this with the user securely.")
+                                
+                                # Mailto button to send password
+                                from urllib.parse import quote
+                                subject = quote("Your PU Observatory Password Has Been Reset")
+                                body = quote(f"""Hello,
+
+Your password for the Polyurethane Observatory platform has been reset.
+
+New login credentials:
+Email: {saved_info['email']}
+Password: {saved_info['password']}
+
+⚠️ IMPORTANT: Please change your password after your first login for security.
+
+Access the Generator app at: [Your Streamlit URL]
+
+If you did not request this password reset, please contact your administrator immediately.
+
+Best regards,
+PU Observatory Admin""")
+                                mailto_link = f"mailto:{saved_info['email']}?subject={subject}&body={body}"
+                                st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email New Password to User</a>', unsafe_allow_html=True)
+                                
+                                # Clear button to dismiss
+                                if st.button("✓ Done", key=f"clear_{member.get('id')}"):
+                                    del st.session_state[password_key]
+                                    st.rerun()
+                            
                             with st.form(f"password_{member.get('id')}"):
                                 new_password = st.text_input("Set/Reset Password", type="password", key=f"pwd_{member.get('id')}")
                                 if st.form_submit_button("Set Password"):
@@ -746,31 +794,11 @@ PU Observatory Admin""")
                                             {"workspace_id": selected_workspace_id, "member_email": member_email},
                                             f"Set password for {member_email}"
                                         )
-                                        st.success(f"✅ Password set for {member_email}!")
-                                        st.info(f"📧 **New password for {member_email}:** `{new_password}` - Please share this with the user securely.")
-                                        
-                                        # Mailto button to send password
-                                        from urllib.parse import quote
-                                        subject = quote("Your PU Observatory Password Has Been Reset")
-                                        body = quote(f"""Hello,
-
-Your password for the Polyurethane Observatory platform has been reset.
-
-New login credentials:
-Email: {member_email}
-Password: {new_password}
-
-⚠️ IMPORTANT: Please change your password after your first login for security.
-
-Access the Generator app at: [Your Streamlit URL]
-
-If you did not request this password reset, please contact your administrator immediately.
-
-Best regards,
-PU Observatory Admin""")
-                                        mailto_link = f"mailto:{member_email}?subject={subject}&body={body}"
-                                        st.markdown(f'<a href="{mailto_link}" target="_blank" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1f77b4; color: white; text-align: center; text-decoration: none; border-radius: 0.25rem; margin-top: 0.5rem;">📧 Email New Password to User</a>', unsafe_allow_html=True)
-                                        
+                                        # Store password info in session state
+                                        st.session_state[password_key] = {
+                                            "email": member_email,
+                                            "password": new_password
+                                        }
                                         st.rerun()
                                     else:
                                         st.error("Please enter a password")
