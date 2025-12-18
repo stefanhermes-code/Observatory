@@ -17,6 +17,7 @@ ENV/
 # Streamlit
 # Note: .streamlit/config.toml is committed, but secrets should be in Streamlit Cloud
 .streamlit/secrets.toml
+streamlit_secrets.toml
 
 # IDE
 .vscode/
