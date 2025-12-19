@@ -361,7 +361,8 @@ if not st.session_state.submitted:
             price_data = calculate_price(
                 categories=st.session_state.specification.get("categories", []),
                 regions=selected_regions,
-                frequency=st.session_state.specification.get("frequency", "monthly")
+                frequency=st.session_state.specification.get("frequency", "monthly"),
+                package_tier=None  # Use None to auto-determine for suggestion
             )
             suggested_tier = price_data["breakdown"]["scope"]["tier"]
         except Exception:
