@@ -82,6 +82,7 @@ if "specification" not in st.session_state:
     st.session_state.specification = {
         "categories": [],
         "regions": [],
+        "package_tier": "",  # Explicit package tier selection
         "frequency": "",
         "newsletter_name": "",
         "company_name": "",
@@ -296,30 +297,6 @@ if not st.session_state.submitted:
     
     st.session_state.specification["categories"] = selected_categories
     
-    # Show package tier indicator
-    if len(selected_categories) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
-        try:
-            from core.pricing import calculate_price
-            price_data = calculate_price(
-                categories=selected_categories,
-                regions=st.session_state.specification.get("regions", []),
-                frequency=st.session_state.specification.get("frequency", "monthly")
-            )
-            scope_tier = price_data["breakdown"]["scope"]["tier"]
-            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
-            
-            tier_colors = {
-                "Starter": "#4caf50",
-                "Medium": "#2196f3",
-                "Pro": "#ff9800",
-                "Enterprise": "#9c27b0"
-            }
-            tier_color = tier_colors.get(scope_tier, "#666")
-            
-            st.info(f"📦 **Package Tier:** {scope_tier} ({scope_multiplier}x multiplier) - Based on {len(selected_categories)} categories and {len(st.session_state.specification.get('regions', []))} regions")
-        except Exception:
-            pass
-    
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
     
@@ -351,7 +328,8 @@ if not st.session_state.submitted:
             price_data = calculate_price(
                 categories=st.session_state.specification.get("categories", []),
                 regions=selected_regions,
-                frequency=st.session_state.specification.get("frequency", "monthly")
+                frequency=st.session_state.specification.get("frequency", "monthly"),
+                package_tier=st.session_state.specification.get("package_tier")
             )
             scope_tier = price_data["breakdown"]["scope"]["tier"]
             scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
@@ -371,7 +349,75 @@ if not st.session_state.submitted:
     if len(selected_regions) == 0:
         st.warning("⚠️ Please select at least one region to continue.")
     
-    # Step 3: Frequency Selection
+    # Step 3: Package Tier Selection
+    st.markdown('<p class="step-header">Step 3: Select Package Tier</p>', unsafe_allow_html=True)
+    st.write("Choose your package tier. This determines the price multiplier applied to your base cadence price:")
+    
+    # Determine suggested package tier based on selections
+    suggested_tier = None
+    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0:
+        try:
+            from core.pricing import calculate_price
+            price_data = calculate_price(
+                categories=st.session_state.specification.get("categories", []),
+                regions=selected_regions,
+                frequency=st.session_state.specification.get("frequency", "monthly")
+            )
+            suggested_tier = price_data["breakdown"]["scope"]["tier"]
+        except Exception:
+            pass
+    
+    # Package tier options with descriptions
+    package_options = {
+        "Starter": {
+            "multiplier": 1.0,
+            "description": "Focused coverage (Up to 3 categories, 1 region)",
+            "price_note": "Base price (1.0x)"
+        },
+        "Medium": {
+            "multiplier": 1.2,
+            "description": "Balanced coverage (Up to 6 categories, 2 regions)",
+            "price_note": "+20% (1.2x)"
+        },
+        "Pro": {
+            "multiplier": 1.5,
+            "description": "Comprehensive coverage (Up to 9 categories, up to 4 regions)",
+            "price_note": "+50% (1.5x)"
+        },
+        "Enterprise": {
+            "multiplier": 2.0,
+            "description": "Full customization (10+ categories, 5+ regions)",
+            "price_note": "+100% (2.0x)"
+        }
+    }
+    
+    # Default to suggested tier if available, otherwise use stored value or Starter
+    default_tier = st.session_state.specification.get("package_tier") or suggested_tier or "Starter"
+    
+    # Display package options as radio buttons
+    selected_package_tier = st.radio(
+        "Package Tier",
+        options=list(package_options.keys()),
+        index=list(package_options.keys()).index(default_tier) if default_tier in package_options else 0,
+        format_func=lambda x: f"{x} - {package_options[x]['description']} ({package_options[x]['price_note']})",
+        help="The package tier multiplies your base cadence price. You can select a higher tier than suggested if needed."
+    )
+    
+    st.session_state.specification["package_tier"] = selected_package_tier
+    
+    # Show suggestion if different from selected
+    if suggested_tier and suggested_tier != selected_package_tier:
+        if suggested_tier in package_options:
+            suggested_multiplier = package_options[suggested_tier]["multiplier"]
+            selected_multiplier = package_options[selected_package_tier]["multiplier"]
+            if selected_multiplier > suggested_multiplier:
+                st.info(f"💡 **Suggestion:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), we recommend the **{suggested_tier}** package ({suggested_multiplier}x). You've selected **{selected_package_tier}** ({selected_multiplier}x).")
+            else:
+                st.warning(f"⚠️ **Note:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), the **{suggested_tier}** package ({suggested_multiplier}x) is typically recommended. You've selected **{selected_package_tier}** ({selected_multiplier}x).")
+    
+    st.markdown("---")
+    
+    # Step 4: Frequency Selection
     st.markdown('<p class="step-header">Step 3: Choose Frequency</p>', unsafe_allow_html=True)
     st.write("Select how often you want to receive your newsletter:")
     
@@ -395,7 +441,8 @@ if not st.session_state.submitted:
             price_data = calculate_price(
                 categories=st.session_state.specification.get("categories", []),
                 regions=st.session_state.specification.get("regions", []),
-                frequency=selected_frequency
+                frequency=selected_frequency,
+                package_tier=st.session_state.specification.get("package_tier")
             )
             scope_tier = price_data["breakdown"]["scope"]["tier"]
             scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
@@ -420,8 +467,8 @@ if not st.session_state.submitted:
     
     st.markdown("---")
     
-    # Step 4: Intelligence Source Name
-    st.markdown('<p class="step-header">Step 4: Name Your Intelligence Source</p>', unsafe_allow_html=True)
+    # Step 5: Intelligence Source Name
+    st.markdown('<p class="step-header">Step 5: Name Your Intelligence Source</p>', unsafe_allow_html=True)
     st.write("Give your intelligence source a name (this can be a newsletter, briefing, or any intelligence deliverable):")
     
     newsletter_name = st.text_input(
@@ -433,8 +480,8 @@ if not st.session_state.submitted:
     
     st.session_state.specification["newsletter_name"] = newsletter_name
     
-    # Step 5: Company and Contact
-    st.markdown('<p class="step-header">Step 5: Company and Contact Information</p>', unsafe_allow_html=True)
+    # Step 6: Company and Contact
+    st.markdown('<p class="step-header">Step 6: Company and Contact Information</p>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -671,7 +718,8 @@ if st.session_state.submitted:
     price_data = calculate_price(
         categories=spec["categories"],
         regions=spec["regions"],
-        frequency=spec["frequency"]
+        frequency=spec["frequency"],
+        package_tier=spec.get("package_tier")
     )
     
     if st.session_state.get("request_id") and st.session_state.get("submission_timestamp"):

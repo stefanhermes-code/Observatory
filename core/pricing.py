@@ -8,14 +8,15 @@ Pricing Principles:
 - Scope (companies / regions / value-chain links) determines the package tier
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 def calculate_price(
     categories: List[str],
     regions: List[str],
     frequency: str,
-    num_users: int = 1
+    num_users: int = 1,
+    package_tier: Optional[str] = None
 ) -> Dict[str, any]:
     """
     Calculate the annual price for a newsletter specification.
@@ -50,23 +51,50 @@ def calculate_price(
     # Get base price per user per month based on cadence
     base_price_per_user_monthly = CADENCE_PRICING.get(frequency, 19)
     
-    # Determine scope tier based on selection
+    # Determine scope tier based on selection or use provided package_tier
     num_categories = len(categories)
     num_regions = len(regions)
     
     # Scope packages with multipliers
-    if num_categories <= 3 and num_regions <= 1:
-        scope_tier = "Starter"
-        scope_multiplier = 1.0  # Base price
-    elif num_categories <= 6 and num_regions <= 2:
-        scope_tier = "Medium"
-        scope_multiplier = 1.2  # +20%
-    elif num_categories <= 9 and num_regions <= 4:
-        scope_tier = "Pro"
-        scope_multiplier = 1.5  # +50%
+    if package_tier:
+        # Use explicitly provided package tier
+        scope_tier = package_tier
+        if scope_tier == "Starter":
+            scope_multiplier = 1.0
+        elif scope_tier == "Medium":
+            scope_multiplier = 1.2
+        elif scope_tier == "Pro":
+            scope_multiplier = 1.5
+        elif scope_tier == "Enterprise":
+            scope_multiplier = 2.0
+        else:
+            # Fallback to auto-determination
+            if num_categories <= 3 and num_regions <= 1:
+                scope_tier = "Starter"
+                scope_multiplier = 1.0
+            elif num_categories <= 6 and num_regions <= 2:
+                scope_tier = "Medium"
+                scope_multiplier = 1.2
+            elif num_categories <= 9 and num_regions <= 4:
+                scope_tier = "Pro"
+                scope_multiplier = 1.5
+            else:
+                scope_tier = "Enterprise"
+                scope_multiplier = 2.0
     else:
-        scope_tier = "Enterprise"
-        scope_multiplier = 2.0  # +100%
+        # Auto-determine based on selections
+        if num_categories <= 3 and num_regions <= 1:
+            scope_tier = "Starter"
+            scope_multiplier = 1.0  # Base price
+        elif num_categories <= 6 and num_regions <= 2:
+            scope_tier = "Medium"
+            scope_multiplier = 1.2  # +20%
+        elif num_categories <= 9 and num_regions <= 4:
+            scope_tier = "Pro"
+            scope_multiplier = 1.5  # +50%
+        else:
+            scope_tier = "Enterprise"
+            scope_multiplier = 2.0  # +100%
     
     # Apply scope multiplier to base price
     price_per_user_monthly = round(base_price_per_user_monthly * scope_multiplier, 2)
