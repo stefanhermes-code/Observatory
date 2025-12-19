@@ -1628,6 +1628,7 @@ elif page == "📈 Reporting":
     - Platform usage statistics
     - Company activity
     - Generation performance
+    - Generation history (with vector store usage tracking)
     - Revenue and billing analytics
     """)
     
