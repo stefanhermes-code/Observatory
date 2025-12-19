@@ -650,7 +650,7 @@ Password: {saved_info['password']}
 
 Please change your password after your first login.
 
-Access the Generator app at: [Your Streamlit URL]
+Access the Generator app at: https://observatory-user-access.streamlit.app/
 
 Best regards,
 PU Observatory Admin""")
@@ -768,7 +768,7 @@ Password: {saved_info['password']}
 
 ⚠️ IMPORTANT: Please change your password after your first login for security.
 
-Access the Generator app at: [Your Streamlit URL]
+Access the Generator app at: https://observatory-user-access.streamlit.app/
 
 If you did not request this password reset, please contact your administrator immediately.
 
@@ -896,7 +896,7 @@ Password: {new_password}
 
 ⚠️ IMPORTANT: Please change your password after your first login for security.
 
-Access the Admin app at: [Your Streamlit URL]
+Access the Admin app at: https://observatory-admin.streamlit.app/
 
 If you did not request this password reset, please contact the system administrator immediately.
 
@@ -1517,7 +1517,7 @@ Password: {default_password}
 
 ⚠️ IMPORTANT: Please change your password after your first login.
 
-Access the Generator app at: [Your Streamlit URL]
+Access the Generator app at: https://observatory-user-access.streamlit.app/
 
 Best regards,
 PU Observatory Admin""")
@@ -1552,7 +1552,7 @@ Password: {default_password}
 
 ⚠️ IMPORTANT: Please change your password after your first login.
 
-Access the Generator app at: [Your Streamlit URL]
+Access the Generator app at: https://observatory-user-access.streamlit.app/
 
 Best regards,
 PU Observatory Admin""")
