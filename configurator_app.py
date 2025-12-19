@@ -197,7 +197,8 @@ with st.expander("💰 Pricing Guide", expanded=False):
     """, unsafe_allow_html=True)
     
     st.markdown("#### Scope Packages")
-    st.markdown("Your selection of categories and regions determines your package tier:")
+    st.markdown("**Important:** Your selection of categories and regions determines your package tier, but **does NOT affect the price**. The price is determined solely by the frequency (cadence) you choose above.")
+    st.markdown("All packages at the same frequency cost the same, regardless of how many categories or regions you select.")
     
     # Scope packages table using HTML
     st.markdown("""
@@ -239,7 +240,7 @@ with st.expander("💰 Pricing Guide", expanded=False):
     </table>
     """, unsafe_allow_html=True)
     
-    st.markdown("**Note:** Scope determines your package tier, but all plans include access to the full Observatory platform and all deliverables.")
+    st.markdown("**Note:** Package tiers are descriptive labels for your selection. All plans include access to the full Observatory platform and all deliverables, regardless of package tier.")
     
     st.markdown("#### Example Calculations")
     st.markdown("""
