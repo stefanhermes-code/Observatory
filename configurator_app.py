@@ -198,7 +198,7 @@ with st.expander("💰 Pricing Guide", expanded=False):
     """, unsafe_allow_html=True)
     
     st.markdown("#### Scope Packages")
-    st.markdown("**Your selection of categories and regions determines your package tier, which affects the price.** The package tier multiplies the base cadence price:")
+    st.markdown("**Your selection of categories and regions determines your package tier, which affects the price:**")
     
     # Scope packages table using HTML
     st.markdown("""
@@ -208,7 +208,6 @@ with st.expander("💰 Pricing Guide", expanded=False):
                 <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Package</th>
                 <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Categories</th>
                 <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Regions</th>
-                <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Price Multiplier</th>
                 <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Description</th>
             </tr>
         </thead>
@@ -217,28 +216,24 @@ with st.expander("💰 Pricing Guide", expanded=False):
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Starter</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 3</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">1</td>
-                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.0x</strong> (base)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Focused coverage</td>
             </tr>
             <tr style="background-color: #f9f9f9;">
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Medium</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 6</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">2</td>
-                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.2x</strong> (+20%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Balanced coverage</td>
             </tr>
             <tr>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Pro</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 9</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 4</td>
-                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.5x</strong> (+50%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Comprehensive coverage</td>
             </tr>
             <tr style="background-color: #f9f9f9;">
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Enterprise</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
-                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>2.0x</strong> (+100%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Full customization</td>
             </tr>
         </tbody>
@@ -342,7 +337,7 @@ if not st.session_state.submitted:
             }
             tier_color = tier_colors.get(scope_tier, "#666")
             
-            st.info(f"📦 **Package Tier:** {scope_tier} ({scope_multiplier}x multiplier) - Based on {len(st.session_state.specification.get('categories', []))} categories and {len(selected_regions)} regions")
+            st.info(f"📦 **Package Tier:** {scope_tier} - Based on {len(st.session_state.specification.get('categories', []))} categories and {len(selected_regions)} regions")
         except Exception:
             pass
     
@@ -351,7 +346,7 @@ if not st.session_state.submitted:
     
     # Step 3: Package Tier Selection
     st.markdown('<p class="step-header">Step 3: Select Package Tier</p>', unsafe_allow_html=True)
-    st.write("Choose your package tier. This determines the price multiplier applied to your base cadence price:")
+    st.write("Choose your package tier:")
     
     # Determine suggested package tier based on selections
     suggested_tier = None
@@ -372,23 +367,19 @@ if not st.session_state.submitted:
     package_options = {
         "Starter": {
             "multiplier": 1.0,
-            "description": "Focused coverage (Up to 3 categories, 1 region)",
-            "price_note": "Base price (1.0x)"
+            "description": "Focused coverage (Up to 3 categories, 1 region)"
         },
         "Medium": {
             "multiplier": 1.2,
-            "description": "Balanced coverage (Up to 6 categories, 2 regions)",
-            "price_note": "+20% (1.2x)"
+            "description": "Balanced coverage (Up to 6 categories, 2 regions)"
         },
         "Pro": {
             "multiplier": 1.5,
-            "description": "Comprehensive coverage (Up to 9 categories, up to 4 regions)",
-            "price_note": "+50% (1.5x)"
+            "description": "Comprehensive coverage (Up to 9 categories, up to 4 regions)"
         },
         "Enterprise": {
             "multiplier": 2.0,
-            "description": "Full customization (10+ categories, 5+ regions)",
-            "price_note": "+100% (2.0x)"
+            "description": "Full customization (10+ categories, 5+ regions)"
         }
     }
     
@@ -400,8 +391,8 @@ if not st.session_state.submitted:
         "Package Tier",
         options=list(package_options.keys()),
         index=list(package_options.keys()).index(default_tier) if default_tier in package_options else 0,
-        format_func=lambda x: f"{x} - {package_options[x]['description']} ({package_options[x]['price_note']})",
-        help="The package tier multiplies your base cadence price. You can select a higher tier than suggested if needed."
+        format_func=lambda x: f"{x} - {package_options[x]['description']}",
+        help="You can select a higher tier than suggested if needed."
     )
     
     st.session_state.specification["package_tier"] = selected_package_tier
@@ -412,9 +403,9 @@ if not st.session_state.submitted:
             suggested_multiplier = package_options[suggested_tier]["multiplier"]
             selected_multiplier = package_options[selected_package_tier]["multiplier"]
             if selected_multiplier > suggested_multiplier:
-                st.info(f"💡 **Suggestion:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), we recommend the **{suggested_tier}** package ({suggested_multiplier}x). You've selected **{selected_package_tier}** ({selected_multiplier}x).")
+                st.info(f"💡 **Suggestion:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), we recommend the **{suggested_tier}** package. You've selected **{selected_package_tier}**.")
             else:
-                st.warning(f"⚠️ **Note:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), the **{suggested_tier}** package ({suggested_multiplier}x) is typically recommended. You've selected **{selected_package_tier}** ({selected_multiplier}x).")
+                st.warning(f"⚠️ **Note:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), the **{suggested_tier}** package is typically recommended. You've selected **{selected_package_tier}**.")
     
     st.markdown("---")
     
@@ -459,7 +450,7 @@ if not st.session_state.submitted:
                         {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence, {scope_tier} package)
                     </p>
                     <p style="color: #666; margin-top: 0.25rem; font-size: 0.85rem;">
-                        Base: ${base_price:.0f}/user/month × {scope_multiplier}x ({scope_tier}) = ${price_data['price_per_user_monthly']:.2f}/user/month
+                        {selected_frequency.title()} cadence, {scope_tier} package
                     </p>
                 </div>
             """, unsafe_allow_html=True)
