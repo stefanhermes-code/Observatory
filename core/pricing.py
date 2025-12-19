@@ -48,26 +48,33 @@ def calculate_price(
     }
     
     # Get base price per user per month based on cadence
-    price_per_user_monthly = CADENCE_PRICING.get(frequency, 19)
-    price_per_user_yearly = price_per_user_monthly * 12
-    
-    # Calculate totals
-    total_monthly = price_per_user_monthly * num_users
-    total_yearly = price_per_user_yearly * num_users
+    base_price_per_user_monthly = CADENCE_PRICING.get(frequency, 19)
     
     # Determine scope tier based on selection
     num_categories = len(categories)
     num_regions = len(regions)
     
-    # Scope packages (for reference, doesn't affect price directly per pricing doc)
+    # Scope packages with multipliers
     if num_categories <= 3 and num_regions <= 1:
         scope_tier = "Starter"
+        scope_multiplier = 1.0  # Base price
     elif num_categories <= 6 and num_regions <= 2:
         scope_tier = "Medium"
+        scope_multiplier = 1.2  # +20%
     elif num_categories <= 9 and num_regions <= 4:
         scope_tier = "Pro"
+        scope_multiplier = 1.5  # +50%
     else:
         scope_tier = "Enterprise"
+        scope_multiplier = 2.0  # +100%
+    
+    # Apply scope multiplier to base price
+    price_per_user_monthly = round(base_price_per_user_monthly * scope_multiplier, 2)
+    price_per_user_yearly = round(price_per_user_monthly * 12, 2)
+    
+    # Calculate totals
+    total_monthly = round(price_per_user_monthly * num_users, 2)
+    total_yearly = round(price_per_user_yearly * num_users, 2)
     
     # Create breakdown
     breakdown = {
@@ -85,7 +92,9 @@ def calculate_price(
             "categories_count": num_categories,
             "regions_count": num_regions,
             "tier": scope_tier,
-            "note": "Scope determines package tier (all plans include full Observatory access)"
+            "multiplier": scope_multiplier,
+            "base_price_per_user_monthly": base_price_per_user_monthly,
+            "note": f"Scope determines package tier ({scope_tier} package, {scope_multiplier}x multiplier). All plans include full Observatory access."
         },
         "total_monthly": total_monthly,
         "total_yearly": total_yearly

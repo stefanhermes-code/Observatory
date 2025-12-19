@@ -197,8 +197,7 @@ with st.expander("💰 Pricing Guide", expanded=False):
     """, unsafe_allow_html=True)
     
     st.markdown("#### Scope Packages")
-    st.markdown("**Important:** Your selection of categories and regions determines your package tier, but **does NOT affect the price**. The price is determined solely by the frequency (cadence) you choose above.")
-    st.markdown("All packages at the same frequency cost the same, regardless of how many categories or regions you select.")
+    st.markdown("**Your selection of categories and regions determines your package tier, which affects the price.** The package tier multiplies the base cadence price:")
     
     # Scope packages table using HTML
     st.markdown("""
@@ -208,6 +207,7 @@ with st.expander("💰 Pricing Guide", expanded=False):
                 <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Package</th>
                 <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Categories</th>
                 <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Regions</th>
+                <th style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Price Multiplier</th>
                 <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd;">Description</th>
             </tr>
         </thead>
@@ -216,38 +216,43 @@ with st.expander("💰 Pricing Guide", expanded=False):
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Starter</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 3</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">1</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.0x</strong> (base)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Focused coverage</td>
             </tr>
             <tr style="background-color: #f9f9f9;">
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Medium</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 6</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">2</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.2x</strong> (+20%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Balanced coverage</td>
             </tr>
             <tr>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Pro</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 9</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Up to 4</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>1.5x</strong> (+50%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Comprehensive coverage</td>
             </tr>
             <tr style="background-color: #f9f9f9;">
                 <td style="padding: 0.75rem; border: 1px solid #ddd;"><strong>Enterprise</strong></td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
                 <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;">Custom</td>
+                <td style="padding: 0.75rem; text-align: center; border: 1px solid #ddd;"><strong>2.0x</strong> (+100%)</td>
                 <td style="padding: 0.75rem; border: 1px solid #ddd;">Full customization</td>
             </tr>
         </tbody>
     </table>
     """, unsafe_allow_html=True)
     
-    st.markdown("**Note:** Package tiers are descriptive labels for your selection. All plans include access to the full Observatory platform and all deliverables, regardless of package tier.")
+    st.markdown("**Note:** The package tier is automatically determined by your category and region selections. All plans include access to the full Observatory platform and all deliverables.")
     
     st.markdown("#### Example Calculations")
     st.markdown("""
     <ul>
-        <li><strong>Monthly</strong> with 3 categories, 1 region: $19/user/month = <strong>$228/user/year</strong></li>
-        <li><strong>Weekly</strong> with 6 categories, 2 regions: $39/user/month = <strong>$468/user/year</strong></li>
-        <li><strong>Daily</strong> with 9 categories, 4 regions: $119/user/month = <strong>$1,428/user/year</strong></li>
+        <li><strong>Monthly Starter</strong> (3 categories, 1 region): $19 × 1.0 = <strong>$19/user/month</strong> = <strong>$228/user/year</strong></li>
+        <li><strong>Weekly Medium</strong> (6 categories, 2 regions): $39 × 1.2 = <strong>$47/user/month</strong> = <strong>$564/user/year</strong></li>
+        <li><strong>Daily Pro</strong> (9 categories, 4 regions): $119 × 1.5 = <strong>$179/user/month</strong> = <strong>$2,148/user/year</strong></li>
+        <li><strong>Monthly Enterprise</strong> (10+ categories, 5+ regions): $19 × 2.0 = <strong>$38/user/month</strong> = <strong>$456/user/year</strong></li>
     </ul>
     """, unsafe_allow_html=True)
     
@@ -291,6 +296,30 @@ if not st.session_state.submitted:
     
     st.session_state.specification["categories"] = selected_categories
     
+    # Show package tier indicator
+    if len(selected_categories) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
+        try:
+            from core.pricing import calculate_price
+            price_data = calculate_price(
+                categories=selected_categories,
+                regions=st.session_state.specification.get("regions", []),
+                frequency=st.session_state.specification.get("frequency", "monthly")
+            )
+            scope_tier = price_data["breakdown"]["scope"]["tier"]
+            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
+            
+            tier_colors = {
+                "Starter": "#4caf50",
+                "Medium": "#2196f3",
+                "Pro": "#ff9800",
+                "Enterprise": "#9c27b0"
+            }
+            tier_color = tier_colors.get(scope_tier, "#666")
+            
+            st.info(f"📦 **Package Tier:** {scope_tier} ({scope_multiplier}x multiplier) - Based on {len(selected_categories)} categories and {len(st.session_state.specification.get('regions', []))} regions")
+        except Exception:
+            pass
+    
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
     
@@ -314,6 +343,30 @@ if not st.session_state.submitted:
                 selected_regions.append(region)
     
     st.session_state.specification["regions"] = selected_regions
+    
+    # Show package tier indicator after regions are selected
+    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0:
+        try:
+            from core.pricing import calculate_price
+            price_data = calculate_price(
+                categories=st.session_state.specification.get("categories", []),
+                regions=selected_regions,
+                frequency=st.session_state.specification.get("frequency", "monthly")
+            )
+            scope_tier = price_data["breakdown"]["scope"]["tier"]
+            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
+            
+            tier_colors = {
+                "Starter": "#4caf50",
+                "Medium": "#2196f3",
+                "Pro": "#ff9800",
+                "Enterprise": "#9c27b0"
+            }
+            tier_color = tier_colors.get(scope_tier, "#666")
+            
+            st.info(f"📦 **Package Tier:** {scope_tier} ({scope_multiplier}x multiplier) - Based on {len(st.session_state.specification.get('categories', []))} categories and {len(selected_regions)} regions")
+        except Exception:
+            pass
     
     if len(selected_regions) == 0:
         st.warning("⚠️ Please select at least one region to continue.")
@@ -344,6 +397,10 @@ if not st.session_state.submitted:
                 regions=st.session_state.specification.get("regions", []),
                 frequency=selected_frequency
             )
+            scope_tier = price_data["breakdown"]["scope"]["tier"]
+            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
+            base_price = price_data["breakdown"]["scope"]["base_price_per_user_monthly"]
+            
             st.markdown(f"""
                 <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
                     <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
@@ -351,7 +408,10 @@ if not st.session_state.submitted:
                         {format_price(price_data)}
                     </div>
                     <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                        {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence)
+                        {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence, {scope_tier} package)
+                    </p>
+                    <p style="color: #666; margin-top: 0.25rem; font-size: 0.85rem;">
+                        Base: ${base_price:.0f}/user/month × {scope_multiplier}x ({scope_tier}) = ${price_data['price_per_user_monthly']:.2f}/user/month
                     </p>
                 </div>
             """, unsafe_allow_html=True)
