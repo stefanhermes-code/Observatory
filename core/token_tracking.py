@@ -32,7 +32,7 @@ PRICING_PER_1M_TOKENS = {
 DEFAULT_PRICING = PRICING_PER_1M_TOKENS["gpt-4o"]
 
 
-def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
+def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 10000) -> Dict:
     """
     Get token usage aggregated by workspace (company).
     
@@ -40,29 +40,38 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
         workspace_id: Optional workspace ID to filter by. If None, returns all workspaces.
         start_date: Optional start date to filter runs
         end_date: Optional end date to filter runs
+        limit: Maximum number of runs to process (default 10000 to prevent timeout)
     
     Returns:
         Dictionary with workspace_id as key and token stats as value
     """
     supabase = get_supabase_client()
     
-    # Build query
-    query = supabase.table("newsletter_runs").select("workspace_id, metadata, created_at")
-    
-    if workspace_id:
-        query = query.eq("workspace_id", workspace_id)
-    
-    if start_date:
-        query = query.gte("created_at", start_date.isoformat())
-    
-    if end_date:
-        query = query.lte("created_at", end_date.isoformat())
-    
-    # Only get successful runs (they have token data)
-    query = query.eq("status", "success")
-    
-    result = query.execute()
-    runs = result.data if result.data else []
+    try:
+        # Build query with limit to prevent timeout
+        query = supabase.table("newsletter_runs").select("workspace_id, metadata, created_at")
+        
+        if workspace_id:
+            query = query.eq("workspace_id", workspace_id)
+        
+        if start_date:
+            query = query.gte("created_at", start_date.isoformat())
+        
+        if end_date:
+            query = query.lte("created_at", end_date.isoformat())
+        
+        # Only get successful runs (they have token data)
+        query = query.eq("status", "success")
+        
+        # Order by created_at desc and limit to prevent timeout
+        query = query.order("created_at", desc=True).limit(limit)
+        
+        result = query.execute()
+        runs = result.data if result.data else []
+    except Exception as e:
+        # If query fails (e.g., timeout), return empty dict
+        print(f"Warning: Could not fetch token usage data: {e}")
+        return {}
     
     # Aggregate by workspace
     workspace_stats = {}
@@ -110,14 +119,32 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
     return workspace_stats
 
 
-def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
+def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 10000) -> Dict:
     """
     Get overall token usage summary across all workspaces.
+    
+    Args:
+        start_date: Optional start date to filter runs
+        end_date: Optional end date to filter runs
+        limit: Maximum number of runs to process (default 10000 to prevent timeout)
     
     Returns:
         Dictionary with total tokens, total runs, total cost, etc.
     """
-    workspace_stats = get_token_usage_by_workspace(start_date=start_date, end_date=end_date)
+    try:
+        workspace_stats = get_token_usage_by_workspace(start_date=start_date, end_date=end_date, limit=limit)
+    except Exception as e:
+        # Return empty summary if query fails
+        return {
+            "total_tokens": 0,
+            "total_runs": 0,
+            "total_cost": 0.0,
+            "workspace_count": 0,
+            "model_breakdown": {},
+            "workspace_details": {},
+            "error": str(e),
+            "limit_reached": True
+        }
     
     total_tokens = sum(ws["total_tokens"] for ws in workspace_stats.values())
     total_runs = sum(ws["run_count"] for ws in workspace_stats.values())

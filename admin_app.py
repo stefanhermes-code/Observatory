@@ -1895,9 +1895,13 @@ elif page == "📈 Reporting":
         if end_dt:
             end_dt = end_dt.replace(tzinfo=None)
         
-        # Get summary
+        # Get summary with limit to prevent timeout
         try:
-            summary = get_token_usage_summary(start_date=start_dt, end_date=end_dt)
+            # Limit to last 10,000 runs to prevent database timeout
+            summary = get_token_usage_summary(start_date=start_dt, end_date=end_dt, limit=10000)
+            
+            if summary.get("error"):
+                st.warning(f"⚠️ Limited data available: {summary.get('error')}. Showing results from most recent 10,000 runs.")
             
             # Overall metrics
             col1, col2, col3, col4 = st.columns(4)
@@ -1972,11 +1976,19 @@ elif page == "📈 Reporting":
                 )
             else:
                 st.info("No token usage data available yet. Token tracking starts with new report generations.")
+            
+            # Show warning if limit was reached
+            if summary.get("limit_reached"):
+                st.warning("⚠️ Query limited to most recent 10,000 runs to prevent timeout. Use date filters to see specific periods.")
         
         except Exception as e:
-            st.error(f"Error loading token usage data: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
+            error_msg = str(e)
+            if "timeout" in error_msg.lower() or "57014" in error_msg:
+                st.error("⏱️ Database query timed out. Try using date filters to narrow the date range, or the data may be too large to process at once.")
+            else:
+                st.error(f"Error loading token usage data: {error_msg}")
+                import traceback
+                st.code(traceback.format_exc())
     
     elif report_type == "Revenue Analytics":
         st.subheader("Revenue Analytics Report")
