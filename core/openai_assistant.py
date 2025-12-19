@@ -322,7 +322,40 @@ def execute_assistant(run_package: Dict) -> Dict:
             
             time.sleep(2)  # Poll every 2 seconds
         
-        # Step 5: Retrieve the Assistant's response
+        # Step 5: Retrieve run steps to check for tool calls (vector store usage)
+        tool_usage_info = {
+            "file_search_called": False,
+            "file_search_count": 0,
+            "vector_store_used": False,
+            "files_retrieved": []
+        }
+        
+        try:
+            # Get run steps to check for tool calls
+            run_steps = client.beta.threads.runs.steps.list(
+                thread_id=thread_id,
+                run_id=run.id
+            )
+            
+            # Check each step for file_search tool calls
+            for step in run_steps.data:
+                if hasattr(step, 'step_details') and step.step_details:
+                    step_details = step.step_details
+                    if hasattr(step_details, 'tool_calls') and step_details.tool_calls:
+                        for tool_call in step_details.tool_calls:
+                            if hasattr(tool_call, 'type') and tool_call.type == 'file_search':
+                                tool_usage_info["file_search_called"] = True
+                                tool_usage_info["file_search_count"] += 1
+                                tool_usage_info["vector_store_used"] = True
+                                # Try to extract file IDs if available
+                                if hasattr(tool_call, 'file_search') and tool_call.file_search:
+                                    if hasattr(tool_call.file_search, 'file_ids'):
+                                        tool_usage_info["files_retrieved"].extend(tool_call.file_search.file_ids)
+        except Exception as e:
+            # If we can't retrieve steps, log but don't fail
+            print(f"[WARNING] Could not retrieve run steps for tool usage tracking: {e}")
+        
+        # Step 6: Retrieve the Assistant's response
         messages = client.beta.threads.messages.list(thread_id=thread_id)
         
         # Get the latest assistant message
@@ -357,7 +390,8 @@ def execute_assistant(run_package: Dict) -> Dict:
                 "tokens_used": tokens_used,
                 "thread_id": thread_id,
                 "run_id": run.id,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
+                "tool_usage": tool_usage_info  # Add tool usage tracking
             }
         }
     

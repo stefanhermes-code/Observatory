@@ -127,10 +127,16 @@ def execute_generator(
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
     
     # Store HTML content in metadata for later retrieval (History page)
+    # Include all metadata from assistant_output, including tool_usage tracking
+    assistant_metadata = assistant_output.get("metadata", {})
     metadata_with_html = {
         "html_content": html_content,
-        "model": assistant_output.get("metadata", {}).get("model"),
-        "tokens_used": assistant_output.get("metadata", {}).get("tokens_used")
+        "model": assistant_metadata.get("model"),
+        "tokens_used": assistant_metadata.get("tokens_used"),
+        "thread_id": assistant_metadata.get("thread_id"),
+        "run_id": assistant_metadata.get("run_id"),
+        "timestamp": assistant_metadata.get("timestamp"),
+        "tool_usage": assistant_metadata.get("tool_usage", {})  # Include vector store usage tracking
     }
     
     # Update run status to success with HTML stored in metadata

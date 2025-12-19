@@ -1859,7 +1859,7 @@ elif page == "📚 Generation History":
         
         for run in recent_runs:
             with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]}"):
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.write("**Intelligence Source:**", run.get('newsletter_name'))
@@ -1870,11 +1870,27 @@ elif page == "📚 Generation History":
                     st.write("**Run ID:**", run.get('id'))
                     st.write("**HTML File:**", run.get('artifact_path', 'N/A'))
                     
+                    # Display vector store usage (admin-only info)
+                    metadata = run.get("metadata", {})
+                    if isinstance(metadata, dict):
+                        tool_usage = metadata.get("tool_usage", {})
+                        if tool_usage:
+                            st.markdown("---")
+                            st.write("**🔍 Vector Store Usage:**")
+                            if tool_usage.get("vector_store_used"):
+                                st.success(f"✅ Used ({tool_usage.get('file_search_count', 0)} file_search call(s))")
+                                if tool_usage.get("files_retrieved"):
+                                    st.write(f"Files retrieved: {len(tool_usage['files_retrieved'])}")
+                            else:
+                                st.warning("⚠️ No file_search detected")
+                        else:
+                            st.info("ℹ️ Tool usage data not available (older run)")
+                    
                     if run.get('artifact_path'):
                         # Retrieve HTML from metadata (stored when run was created)
                         html_content = None
-                        if run.get("metadata") and isinstance(run.get("metadata"), dict):
-                            html_content = run.get("metadata", {}).get("html_content")
+                        if isinstance(metadata, dict):
+                            html_content = metadata.get("html_content")
                         
                         if html_content:
                             st.download_button(
@@ -1885,6 +1901,15 @@ elif page == "📚 Generation History":
                             )
                         else:
                             st.warning("⚠️ HTML content not available for this run (older runs may not have stored HTML)")
+                
+                with col3:
+                    # Display additional metadata
+                    metadata = run.get("metadata", {})
+                    if isinstance(metadata, dict):
+                        st.write("**Model:**", metadata.get("model", "N/A"))
+                        st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
+                        if metadata.get("thread_id"):
+                            st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
     else:
         st.info("No generation runs yet")
     
