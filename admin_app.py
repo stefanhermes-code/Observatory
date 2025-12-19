@@ -1636,7 +1636,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Revenue Analytics"]
     )
     
     # Get data
@@ -1768,6 +1768,97 @@ elif page == "📈 Reporting":
             file_name=f"generation_performance_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+    
+    elif report_type == "Generation History":
+        st.subheader("Generation History Report")
+        
+        st.info("""
+        **Generation History** shows all intelligence source generation runs with detailed information including vector store usage.
+        Each entry shows whether the company list was retrieved from the vector store during generation.
+        """)
+        
+        st.markdown("---")
+        
+        # Get recent runs (limit to 50 for display)
+        recent_runs = all_runs[:50]
+        
+        if recent_runs:
+            st.write(f"**Total Runs:** {len(recent_runs)} (showing most recent 50)")
+            
+            for run in recent_runs:
+                with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]} - {run.get('status', 'unknown').upper()}"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write("**Intelligence Source:**", run.get('newsletter_name'))
+                        st.write("**Status:**", run.get('status', 'unknown'))
+                        st.write("**Created:**", run.get('created_at', '')[:19])
+                    
+                    with col2:
+                        st.write("**Run ID:**", run.get('id'))
+                        st.write("**HTML File:**", run.get('artifact_path', 'N/A'))
+                        
+                        # Display vector store usage (admin-only info)
+                        metadata = run.get("metadata", {})
+                        if isinstance(metadata, dict):
+                            tool_usage = metadata.get("tool_usage", {})
+                            if tool_usage:
+                                st.markdown("---")
+                                st.write("**🔍 Vector Store Usage:**")
+                                if tool_usage.get("vector_store_used"):
+                                    st.success(f"✅ Used ({tool_usage.get('file_search_count', 0)} file_search call(s))")
+                                    if tool_usage.get("files_retrieved"):
+                                        st.write(f"Files retrieved: {len(tool_usage['files_retrieved'])}")
+                                else:
+                                    st.warning("⚠️ No file_search detected")
+                            else:
+                                st.info("ℹ️ Tool usage data not available (older run)")
+                        
+                        if run.get('artifact_path'):
+                            # Retrieve HTML from metadata (stored when run was created)
+                            html_content = None
+                            if isinstance(metadata, dict):
+                                html_content = metadata.get("html_content")
+                            
+                            if html_content:
+                                st.download_button(
+                                    "📥 Download HTML",
+                                    data=html_content,
+                                    file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
+                                    key=f"download_report_{run.get('id')}"
+                                )
+                            else:
+                                st.warning("⚠️ HTML content not available for this run (older runs may not have stored HTML)")
+                    
+                    with col3:
+                        # Display additional metadata
+                        metadata = run.get("metadata", {})
+                        if isinstance(metadata, dict):
+                            st.write("**Model:**", metadata.get("model", "N/A"))
+                            st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
+                            if metadata.get("thread_id"):
+                                st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
+        else:
+            st.info("No generation runs yet")
+        
+        st.markdown("---")
+        
+        # Export generation history
+        if recent_runs:
+            history_csv = "Intelligence Source,Status,Created,Run ID,Vector Store Used,File Search Calls,Artifact Path\n"
+            for run in recent_runs:
+                metadata = run.get("metadata", {})
+                tool_usage = metadata.get("tool_usage", {}) if isinstance(metadata, dict) else {}
+                vector_store_used = "Yes" if tool_usage.get("vector_store_used") else "No"
+                file_search_count = tool_usage.get("file_search_count", 0)
+                history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{run.get('created_at', '')[:19]},{run.get('id', 'N/A')},{vector_store_used},{file_search_count},{run.get('artifact_path', 'N/A')}\n"
+            
+            st.download_button(
+                "📥 Export Generation History",
+                data=history_csv,
+                file_name=f"generation_history_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
     
     elif report_type == "Revenue Analytics":
         st.subheader("Revenue Analytics Report")
