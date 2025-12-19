@@ -48,6 +48,7 @@ from core.workspace_members import (
     update_member_role
 )
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES
+from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
 
 # Page configuration
 st.set_page_config(
@@ -1629,6 +1630,7 @@ elif page == "📈 Reporting":
     - Company activity
     - Generation performance
     - Generation history (with vector store usage tracking)
+    - Token usage & costs (OpenAI API consumption by company)
     - Revenue and billing analytics
     """)
     
@@ -1637,7 +1639,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Token Usage & Costs", "Revenue Analytics"]
     )
     
     # Get data
@@ -1860,6 +1862,115 @@ elif page == "📈 Reporting":
                 file_name=f"generation_history_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
+    
+    elif report_type == "Token Usage & Costs":
+        st.subheader("Token Usage & Cost Analysis")
+        
+        st.info("""
+        **Token Usage & Costs** shows OpenAI API token consumption and estimated costs.
+        Tokens are tracked for each successful report generation and aggregated by company.
+        Costs are estimated based on OpenAI's published pricing (check OpenAI pricing page for current rates).
+        """)
+        
+        st.markdown("---")
+        
+        # Date range filter
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("Start Date (optional)", value=None)
+        with col2:
+            end_date = st.date_input("End Date (optional)", value=None)
+        
+        start_dt = datetime.combine(start_date, datetime.min.time()) if start_date else None
+        end_dt = datetime.combine(end_date, datetime.max.time()) if end_date else None
+        
+        if start_dt:
+            start_dt = start_dt.replace(tzinfo=None)
+        if end_dt:
+            end_dt = end_dt.replace(tzinfo=None)
+        
+        # Get summary
+        try:
+            summary = get_token_usage_summary(start_date=start_dt, end_date=end_dt)
+            
+            # Overall metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Tokens", f"{summary['total_tokens']:,}")
+            with col2:
+                st.metric("Total Runs", summary['total_runs'])
+            with col3:
+                st.metric("Total Cost (Est.)", f"${summary['total_cost']:.2f}")
+            with col4:
+                st.metric("Companies", summary['workspace_count'])
+            
+            st.markdown("---")
+            
+            # Model breakdown
+            if summary['model_breakdown']:
+                st.subheader("Usage by Model")
+                model_data = []
+                for model, stats in summary['model_breakdown'].items():
+                    cost_info = format_token_cost(stats['tokens'], model)
+                    model_data.append({
+                        "Model": model,
+                        "Tokens": stats['tokens'],
+                        "Runs": stats['runs'],
+                        "Est. Cost": f"${cost_info['total_cost']:.2f}"
+                    })
+                
+                if model_data:
+                    import pandas as pd
+                    df_models = pd.DataFrame(model_data)
+                    st.dataframe(df_models, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            
+            # Company breakdown
+            st.subheader("Usage by Company")
+            
+            if summary['workspace_details']:
+                company_data = []
+                workspace_map = {ws['id']: ws for ws in workspaces}
+                
+                for ws_id, stats in summary['workspace_details'].items():
+                    workspace = workspace_map.get(ws_id, {})
+                    company_name = workspace.get('company_name', 'Unknown')
+                    
+                    # Calculate average tokens per run
+                    avg_tokens = stats['total_tokens'] / stats['run_count'] if stats['run_count'] > 0 else 0
+                    
+                    company_data.append({
+                        "Company": company_name,
+                        "Total Tokens": stats['total_tokens'],
+                        "Runs": stats['run_count'],
+                        "Avg Tokens/Run": int(avg_tokens),
+                        "Est. Cost": f"${stats['estimated_cost']:.2f}"
+                    })
+                
+                # Sort by total tokens (descending)
+                company_data.sort(key=lambda x: x['Total Tokens'], reverse=True)
+                
+                import pandas as pd
+                df_companies = pd.DataFrame(company_data)
+                st.dataframe(df_companies, use_container_width=True, hide_index=True)
+                
+                # Export
+                st.markdown("---")
+                csv_data = df_companies.to_csv(index=False)
+                st.download_button(
+                    "📥 Export Token Usage by Company",
+                    data=csv_data,
+                    file_name=f"token_usage_by_company_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.info("No token usage data available yet. Token tracking starts with new report generations.")
+        
+        except Exception as e:
+            st.error(f"Error loading token usage data: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
     
     elif report_type == "Revenue Analytics":
         st.subheader("Revenue Analytics Report")
