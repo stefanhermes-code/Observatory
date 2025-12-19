@@ -1898,7 +1898,8 @@ elif page == "📈 Reporting":
         # Get summary with limit to prevent timeout
         try:
             # Limit to last 10,000 runs to prevent database timeout
-            summary = get_token_usage_summary(start_date=start_dt, end_date=end_dt, limit=10000)
+            # Note: limit parameter has default value of 10000 in the function
+            summary = get_token_usage_summary(start_date=start_dt, end_date=end_dt)
             
             if summary.get("error"):
                 st.warning(f"⚠️ Limited data available: {summary.get('error')}. Showing results from most recent 10,000 runs.")
