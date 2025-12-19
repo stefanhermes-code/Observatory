@@ -200,13 +200,29 @@ def update_run_status(run_id: str, status: str, artifact_path: Optional[str] = N
 def get_specification_history(spec_id: str, limit: int = 50) -> List[Dict]:
     """Get history of runs for a specification."""
     supabase = get_supabase_client()
-    result = supabase.table("newsletter_runs")\
-        .select("*")\
-        .eq("specification_id", spec_id)\
-        .order("created_at", desc=True)\
-        .limit(limit)\
-        .execute()
-    return result.data if result.data else []
+    try:
+        result = supabase.table("newsletter_runs")\
+            .select("*")\
+            .eq("specification_id", spec_id)\
+            .order("created_at", desc=True)\
+            .limit(limit)\
+            .execute()
+        return result.data if result.data else []
+    except Exception as e:
+        # Fallback: Try selecting specific columns if * fails
+        print(f"Warning: Full select failed for specification history: {e}. Trying fallback.")
+        try:
+            result = supabase.table("newsletter_runs")\
+                .select("id, specification_id, status, created_at, artifact_path, error_message, metadata")\
+                .eq("specification_id", spec_id)\
+                .order("created_at", desc=True)\
+                .limit(limit)\
+                .execute()
+            return result.data if result.data else []
+        except Exception as e2:
+            print(f"Error: Fallback query also failed: {e2}")
+            # Return empty list to prevent app crash
+            return []
 
 
 def get_last_successful_run(spec_id: str) -> Optional[Dict]:
