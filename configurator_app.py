@@ -242,9 +242,13 @@ with st.expander("💰 Pricing Guide", expanded=False):
     st.markdown("**Note:** Scope determines your package tier, but all plans include access to the full Observatory platform and all deliverables.")
     
     st.markdown("#### Example Calculations")
-    st.markdown("- **Monthly** with 3 categories, 1 region: $19/user/month = **$228/user/year**")
-    st.markdown("- **Weekly** with 6 categories, 2 regions: $39/user/month = **$468/user/year**")
-    st.markdown("- **Daily** with 9 categories, 4 regions: $119/user/month = **$1,428/user/year**")
+    st.markdown("""
+    <ul>
+        <li><strong>Monthly</strong> with 3 categories, 1 region: $19/user/month = <strong>$228/user/year</strong></li>
+        <li><strong>Weekly</strong> with 6 categories, 2 regions: $39/user/month = <strong>$468/user/year</strong></li>
+        <li><strong>Daily</strong> with 9 categories, 4 regions: $119/user/month = <strong>$1,428/user/year</strong></li>
+    </ul>
+    """, unsafe_allow_html=True)
     
     st.markdown("#### What's Included")
     st.markdown("All plans include access to:")
