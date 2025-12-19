@@ -144,11 +144,16 @@ def upload_company_list_to_assistant(
     company_data = load_company_list(company_list_path)
     formatted_text = format_company_list_for_assistant(company_data)
     
-    # Create a temporary text file for upload
+    # Create a properly named text file for upload (instead of temp file)
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as tmp_file:
+    import os
+    # Use a descriptive filename instead of random temp name
+    upload_dir = tempfile.gettempdir()
+    tmp_file_path = os.path.join(upload_dir, "pu_company_list.txt")
+    
+    # Write formatted text to file
+    with open(tmp_file_path, 'w', encoding='utf-8') as tmp_file:
         tmp_file.write(formatted_text)
-        tmp_file_path = tmp_file.name
     
     try:
         # Step 1: Upload file to OpenAI
