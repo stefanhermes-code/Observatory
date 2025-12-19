@@ -164,7 +164,7 @@ if page == "📊 Dashboard":
     if len(paused_specs) > 0:
         flags.append(("⏸️", f"{len(paused_specs)} specifications are paused", "info"))
     if len(workspaces) == 0:
-        flags.append(("ℹ️", "No company workspaces yet", "info"))
+        flags.append(("ℹ️", "No companies yet", "info"))
     
     if flags:
         st.subheader("🚩 Flags & Alerts")
@@ -323,7 +323,7 @@ elif page == "📥 Process Requests":
             
             st.markdown("---")
             
-            # Assign to Company Workspace (if approved or paid_activated)
+            # Assign to Company (if approved or paid_activated)
             if req.get('status') in ['approved_pending_invoice', 'approved', 'paid_activated']:
                 workspaces = get_all_workspaces()
                 if workspaces:
@@ -340,7 +340,7 @@ elif page == "📥 Process Requests":
                                 "assign_request_to_workspace",
                                 st.session_state.user_email,
                                 {"request_id": req.get('id'), "workspace_id": selected_workspace},
-                                f"Assigned request to company workspace"
+                                f"Assigned request to company"
                             )
                             st.success("Request assigned to company and activated!")
                             st.rerun()
@@ -472,14 +472,14 @@ elif page == "🏢 Companies":
             company_name = st.text_input("Company Name")
             contact_email = st.text_input("Contact Email")
             
-            if st.form_submit_button("Create Company Workspace", type="primary"):
+            if st.form_submit_button("Create Company", type="primary"):
                 if ws_name and company_name and contact_email:
                     workspace = create_workspace(ws_name, company_name, contact_email)
                     log_audit_action(
                         "create_workspace",
                         st.session_state.user_email,
                         {"workspace_id": workspace.get('id')},
-                        f"Created company workspace: {ws_name}"
+                        f"Created company: {ws_name}"
                     )
                     st.success(f"✅ Company '{ws_name}' created!")
                     st.rerun()
@@ -488,7 +488,7 @@ elif page == "🏢 Companies":
     
     st.markdown("---")
     
-    # List company workspaces
+    # List companies
     workspaces = get_all_workspaces()
     
     # Get all requests to find address details
@@ -565,24 +565,24 @@ elif page == "🏢 Companies":
                                 "update_workspace",
                                 st.session_state.user_email,
                                 {"workspace_id": ws.get('id')},
-                                f"Updated company workspace details"
+                                f"Updated company details"
                             )
                             st.success("Company updated!")
                             st.rerun()
     else:
-        st.info("No company workspaces yet. Create one above!")
+        st.info("No companies yet. Create one above!")
         
         # Quick add admin as user option
         st.markdown("---")
         st.subheader("Quick Setup: Add Admin as User")
         st.info("""
-        **Quick Setup:** If you want to test the Generator app, you can quickly create a test workspace 
+        **Quick Setup:** If you want to test the Generator app, you can quickly create a test company 
         and add yourself as a user. This is useful for testing purposes.
         """)
         
-        if st.button("🚀 Create Test Workspace & Add Me as Owner", type="primary"):
+        if st.button("🚀 Create Test Company & Add Me as Owner", type="primary"):
             admin_email = st.session_state.user_email
-            test_workspace_name = f"Test Workspace - {admin_email.split('@')[0]}"
+            test_workspace_name = f"Test Company - {admin_email.split('@')[0]}"
             test_company_name = "HTC Global (Test)"
             
             # Create workspace
@@ -602,10 +602,10 @@ elif page == "🏢 Companies":
                 "quick_setup_test_workspace",
                 admin_email,
                 {"workspace_id": workspace_id, "member_email": admin_email},
-                f"Created test workspace and added {admin_email} as owner with password"
+                f"Created test company and added {admin_email} as owner with password"
             )
             
-            st.success(f"✅ Test workspace created! You can now log into the Generator app with:")
+            st.success(f"✅ Test company created! You can now log into the Generator app with:")
             st.code(f"Email: {admin_email}\nPassword: Stefan2025")
             st.info("**Note:** You'll need to create an intelligence specification before you can generate newsletters.")
             st.rerun()
@@ -809,12 +809,12 @@ PU Observatory Admin""")
                                     "remove_workspace_member",
                                     st.session_state.user_email,
                                     {"workspace_id": selected_workspace_id, "member_email": member_email},
-                                    f"Removed {member_email} from workspace"
+                                    f"Removed {member_email} from company"
                                 )
                                 st.success(f"✅ Removed {member_email}")
                                 st.rerun()
             else:
-                st.info("No members in this workspace yet. Add one above!")
+                st.info("No members in this company yet. Add one above!")
 
 elif page == "🔐 Administrators":
     st.markdown('<p class="main-header">Administrator Management</p>', unsafe_allow_html=True)
@@ -1083,7 +1083,7 @@ elif page == "💰 Invoicing":
     st.markdown('<p class="main-header">Invoicing Management</p>', unsafe_allow_html=True)
     
     st.info("""
-    **Invoicing Management** helps you track the billing status of requests and company workspaces.
+    **Invoicing Management** helps you track the billing status of requests and companies.
     Use this page to:
     - View requests by invoicing status
     - Generate invoices and receipts (HTML format)
@@ -1482,7 +1482,7 @@ HTC Global
                                 
                                 if not matching_workspace:
                                     # Auto-create workspace
-                                    workspace_name = f"{company_name} Workspace"
+                                    workspace_name = f"{company_name} Company"
                                     new_workspace = create_workspace(workspace_name, company_name, contact_email)
                                     workspace_id = new_workspace.get('id')
                                     
@@ -1499,7 +1499,7 @@ HTC Global
                                         "auto_create_workspace",
                                         st.session_state.user_email,
                                         {"workspace_id": workspace_id, "company_name": company_name, "member_email": contact_email},
-                                        f"Automatically created workspace for {company_name} and added {contact_email} as owner (default password: {default_password})"
+                                        f"Automatically created company for {company_name} and added {contact_email} as owner (default password: {default_password})"
                                     )
                                     st.success(f"✅ Company created and user added!")
                                     st.warning(f"⚠️ **IMPORTANT:** Default password for {contact_email} is: `{default_password}` - Please share this with the user securely. They should change it on first login.")
@@ -1563,7 +1563,7 @@ PU Observatory Admin""")
                                             "auto_add_member_to_existing_workspace",
                                             st.session_state.user_email,
                                             {"workspace_id": workspace_id, "member_email": contact_email},
-                                            f"Added {contact_email} as owner to existing workspace for {company_name}"
+                                            f"Added {contact_email} as owner to existing company for {company_name}"
                                         )
                                         st.info(f"✅ Added {contact_email} as owner to existing company")
                                 
@@ -1575,9 +1575,9 @@ PU Observatory Admin""")
                                         "mark_paid_and_activate",
                                         st.session_state.user_email,
                                         {"request_id": req.get('id'), "workspace_id": workspace_id},
-                                        f"Marked as paid, created workspace, and activated specification for {company_name}"
+                                        f"Marked as paid, created company, and activated specification for {company_name}"
                                     )
-                                    st.success(f"✅ Paid! Workspace created/assigned and intelligence specification activated for {company_name}")
+                                    st.success(f"✅ Paid! Company created/assigned and intelligence specification activated for {company_name}")
                                     st.balloons()
                                     st.rerun()
                                 else:
@@ -1625,7 +1625,7 @@ elif page == "📈 Reporting":
     **Reporting & Analytics** provides comprehensive insights into platform usage, performance, and business metrics.
     Generate reports for:
     - Platform usage statistics
-    - Company workspace activity
+    - Company activity
     - Generation performance
     - Revenue and billing analytics
     """)
@@ -1635,7 +1635,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Workspace Activity", "Generation Performance", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Revenue Analytics"]
     )
     
     # Get data
@@ -1650,7 +1650,7 @@ elif page == "📈 Reporting":
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Company Workspaces", len(workspaces))
+            st.metric("Total Companies", len(workspaces))
         with col2:
             st.metric("Total Specifications", len(specifications))
         with col3:
@@ -1674,7 +1674,7 @@ elif page == "📈 Reporting":
         
         # Export platform overview
         platform_csv = "Metric,Value\n"
-        platform_csv += f"Total Company Workspaces,{len(workspaces)}\n"
+        platform_csv += f"Total Companies,{len(workspaces)}\n"
         platform_csv += f"Total Specifications,{len(specifications)}\n"
         platform_csv += f"Active Specifications,{len(active_specs)}\n"
         platform_csv += f"Total Generation Runs,{len(all_runs)}\n"
@@ -1688,8 +1688,8 @@ elif page == "📈 Reporting":
             mime="text/csv"
         )
     
-    elif report_type == "Company Workspace Activity":
-        st.subheader("Company Workspace Activity Report")
+    elif report_type == "Company Activity":
+        st.subheader("Company Activity Report")
         
         if workspaces:
             for ws in workspaces:
@@ -1706,8 +1706,8 @@ elif page == "📈 Reporting":
                         st.write(f"**Generation Runs:** {len(ws_runs)}")
                         st.write(f"**Created:** {ws.get('created_at', '')[:10]}")
             
-            # Export workspace activity
-            workspace_csv = "Company Workspace,Company Name,Specifications,Members,Generation Runs,Created\n"
+            # Export company activity
+            workspace_csv = "Company,Company Name,Specifications,Members,Generation Runs,Created\n"
             for ws in workspaces:
                 specs = get_newsletter_specifications(ws.get('id'))
                 members = get_workspace_members(ws.get('id'))
@@ -1715,13 +1715,13 @@ elif page == "📈 Reporting":
                 workspace_csv += f"{ws.get('name')},{ws.get('company_name')},{len(specs)},{len(members)},{len(ws_runs)},{ws.get('created_at', '')[:10]}\n"
             
             st.download_button(
-                "📥 Export Workspace Activity",
+                "📥 Export Company Activity",
                 data=workspace_csv,
-                file_name=f"workspace_activity_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"company_activity_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
         else:
-            st.info("No company workspaces found.")
+            st.info("No companies found.")
     
     elif report_type == "Generation Performance":
         st.subheader("Generation Performance Report")
@@ -1800,8 +1800,8 @@ elif page == "📈 Reporting":
         
         st.markdown("---")
         
-        # Revenue by company workspace
-        st.subheader("Revenue by Company Workspace")
+        # Revenue by company
+        st.subheader("Revenue by Company")
         workspace_revenue = {}
         for ws in workspaces:
             ws_specs = get_newsletter_specifications(ws.get('id'))
@@ -1822,7 +1822,7 @@ elif page == "📈 Reporting":
             st.write(f"**{ws_name}:** ${revenue:,.0f}/year")
         
         # Export revenue data
-        revenue_csv = "Company Workspace,Annual Revenue\n"
+        revenue_csv = "Company,Annual Revenue\n"
         for ws_name, revenue in sorted(workspace_revenue.items(), key=lambda x: x[1], reverse=True):
             revenue_csv += f"{ws_name},{revenue}\n"
         revenue_csv += f"\nTotal,{total_revenue}\n"
