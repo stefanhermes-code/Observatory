@@ -1651,7 +1651,11 @@ elif page == "📈 Reporting":
     # Get data
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    all_runs = get_recent_runs(1000)
+    try:
+        all_runs = get_recent_runs(1000)
+    except Exception as e:
+        st.warning(f"⚠️ Could not load all runs: {str(e)}. Using limited dataset.")
+        all_runs = get_recent_runs(100)  # Fallback to smaller limit
     all_requests = get_all_specification_requests()
     active_specs = [s for s in specifications if s.get("status") == "active"]
     
@@ -1789,7 +1793,15 @@ elif page == "📈 Reporting":
         st.markdown("---")
         
         # Get recent runs (limit to 50 for display)
-        recent_runs = all_runs[:50]
+        # If all_runs failed to load, try direct call
+        if not all_runs:
+            try:
+                recent_runs = get_recent_runs(50)
+            except Exception as e:
+                st.error(f"Error loading generation history: {str(e)}")
+                recent_runs = []
+        else:
+            recent_runs = all_runs[:50]
         
         if recent_runs:
             st.write(f"**Total Runs:** {len(recent_runs)} (showing most recent 50)")
