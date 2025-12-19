@@ -407,26 +407,62 @@ if not st.session_state.submitted:
     # Default to suggested tier if available, otherwise use stored value or Starter
     default_tier = st.session_state.specification.get("package_tier") or suggested_tier or "Starter"
     
-    # Display package options as radio buttons
+    # Determine which tiers are valid based on selections
+    num_cats = len(st.session_state.specification.get("categories", []))
+    num_regs = len(selected_regions)
+    
+    # Define tier limits
+    tier_limits = {
+        "Starter": {"max_categories": 3, "max_regions": 1},
+        "Medium": {"max_categories": 6, "max_regions": 2},
+        "Pro": {"max_categories": 9, "max_regions": 4},
+        "Enterprise": {"max_categories": 999, "max_regions": 999}  # No limit
+    }
+    
+    # Check if selected tier is valid for current selections
+    def is_tier_valid(tier_name):
+        limits = tier_limits.get(tier_name, {"max_categories": 0, "max_regions": 0})
+        return num_cats <= limits["max_categories"] and num_regs <= limits["max_regions"]
+    
+    # Filter available tiers - only show tiers that are valid or higher than suggested
+    available_tiers = []
+    if suggested_tier:
+        tier_order = ["Starter", "Medium", "Pro", "Enterprise"]
+        suggested_index = tier_order.index(suggested_tier) if suggested_tier in tier_order else 0
+        # Allow suggested tier and all higher tiers
+        for tier in tier_order:
+            tier_index = tier_order.index(tier)
+            if tier_index >= suggested_index:
+                available_tiers.append(tier)
+    else:
+        available_tiers = list(package_options.keys())
+    
+    # Display package options as radio buttons (only valid tiers)
     selected_package_tier = st.radio(
         "Package Tier",
-        options=list(package_options.keys()),
-        index=list(package_options.keys()).index(default_tier) if default_tier in package_options else 0,
+        options=available_tiers,
+        index=available_tiers.index(default_tier) if default_tier in available_tiers else 0,
         format_func=lambda x: f"{x} - {package_options[x]['description']}",
-        help="You can select a higher tier than suggested if needed."
+        help="Package tier must match or exceed your selections. Higher tiers are available if needed."
     )
     
     st.session_state.specification["package_tier"] = selected_package_tier
     
-    # Show suggestion if different from selected
+    # Show validation message
     if suggested_tier and suggested_tier != selected_package_tier:
         if suggested_tier in package_options:
             suggested_multiplier = package_options[suggested_tier]["multiplier"]
             selected_multiplier = package_options[selected_package_tier]["multiplier"]
             if selected_multiplier > suggested_multiplier:
-                st.info(f"💡 **Suggestion:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), we recommend the **{suggested_tier}** package. You've selected **{selected_package_tier}**.")
+                st.info(f"💡 **Upgrade:** You've selected **{selected_package_tier}** (higher than the recommended **{suggested_tier}** package). This gives you access to premium features.")
             else:
-                st.warning(f"⚠️ **Note:** Based on your selections ({len(st.session_state.specification.get('categories', []))} categories, {len(selected_regions)} regions), the **{suggested_tier}** package is typically recommended. You've selected **{selected_package_tier}**.")
+                # This shouldn't happen now due to filtering, but keep as safety
+                st.warning(f"⚠️ **Warning:** Your selections ({num_cats} categories, {num_regs} regions) exceed the **{selected_package_tier}** package limits. Please select a higher tier.")
+    
+    # Additional validation: Check if selections exceed selected tier
+    selected_limits = tier_limits.get(selected_package_tier, {"max_categories": 0, "max_regions": 0})
+    if num_cats > selected_limits["max_categories"] or num_regs > selected_limits["max_regions"]:
+        st.error(f"❌ **Invalid Selection:** Your selections ({num_cats} categories, {num_regs} regions) exceed the **{selected_package_tier}** package limits (max {selected_limits['max_categories']} categories, {selected_limits['max_regions']} regions). Please reduce your selections or choose a higher package tier.")
     
     st.markdown("---")
     
