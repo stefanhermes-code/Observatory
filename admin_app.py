@@ -468,20 +468,21 @@ elif page == "🏢 Companies":
     # Create new company
     with st.expander("➕ Create New Company", expanded=False):
         with st.form("create_workspace"):
-            ws_name = st.text_input("Company Name")
-            company_name = st.text_input("Company Name")
-            contact_email = st.text_input("Contact Email")
+            company_name = st.text_input("Company Name", key="create_company_name")
+            contact_email = st.text_input("Contact Email", key="create_contact_email")
             
             if st.form_submit_button("Create Company", type="primary"):
-                if ws_name and company_name and contact_email:
-                    workspace = create_workspace(ws_name, company_name, contact_email)
+                if company_name and contact_email:
+                    # Workspace name is auto-generated as "{Company Name} Company"
+                    workspace_name = f"{company_name} Company"
+                    workspace = create_workspace(workspace_name, company_name, contact_email)
                     log_audit_action(
                         "create_workspace",
                         st.session_state.user_email,
                         {"workspace_id": workspace.get('id')},
                         f"Created company: {ws_name}"
                     )
-                    st.success(f"✅ Company '{ws_name}' created!")
+                    st.success(f"✅ Company '{company_name}' created!")
                     st.rerun()
                 else:
                     st.error("Please fill in all fields")
