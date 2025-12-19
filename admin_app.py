@@ -996,19 +996,25 @@ elif page == "📰 Intelligence Specifications":
                     
                     st.write("**Categories:**")
                     current_cats = spec.get('categories', [])
+                    available_cat_ids = [c['id'] for c in PU_CATEGORIES]
+                    # Filter current_cats to only include valid category IDs
+                    valid_current_cats = [cat_id for cat_id in current_cats if cat_id in available_cat_ids]
                     selected_cats = st.multiselect(
                         "Select Categories",
-                        options=[c['id'] for c in PU_CATEGORIES],
-                        default=current_cats,
+                        options=available_cat_ids,
+                        default=valid_current_cats,
                         format_func=lambda x: next((c['name'] for c in PU_CATEGORIES if c['id'] == x), x),
                         key=f"spec_cats_{spec.get('id')}"
                     )
                     
                     st.write("**Regions:**")
+                    current_regions = spec.get('regions', [])
+                    # Filter current_regions to only include valid regions
+                    valid_current_regions = [r for r in current_regions if r in REGIONS]
                     selected_regions = st.multiselect(
                         "Select Regions",
                         options=REGIONS,
-                        default=spec.get('regions', []),
+                        default=valid_current_regions,
                         key=f"spec_regions_{spec.get('id')}"
                     )
                     
