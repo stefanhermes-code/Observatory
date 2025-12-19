@@ -449,9 +449,6 @@ if not st.session_state.submitted:
                     <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
                         {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence, {scope_tier} package)
                     </p>
-                    <p style="color: #666; margin-top: 0.25rem; font-size: 0.85rem;">
-                        {selected_frequency.title()} cadence, {scope_tier} package
-                    </p>
                 </div>
             """, unsafe_allow_html=True)
         except Exception:
