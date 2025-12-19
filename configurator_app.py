@@ -72,6 +72,27 @@ st.markdown("""
         border-left: 4px solid #1f77b4;
         margin: 1rem 0;
     }
+    .floating-price-box {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background-color: #e8f4f8;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #1f77b4;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 999;
+        min-width: 250px;
+        max-width: 300px;
+    }
+    @media (max-width: 768px) {
+        .floating-price-box {
+            position: relative;
+            top: auto;
+            right: auto;
+            margin: 1rem 0;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -426,7 +447,7 @@ if not st.session_state.submitted:
     
     st.session_state.specification["frequency"] = selected_frequency
     
-    # Real-time price estimate (prominently displayed) - shown once after step 3 is completed
+    # Real-time price estimate (floating window) - shown once after step 3 is completed
     if len(st.session_state.specification.get("categories", [])) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
         try:
             from core.pricing import calculate_price, format_price
@@ -437,17 +458,18 @@ if not st.session_state.submitted:
                 package_tier=st.session_state.specification.get("package_tier")
             )
             scope_tier = price_data["breakdown"]["scope"]["tier"]
-            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
-            base_price = price_data["breakdown"]["scope"]["base_price_per_user_monthly"]
             
             st.markdown(f"""
-                <div style="background-color: #e8f4f8; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #1f77b4; margin: 1rem 0;">
-                    <strong style="color: #1f77b4; font-size: 1.1rem;">💰 Estimated Annual Price:</strong>
-                    <div style="font-size: 2rem; font-weight: bold; color: #1f77b4; margin-top: 0.5rem;">
+                <div class="floating-price-box">
+                    <strong style="color: #1f77b4; font-size: 1rem; display: block; margin-bottom: 0.5rem;">💰 Estimated Price</strong>
+                    <div style="font-size: 1.75rem; font-weight: bold; color: #1f77b4; margin-bottom: 0.25rem;">
                         {format_price(price_data)}
                     </div>
-                    <p style="color: #666; margin-top: 0.5rem; font-size: 0.9rem;">
-                        {format_price(price_data, show_per_user=True)} ({selected_frequency.title()} cadence, {scope_tier} package)
+                    <p style="color: #666; font-size: 0.85rem; margin: 0;">
+                        {format_price(price_data, show_per_user=True)}
+                    </p>
+                    <p style="color: #666; font-size: 0.75rem; margin-top: 0.25rem; margin-bottom: 0;">
+                        {selected_frequency.title()} • {scope_tier}
                     </p>
                 </div>
             """, unsafe_allow_html=True)
