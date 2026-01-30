@@ -404,15 +404,15 @@ def render_html_from_content(
                 # Date was found but is invalid/outdated - skip this item completely
                 continue
             
-            # Only show date if it was successfully extracted AND validated (formatted_date is set)
-            # This prevents showing "imaginary" dates that weren't properly validated
-            date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+            # CRITICAL: Require BOTH source AND date - skip items missing either
+            # This ensures all displayed items have complete attribution
+            if not source or not formatted_date:
+                # Missing source or date - skip this item completely
+                continue
             
-            if source:
-                html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
-            else:
-                # No source found - just show the text with date if available
-                html_lines.append(f'<li><span class="news-item">{item_text_clean}</span>{date_html}</li>')
+            # Both source and date are present - format and display
+            date_html = f' <span class="news-date">{formatted_date}</span>'
+            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
         else:
             if in_list:
                 html_lines.append('</ul>')
