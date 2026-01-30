@@ -405,6 +405,17 @@ elif page == "📰 Generate Report":
                 # Success - display results
                 html_content = result_data["html_content"]
                 
+                # Check if company list was retrieved
+                metadata = result_data.get("metadata", {})
+                tool_usage = metadata.get("tool_usage", {})
+                company_list_retrieved = tool_usage.get("file_search_called", False)
+                
+                if company_list_retrieved:
+                    st.success("✅ Report generated successfully! ✅ Company list from knowledge base was retrieved.")
+                else:
+                    st.warning("⚠️ Report generated, but company list from knowledge base was NOT retrieved. Results may be incomplete.")
+                    st.info("💡 The OpenAI Assistant should use file_search to retrieve the company list. Check the Assistant configuration.")
+                
                 st.success("✅ Report generated successfully!")
                 
                 # Display preview
@@ -484,6 +495,11 @@ elif page == "📚 History":
                     html_content = None
                     if run.get("metadata") and isinstance(run.get("metadata"), dict):
                         html_content = run.get("metadata", {}).get("html_content")
+                        # Check company list retrieval status
+                        tool_usage = run.get("metadata", {}).get("tool_usage", {})
+                        company_list_retrieved = tool_usage.get("file_search_called", False)
+                        if not company_list_retrieved:
+                            st.warning("⚠️ Company list was NOT retrieved for this run - results may be incomplete")
                     
                     if html_content:
                         st.download_button(

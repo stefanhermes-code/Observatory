@@ -163,10 +163,15 @@ def build_run_package(
         "Do not expand beyond the specified scope.",
         "Present content in a clear, professional format suitable for decision-makers.",
         "",
-        "## CRITICAL: Company List Reference - USE THE ATTACHED COMPANY LIST",
+        "## ⚠️ CRITICAL: MANDATORY COMPANY LIST RETRIEVAL - NO EXCEPTIONS",
         "A comprehensive list of 152+ PU industry companies is available in the attached knowledge base (vector store).",
-        "**YOU MUST:**",
-        "- FIRST: Use the file_search tool to retrieve the company list from the attached vector store/knowledge base",
+        "",
+        "**YOU MUST DO THIS FIRST - BEFORE ANY NEWS SEARCHING:**",
+        "1. **MANDATORY STEP**: Use the file_search tool IMMEDIATELY to retrieve the company list from the attached vector store/knowledge base",
+        "2. **VERIFICATION**: You will be monitored - if file_search is not called, your output will be flagged as incomplete",
+        "3. **FILE NAME**: Search for files containing 'company' or 'companies' in the knowledge base",
+        "",
+        "**AFTER RETRIEVING THE COMPANY LIST:**",
         "- The company list file contains 152+ companies with their names, aliases, value chain positions, regions, and status",
         "- Filter the retrieved company list by: (1) Value chain positions matching selected deliverables, (2) Regions matching selected regions",
         "- Search for news about ALL companies in your filtered list - do not skip any companies",
@@ -178,6 +183,8 @@ def build_run_package(
         "- Verify company status: Only include news about active companies (the list excludes acquired/merged/defunct companies)",
         "- If you find news about a company NOT in the list, you may include it if highly relevant, but ALWAYS prioritize companies from the attached list",
         "- The company list contains 152+ companies across all value chain positions and regions - use it comprehensively",
+        "",
+        "**REMINDER**: This is not optional. You MUST call file_search to retrieve the company list. Your run will be flagged if you don't.",
         "",
         "## CRITICAL: RECENT NEWS ONLY - DATE VERIFICATION REQUIRED",
         f"**CURRENT DATE:** {today.strftime('%Y-%m-%d')}",
@@ -383,6 +390,13 @@ def execute_assistant(run_package: Dict) -> Dict:
         
         content = "\n\n".join(content_parts) if content_parts else str(latest_message.content)
         
+        # Verify company list was retrieved - log warning if not
+        if not tool_usage_info["file_search_called"]:
+            print(f"[WARNING] Company list was NOT retrieved! file_search tool was not called during this run.")
+            print(f"[WARNING] The assistant may have missed companies from the knowledge base.")
+            # Add warning to content metadata
+            content = f"⚠️ [SYSTEM WARNING: Company list from knowledge base was not retrieved. Results may be incomplete.]\n\n{content}"
+        
         # Get usage information if available
         usage = getattr(run_status, "usage", None)
         tokens_used = usage.total_tokens if usage else 0
@@ -395,7 +409,10 @@ def execute_assistant(run_package: Dict) -> Dict:
                 "thread_id": thread_id,
                 "run_id": run.id,
                 "timestamp": datetime.utcnow().isoformat(),
-                "tool_usage": tool_usage_info  # Add tool usage tracking
+                "tool_usage": tool_usage_info,  # Add tool usage tracking
+                "company_list_retrieved": tool_usage_info["file_search_called"],
+                "company_list_warning": not tool_usage_info["file_search_called"],
+                "file_search_count": tool_usage_info["file_search_count"]
             }
         }
     
