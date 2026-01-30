@@ -414,9 +414,7 @@ elif page == "📰 Generate Report":
                     st.success("✅ Report generated successfully! ✅ Company list from knowledge base was retrieved.")
                 else:
                     st.warning("⚠️ Report generated, but company list from knowledge base was NOT retrieved. Results may be incomplete.")
-                    st.info("💡 The OpenAI Assistant should use file_search to retrieve the company list. Check the Assistant configuration.")
-                
-                st.success("✅ Report generated successfully!")
+                    st.info("💡 The OpenAI Assistant should use file_search to retrieve the company list. Check the Assistant configuration in OpenAI dashboard.")
                 
                 # Display preview
                 st.markdown("### Preview")
