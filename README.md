@@ -186,7 +186,7 @@ OWNER_PASSWORD = "your_admin_password"
 ├── generator_app.py             # Authenticated report generator
 ├── core/                        # Shared modules
 │   ├── __init__.py
-│   ├── taxonomy.py              # 11 categories + regions + frequencies
+│   ├── taxonomy.py              # 11 deliverable categories + regions + frequencies
 │   ├── validation.py             # Form validation functions
 │   ├── database.py              # Configurator database operations
 │   ├── admin_db.py              # Admin database operations
@@ -221,12 +221,13 @@ OWNER_PASSWORD = "your_admin_password"
 2. Regional Market Monitoring
 3. Industry Context & Insight
 4. PU Value-Chain Analysis
-5. Competitive Intelligence
-6. Sustainability & Regulation Tracking
-7. Capacity & Asset Moves
-8. M&A and Partnerships
-9. Early-Warning Signals
-10. Executive-Ready Briefings
+5. Link in the PU Value Chain
+6. Competitive Intelligence
+7. Sustainability & Regulation Tracking
+8. Capacity & Asset Moves
+9. M&A and Partnerships
+10. Early-Warning Signals
+11. Executive-Ready Briefings
 
 ### Frequency Options
 - **Daily**: Continuous monitoring, early-warning signals (1 report per day)

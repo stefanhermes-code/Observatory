@@ -12,7 +12,7 @@ from urllib.parse import quote
 # Add current directory to path to import core modules
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE
+from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE, VALUE_CHAIN_LINKS
 from core.validation import validate_specification
 from core.database import create_specification_request, update_specification_request, get_taxonomy_data
 from core.pricing import calculate_price, format_price
@@ -102,6 +102,7 @@ if "step" not in st.session_state:
 if "specification" not in st.session_state:
     st.session_state.specification = {
         "categories": [],
+        "value_chain_links": [],  # Step 2: selected value chain link IDs
         "regions": [],
         "package_tier": "",  # Explicit package tier selection
         "frequency": "",
@@ -152,20 +153,24 @@ with st.expander("📖 How It Works", expanded=False):
     st.markdown("""
     ### Step-by-Step Process
     
-    1. **Define Intelligence Scope** - Select the categories of intelligence you want to track (e.g., Company News, Capacity Changes, Market Developments)
+    1. **Intelligence Scope** - Select the categories of intelligence you want to track (e.g., Company News, Capacity Changes, Market Developments)
     
-    2. **Select Regions** - Choose the geographic regions you want to monitor (e.g., EMEA, Americas, Asia)
+    2. **Value Chain Link** - Select which part(s) of the PU value chain to focus on (raw materials, system houses, foam/converters, end-use)
     
-    3. **Choose Frequency** - Select how often you want to receive updates:
+    3. **Select Regions** - Choose the geographic regions you want to monitor (e.g., EMEA, Americas, Asia)
+    
+    4. **Choose Frequency** - Select how often you want to receive updates:
        - **Monthly**: Strategic overview, themes, and outlook ($19/user/month)
        - **Weekly**: Operational monitoring with context ($39/user/month)
        - **Daily**: Continuous monitoring, early-warning signals ($119/user/month)
     
-    4. **Name Your Intelligence Source** - Give your customized intelligence source a name
+    5. **Tier level** - Confirm or choose your package tier
     
-    5. **Provide Company Information** - Enter your company details and contact information
+    6. **Name Your Intelligence Source** - Give your customized intelligence source a name
     
-    6. **Review & Submit** - Review your selections and see the pricing, then submit your request
+    7. **Provide Company Information** - Enter your company details and contact information
+    
+    8. **Review & Submit** - Review your selections and see the pricing, then submit your request
     
     ### What Happens Next?
     
@@ -291,8 +296,9 @@ regions_list = taxonomy_data["regions"]
 # Show form if not submitted, success page if submitted
 if not st.session_state.submitted:
     # Normal form flow - only rendered if NOT submitted
-    # Step 1: Scope Definition (Categories) - 2 columns
-    st.markdown('<p class="step-header">Step 1: Define Intelligence Scope</p>', unsafe_allow_html=True)
+    # Step 1: Intelligence Scope (categories only; Value Chain Link is Step 2)
+    categories_list_scope = [c for c in categories_list if c["id"] != "value_chain_link"]
+    st.markdown('<p class="step-header">Step 1: Intelligence Scope</p>', unsafe_allow_html=True)
     st.write("Select one or more categories that your intelligence source should cover:")
     
     selected_categories = []
@@ -300,7 +306,7 @@ if not st.session_state.submitted:
     # Display categories in 2 columns
     col1, col2 = st.columns(2)
     
-    for idx, category in enumerate(categories_list):
+    for idx, category in enumerate(categories_list_scope):
         col = col1 if idx % 2 == 0 else col2
         with col:
             if st.checkbox(
@@ -316,8 +322,27 @@ if not st.session_state.submitted:
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
     
-    # Step 2: Region Selection - Checkboxes like categories
-    st.markdown('<p class="step-header">Step 2: Select Regions</p>', unsafe_allow_html=True)
+    # Step 2: Value Chain Link
+    st.markdown('<p class="step-header">Step 2: Value Chain Link</p>', unsafe_allow_html=True)
+    st.write("Select which part(s) of the PU value chain to focus on (optional):")
+    
+    selected_value_chain_links = []
+    vc_col1, vc_col2 = st.columns(2)
+    for idx, link in enumerate(VALUE_CHAIN_LINKS):
+        col = vc_col1 if idx % 2 == 0 else vc_col2
+        with col:
+            if st.checkbox(
+                f"**{link['name']}**",
+                value=link["id"] in st.session_state.specification.get("value_chain_links", []),
+                help=link["description"],
+                key=f"vcl_{link['id']}"
+            ):
+                selected_value_chain_links.append(link["id"])
+    
+    st.session_state.specification["value_chain_links"] = selected_value_chain_links
+    
+    # Step 3: Region Selection
+    st.markdown('<p class="step-header">Step 3: Select Regions</p>', unsafe_allow_html=True)
     st.write("Select one or more regions to monitor:")
     
     selected_regions = []
@@ -337,137 +362,30 @@ if not st.session_state.submitted:
     
     st.session_state.specification["regions"] = selected_regions
     
-    # Show package tier indicator after regions are selected
-    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0:
+    # Show package tier indicator after regions are selected (uses categories + value_chain_link if any links selected)
+    categories_for_scope = list(st.session_state.specification.get("categories", []))
+    if st.session_state.specification.get("value_chain_links"):
+        if "value_chain_link" not in categories_for_scope:
+            categories_for_scope.append("value_chain_link")
+    if len(categories_for_scope) > 0 and len(selected_regions) > 0:
         try:
             from core.pricing import calculate_price
             price_data = calculate_price(
-                categories=st.session_state.specification.get("categories", []),
+                categories=categories_for_scope,
                 regions=selected_regions,
                 frequency=st.session_state.specification.get("frequency", "monthly"),
                 package_tier=st.session_state.specification.get("package_tier")
             )
             scope_tier = price_data["breakdown"]["scope"]["tier"]
-            scope_multiplier = price_data["breakdown"]["scope"]["multiplier"]
-            
-            tier_colors = {
-                "Starter": "#4caf50",
-                "Medium": "#2196f3",
-                "Pro": "#ff9800",
-                "Enterprise": "#9c27b0"
-            }
-            tier_color = tier_colors.get(scope_tier, "#666")
-            
-            st.info(f"📦 **Package Tier:** {scope_tier} - Based on {len(st.session_state.specification.get('categories', []))} categories and {len(selected_regions)} regions")
+            st.info(f"📦 **Package Tier:** {scope_tier} - Based on {len(categories_for_scope)} categories and {len(selected_regions)} regions")
         except Exception:
             pass
     
     if len(selected_regions) == 0:
         st.warning("⚠️ Please select at least one region to continue.")
     
-    # Step 3: Package Tier Selection
-    st.markdown('<p class="step-header">Step 3: Select Package Tier</p>', unsafe_allow_html=True)
-    st.write("Choose your package tier:")
-    
-    # Determine suggested package tier based on selections
-    suggested_tier = None
-    if len(st.session_state.specification.get("categories", [])) > 0 and len(selected_regions) > 0:
-        try:
-            from core.pricing import calculate_price
-            price_data = calculate_price(
-                categories=st.session_state.specification.get("categories", []),
-                regions=selected_regions,
-                frequency=st.session_state.specification.get("frequency", "monthly"),
-                package_tier=None  # Use None to auto-determine for suggestion
-            )
-            suggested_tier = price_data["breakdown"]["scope"]["tier"]
-        except Exception:
-            pass
-    
-    # Package tier options with descriptions
-    package_options = {
-        "Starter": {
-            "multiplier": 1.0,
-            "description": "Focused coverage (Up to 3 categories, 1 region)"
-        },
-        "Medium": {
-            "multiplier": 1.2,
-            "description": "Balanced coverage (Up to 6 categories, 2 regions)"
-        },
-        "Pro": {
-            "multiplier": 1.5,
-            "description": "Comprehensive coverage (Up to 9 categories, up to 4 regions)"
-        },
-        "Enterprise": {
-            "multiplier": 2.0,
-            "description": "Full customization (10+ categories, 5+ regions)"
-        }
-    }
-    
-    # Default to suggested tier if available, otherwise use stored value or Starter
-    default_tier = st.session_state.specification.get("package_tier") or suggested_tier or "Starter"
-    
-    # Determine which tiers are valid based on selections
-    num_cats = len(st.session_state.specification.get("categories", []))
-    num_regs = len(selected_regions)
-    
-    # Define tier limits
-    tier_limits = {
-        "Starter": {"max_categories": 3, "max_regions": 1},
-        "Medium": {"max_categories": 6, "max_regions": 2},
-        "Pro": {"max_categories": 9, "max_regions": 4},
-        "Enterprise": {"max_categories": 999, "max_regions": 999}  # No limit
-    }
-    
-    # Check if selected tier is valid for current selections
-    def is_tier_valid(tier_name):
-        limits = tier_limits.get(tier_name, {"max_categories": 0, "max_regions": 0})
-        return num_cats <= limits["max_categories"] and num_regs <= limits["max_regions"]
-    
-    # Filter available tiers - only show tiers that are valid or higher than suggested
-    available_tiers = []
-    if suggested_tier:
-        tier_order = ["Starter", "Medium", "Pro", "Enterprise"]
-        suggested_index = tier_order.index(suggested_tier) if suggested_tier in tier_order else 0
-        # Allow suggested tier and all higher tiers
-        for tier in tier_order:
-            tier_index = tier_order.index(tier)
-            if tier_index >= suggested_index:
-                available_tiers.append(tier)
-    else:
-        available_tiers = list(package_options.keys())
-    
-    # Display package options as radio buttons (only valid tiers)
-    selected_package_tier = st.radio(
-        "Package Tier",
-        options=available_tiers,
-        index=available_tiers.index(default_tier) if default_tier in available_tiers else 0,
-        format_func=lambda x: f"{x} - {package_options[x]['description']}",
-        help="Package tier must match or exceed your selections. Higher tiers are available if needed."
-    )
-    
-    st.session_state.specification["package_tier"] = selected_package_tier
-    
-    # Show validation message
-    if suggested_tier and suggested_tier != selected_package_tier:
-        if suggested_tier in package_options:
-            suggested_multiplier = package_options[suggested_tier]["multiplier"]
-            selected_multiplier = package_options[selected_package_tier]["multiplier"]
-            if selected_multiplier > suggested_multiplier:
-                st.info(f"💡 **Upgrade:** You've selected **{selected_package_tier}** (higher than the recommended **{suggested_tier}** package). This gives you access to premium features.")
-            else:
-                # This shouldn't happen now due to filtering, but keep as safety
-                st.warning(f"⚠️ **Warning:** Your selections ({num_cats} categories, {num_regs} regions) exceed the **{selected_package_tier}** package limits. Please select a higher tier.")
-    
-    # Additional validation: Check if selections exceed selected tier
-    selected_limits = tier_limits.get(selected_package_tier, {"max_categories": 0, "max_regions": 0})
-    if num_cats > selected_limits["max_categories"] or num_regs > selected_limits["max_regions"]:
-        st.error(f"❌ **Invalid Selection:** Your selections ({num_cats} categories, {num_regs} regions) exceed the **{selected_package_tier}** package limits (max {selected_limits['max_categories']} categories, {selected_limits['max_regions']} regions). Please reduce your selections or choose a higher package tier.")
-    
-    st.markdown("---")
-    
     # Step 4: Frequency Selection
-    st.markdown('<p class="step-header">Step 3: Choose Frequency</p>', unsafe_allow_html=True)
+    st.markdown('<p class="step-header">Step 4: Choose Frequency</p>', unsafe_allow_html=True)
     st.write("Select how often you want to receive your newsletter:")
     
     frequency_options = {freq["value"]: f"{freq['label']} - {freq['description']}" for freq in FREQUENCIES}
@@ -483,18 +401,78 @@ if not st.session_state.submitted:
     
     st.session_state.specification["frequency"] = selected_frequency
     
-    # Real-time price estimate (floating window) - shown once after step 3 is completed
-    if len(st.session_state.specification.get("categories", [])) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
+    # Step 5: Tier level
+    st.markdown('<p class="step-header">Step 5: Tier level</p>', unsafe_allow_html=True)
+    st.write("Choose your package tier:")
+    
+    categories_for_tier = list(st.session_state.specification.get("categories", []))
+    if st.session_state.specification.get("value_chain_links"):
+        if "value_chain_link" not in categories_for_tier:
+            categories_for_tier.append("value_chain_link")
+    
+    suggested_tier = None
+    if len(categories_for_tier) > 0 and len(selected_regions) > 0:
+        try:
+            from core.pricing import calculate_price
+            price_data = calculate_price(
+                categories=categories_for_tier,
+                regions=selected_regions,
+                frequency=st.session_state.specification.get("frequency", "monthly"),
+                package_tier=None
+            )
+            suggested_tier = price_data["breakdown"]["scope"]["tier"]
+        except Exception:
+            pass
+    
+    package_options = {
+        "Starter": {"multiplier": 1.0, "description": "Focused coverage (Up to 3 categories, 1 region)"},
+        "Medium": {"multiplier": 1.2, "description": "Balanced coverage (Up to 6 categories, 2 regions)"},
+        "Pro": {"multiplier": 1.5, "description": "Comprehensive coverage (Up to 9 categories, up to 4 regions)"},
+        "Enterprise": {"multiplier": 2.0, "description": "Full customization (10+ categories, 5+ regions)"}
+    }
+    default_tier = st.session_state.specification.get("package_tier") or suggested_tier or "Starter"
+    num_cats = len(categories_for_tier)
+    num_regs = len(selected_regions)
+    tier_limits = {
+        "Starter": {"max_categories": 3, "max_regions": 1},
+        "Medium": {"max_categories": 6, "max_regions": 2},
+        "Pro": {"max_categories": 9, "max_regions": 4},
+        "Enterprise": {"max_categories": 999, "max_regions": 999}
+    }
+    tier_order = ["Starter", "Medium", "Pro", "Enterprise"]
+    available_tiers = []
+    if suggested_tier and suggested_tier in tier_order:
+        suggested_index = tier_order.index(suggested_tier)
+        available_tiers = [t for t in tier_order if tier_order.index(t) >= suggested_index]
+    else:
+        available_tiers = list(package_options.keys())
+    
+    selected_package_tier = st.radio(
+        "Package Tier",
+        options=available_tiers,
+        index=available_tiers.index(default_tier) if default_tier in available_tiers else 0,
+        format_func=lambda x: f"{x} - {package_options[x]['description']}",
+        help="Package tier must match or exceed your selections."
+    )
+    st.session_state.specification["package_tier"] = selected_package_tier
+    
+    selected_limits = tier_limits.get(selected_package_tier, {"max_categories": 0, "max_regions": 0})
+    if num_cats > selected_limits["max_categories"] or num_regs > selected_limits["max_regions"]:
+        st.error(f"❌ Your selections ({num_cats} categories, {num_regs} regions) exceed **{selected_package_tier}** limits. Reduce selections or choose a higher tier.")
+    
+    st.markdown("---")
+    
+    # Real-time price estimate (floating window)
+    if len(categories_for_tier) > 0 and len(st.session_state.specification.get("regions", [])) > 0:
         try:
             from core.pricing import calculate_price, format_price
             price_data = calculate_price(
-                categories=st.session_state.specification.get("categories", []),
+                categories=categories_for_tier,
                 regions=st.session_state.specification.get("regions", []),
                 frequency=selected_frequency,
                 package_tier=st.session_state.specification.get("package_tier")
             )
             scope_tier = price_data["breakdown"]["scope"]["tier"]
-            
             st.markdown(f"""
                 <div class="floating-price-box">
                     <strong style="color: #1f77b4; font-size: 1rem; display: block; margin-bottom: 0.5rem;">💰 Estimated Price</strong>
@@ -514,8 +492,8 @@ if not st.session_state.submitted:
     
     st.markdown("---")
     
-    # Step 5: Intelligence Source Name
-    st.markdown('<p class="step-header">Step 5: Name Your Intelligence Source</p>', unsafe_allow_html=True)
+    # Step 6: Intelligence Source Name
+    st.markdown('<p class="step-header">Step 6: Name Your Intelligence Source</p>', unsafe_allow_html=True)
     st.write("Give your intelligence source a name (this can be a newsletter, briefing, or any intelligence deliverable):")
     
     newsletter_name = st.text_input(
@@ -527,8 +505,8 @@ if not st.session_state.submitted:
     
     st.session_state.specification["newsletter_name"] = newsletter_name
     
-    # Step 6: Company and Contact
-    st.markdown('<p class="step-header">Step 6: Company and Contact Information</p>', unsafe_allow_html=True)
+    # Step 7: Company and Contact
+    st.markdown('<p class="step-header">Step 7: Company and Contact Information</p>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -616,8 +594,8 @@ if not st.session_state.submitted:
     )
     st.session_state.specification["vat_number"] = vat_number
     
-    # Step 6: Review and Submit
-    st.markdown('<p class="step-header">Step 6: Review and Submit</p>', unsafe_allow_html=True)
+    # Step 8: Review and Submit
+    st.markdown('<p class="step-header">Step 8: Review and Submit</p>', unsafe_allow_html=True)
     
     # Show summary
     st.markdown("### Specification Summary")
@@ -635,6 +613,14 @@ if not st.session_state.submitted:
             selected_cat_names = [cat["name"] for cat in categories_list if cat["id"] in spec["categories"]]
             for cat_name in selected_cat_names:
                 st.write(f"- {cat_name}")
+        else:
+            st.write("*None selected*")
+        
+        st.write("**Value Chain Link(s):**")
+        if spec.get("value_chain_links"):
+            vcl_names = [l["name"] for l in VALUE_CHAIN_LINKS if l["id"] in spec["value_chain_links"]]
+            for name in vcl_names:
+                st.write(f"- {name}")
         else:
             st.write("*None selected*")
         
@@ -700,7 +686,11 @@ if not st.session_state.submitted:
             for error in errors:
                 st.error(f"• {error}")
         else:
-            # Create or update specification request
+            # Categories to save: include value_chain_link if user selected any value chain links
+            categories_to_save = list(spec["categories"])
+            if spec.get("value_chain_links"):
+                if "value_chain_link" not in categories_to_save:
+                    categories_to_save.append("value_chain_link")
             try:
                 # Check if we're updating an existing request
                 if st.session_state.get("request_id"):
@@ -709,7 +699,7 @@ if not st.session_state.submitted:
                         request_id=st.session_state.request_id,
                         newsletter_name=spec["newsletter_name"],
                         industry_code=INDUSTRY_CODE,
-                        categories=spec["categories"],
+                        categories=categories_to_save,
                         regions=spec["regions"],
                         frequency=spec["frequency"],
                         company_name=spec["company_name"],
@@ -729,7 +719,7 @@ if not st.session_state.submitted:
                     result = create_specification_request(
                         newsletter_name=spec["newsletter_name"],
                         industry_code=INDUSTRY_CODE,
-                        categories=spec["categories"],
+                        categories=categories_to_save,
                         regions=spec["regions"],
                         frequency=spec["frequency"],
                         company_name=spec["company_name"],
@@ -850,12 +840,14 @@ if st.session_state.submitted:
     st.markdown("---")
     
     # Order Now button with mailto
+    vcl_names = ', '.join([l['name'] for l in VALUE_CHAIN_LINKS if l['id'] in spec.get('value_chain_links', [])]) or 'None'
     spec_summary = f"""
 Intelligence Source Name: {spec['newsletter_name']}
 Company: {spec['company_name']}
 Contact: {spec.get('first_name', '')} {spec.get('last_name', '')}
 Contact Email: {spec['contact_email']}
 Categories: {', '.join([cat['name'] for cat in categories_list if cat['id'] in spec['categories']])}
+Value Chain Links: {vcl_names}
 Regions: {', '.join(spec['regions'])}
 Frequency: {spec['frequency'].title()}
 Annual Price: {format_price(price_data)}
@@ -899,6 +891,8 @@ Annual Price: {format_price(price_data)}
     with col2:
         st.write("**Frequency:**", spec["frequency"].title())
         st.write("**Categories:**", len(spec["categories"]), "selected")
+        if spec.get("value_chain_links"):
+            st.write("**Value Chain Links:**", ", ".join([l["name"] for l in VALUE_CHAIN_LINKS if l["id"] in spec["value_chain_links"]]))
         st.write("**Regions:**", len(spec["regions"]), "selected")
     
     # Show where to view status

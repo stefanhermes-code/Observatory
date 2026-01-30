@@ -1,0 +1,12 @@
+# Make.com Webhook Configuration
+# Add these lines to your .env file:
+
+ORDER_WEBHOOK_URL=https://hook.integromat.com/your-webhook-url-here
+WEBHOOK_SECRET=your-webhook-secret-here
+SOURCE_APP=pu_observatory
+
+# Instructions:
+# 1. Replace "your-webhook-url-here" with your actual Make.com webhook URL
+# 2. Replace "your-webhook-secret-here" with your shared secret (if using authentication)
+# 3. SOURCE_APP can be "pu_observatory" or "pu_ondemand_training" (defaults to "pu_observatory" if not set)
+

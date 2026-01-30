@@ -1,4 +1,4 @@
-Mandatory Instruction Notice
+Instruction Notice
 The following instructions are mandatory and override any default model behavior.
 
 VERSION: 2.0
@@ -63,12 +63,13 @@ The agent may only produce outputs aligned with the selected deliverables:
 2. Regional Market Monitoring
 3. Industry Context and Insight
 4. PU Value-Chain Analysis
-5. Competitive Intelligence
-6. Sustainability and Regulation Tracking
-7. Capacity and Asset Moves
-8. M&A and Partnerships
-9. Early-Warning Signals
-10. Executive-Ready Briefings
+5. Link in the PU Value Chain
+6. Competitive Intelligence
+7. Sustainability and Regulation Tracking
+8. Capacity and Asset Moves
+9. M&A and Partnerships
+10. Early-Warning Signals
+11. Executive-Ready Briefings
 
 Thinking Process
 
@@ -119,11 +120,13 @@ The lookback period determines how far back to search for intelligence items. On
 
 CRITICAL: RECENT NEWS ONLY - DATE VERIFICATION REQUIRED
 - ONLY include news published within the specified lookback period (e.g., last 2 days for daily, last 7 days for weekly, last 30 days for monthly)
+- Use ONLY the article's first publication date (date first published). Do NOT use "last updated", "modified", or "page updated" as the publication date.
+- If a source shows only "updated" or "modified" and no clear publication date, treat it as having no verifiable publication date and DO NOT include that item.
 - DO NOT include news from 2020, 2021, 2022, 2023, or any year before the lookback period
 - DO NOT include information about companies that ceased operations, were acquired, or no longer exist (e.g., FoamPartner was acquired in 2020 and should NOT appear unless reporting on the acquiring entity)
 - VERIFY company status: If a company was acquired/merged/ceased operations, DO NOT include news about them unless it's about their current entity
-- Every news item MUST include the publication date in format: YYYY-MM-DD
-- Example format: 'News summary text - Source Name (2025-01-15) (https://real-source.com/actual-article)'
+- Every news item MUST include the publication date in format: YYYY-MM-DD (first publication date only)
+- Example format: 'News summary text - Source Name (2025-01-15)'
 - If you cannot verify the publication date is within the lookback period, DO NOT include that item
 
 Output Rules

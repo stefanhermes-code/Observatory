@@ -26,6 +26,11 @@ PU_CATEGORIES = [
         "description": "Analysis by product: MDI, TDI, polyether/polyester polyols, systems, additives"
     },
     {
+        "id": "value_chain_link",
+        "name": "Link in the PU Value Chain",
+        "description": "Intelligence tagged by value chain position: raw materials/intermediates, system houses, foam manufacturers & converters, end-use (e.g. automotive, mattresses)"
+    },
+    {
         "id": "competitive",
         "name": "Competitive Intelligence",
         "description": "Side-by-side comparison of major producers' actions and positioning"
@@ -55,6 +60,14 @@ PU_CATEGORIES = [
         "name": "Executive-Ready Briefings",
         "description": "Condensed, decision-focused summaries (1-2 page briefing or slide-ready bullets)"
     }
+]
+
+# Value chain link options for Step 2 (separate from categories)
+VALUE_CHAIN_LINKS = [
+    {"id": "raw_materials", "name": "Raw materials / Intermediates", "description": "Chemicals, MDI, TDI, polyols, additives"},
+    {"id": "system_houses", "name": "System houses", "description": "Formulators and system providers"},
+    {"id": "foam_converters", "name": "Foam manufacturers & converters", "description": "Foam production, moulding, conversion"},
+    {"id": "end_use", "name": "End-use", "description": "e.g. automotive, mattresses, construction, appliances"}
 ]
 
 # Available regions for selection

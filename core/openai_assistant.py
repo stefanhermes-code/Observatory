@@ -72,7 +72,7 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 
 ## OUTPUT FORMATTING:
 - Structured Output: Present intelligence items as bulleted lists using markdown format (- for bullet points). Use markdown headers (##, ###) for sections. Do NOT use tables - format items as simple bullet points with clear text.
-- Source URLs Required: Each intelligence item MUST include the source URL (full http:// or https:// link) so readers can access the original article. Format as: "Intelligence summary text - Source Name (https://example.com/article)" or use markdown links: "Intelligence summary text - Source Name [Source Name](https://example.com/article)".
+- Publication Date Only: Each intelligence item MUST include the publication date in YYYY-MM-DD format. Do NOT include source URLs or hyperlinks in the output - only the publication date.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
 
@@ -183,6 +183,8 @@ def build_run_package(
         f"**CURRENT DATE:** {today.strftime('%Y-%m-%d')}",
         "**ABSOLUTELY CRITICAL RULES:**",
         f"- ONLY include news published between {lookback_date} and {today.strftime('%Y-%m-%d')}",
+        "- Use ONLY the article's first publication date (date first published). Do NOT use 'last updated', 'modified', or 'page updated' as the publication date.",
+        "- If a source shows only 'updated' or 'modified' and no clear publication date, treat it as having no verifiable publication date and DO NOT include that item.",
         "- DO NOT include news from 2020, 2021, 2022, 2023, or any year before the lookback period",
         "- DO NOT include information about companies that ceased operations, were acquired, or no longer exist",
         "- VERIFY company status: If a company was acquired/merged/ceased operations, DO NOT include news about them unless it's about their current entity",
@@ -193,10 +195,9 @@ def build_run_package(
         "- If you cannot verify the publication date is within the lookback period, DO NOT include that item",
         "- If no date is available, leave the date blank (do not include the item if it has no date)",
         "- Exclude outdated information: Companies like FoamPartner (acquired in 2020) should NOT appear unless reporting on current entities",
-        "Do NOT include items without REAL, VERIFIED source URLs - all news items must be traceable to actual accessible sources.",
         "",
         "## DATE REQUIREMENT:",
-        f"- Every item MUST include publication date in YYYY-MM-DD format",
+        f"- Every item MUST include publication date in YYYY-MM-DD format (first publication date only, not last updated)",
         f"- Dates MUST be between {lookback_date} and {today.strftime('%Y-%m-%d')}",
         f"- If date is missing or outside this range, DO NOT include the item"
     ])

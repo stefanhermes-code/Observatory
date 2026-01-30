@@ -98,7 +98,56 @@ def create_specification_request(
     if not result.data or len(result.data) == 0:
         raise Exception("Failed to save specification request: database returned no data")
     
-    return result.data[0]
+    created_request = result.data[0]
+    
+    # Fire webhook asynchronously (fail-open: errors don't break order creation)
+    try:
+        from core.webhook import send_order_webhook_async, build_order_webhook_payload
+        from core.pricing import calculate_price
+        
+        # Calculate pricing for webhook payload
+        try:
+            price_data = calculate_price(
+                categories=categories,
+                regions=regions,
+                frequency=frequency,
+                num_users=1  # Default to 1 user for webhook
+            )
+        except Exception as price_error:
+            # If pricing calculation fails, use defaults
+            logger = __import__('logging').getLogger(__name__)
+            logger.warning(f"Pricing calculation failed for webhook: {price_error}")
+            price_data = {
+                "total_price": 0,
+                "currency": "USD",
+                "price_per_user_monthly": 0,
+                "price_per_user_yearly": 0,
+                "breakdown": {}
+            }
+        
+        # Build webhook payload (product_name and first_name/last_name for Make.com / Dashboard deal flow)
+        webhook_payload = build_order_webhook_payload(
+            request_id=created_request.get("id"),
+            submitted_at=created_request.get("submission_timestamp") or "",
+            contact_email=contact_email,
+            company_name=company_name,
+            newsletter_name=newsletter_name,
+            frequency=frequency,
+            price_data=price_data,
+            first_name=first_name or "",
+            last_name=last_name or ""
+        )
+        
+        # Send webhook asynchronously (non-blocking)
+        send_order_webhook_async(webhook_payload)
+        
+    except Exception as webhook_error:
+        # Fail-open: log error but don't break order creation
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Webhook error (order creation succeeded): {webhook_error}", exc_info=True)
+    
+    return created_request
 
 
 def update_specification_request(
