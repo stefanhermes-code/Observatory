@@ -994,7 +994,18 @@ elif page == "📰 Intelligence Specifications":
             with st.expander("✏️ Edit Specification", expanded=False):
                 with st.form(f"edit_spec_{spec.get('id')}"):
                     new_name = st.text_input("Intelligence Source Name", value=spec.get('newsletter_name', ''), key=f"spec_name_{spec.get('id')}")
-                    new_frequency = st.selectbox("Frequency", FREQUENCIES, index=FREQUENCIES.index(spec.get('frequency', 'monthly')) if spec.get('frequency') in FREQUENCIES else 0, key=f"spec_freq_{spec.get('id')}")
+                    # Extract frequency values and labels for selectbox
+                    frequency_values = [f["value"] for f in FREQUENCIES]
+                    frequency_labels = [f["label"] for f in FREQUENCIES]
+                    current_freq = spec.get('frequency', 'monthly')
+                    freq_index = frequency_values.index(current_freq) if current_freq in frequency_values else 0
+                    new_frequency = st.selectbox(
+                        "Frequency",
+                        options=frequency_values,
+                        index=freq_index,
+                        format_func=lambda x: next((f["label"] for f in FREQUENCIES if f["value"] == x), x),
+                        key=f"spec_freq_{spec.get('id')}"
+                    )
                     
                     st.write("**Categories:**")
                     current_cats = spec.get('categories', [])
