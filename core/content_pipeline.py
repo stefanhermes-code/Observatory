@@ -357,10 +357,10 @@ def render_html_from_content(
                             date_obj = None
                         
                         if date_obj:
-                            # Check if date is too old (more than 2 years ago)
-                            two_years_ago = datetime.utcnow() - timedelta(days=730)
-                            if date_obj < two_years_ago:
-                                # Date is too old - don't use it, mark as invalid
+                            # Check if date is within lookback period (based on cadence)
+                            # Only include dates within the lookback period, not 2 years!
+                            if date_obj < lookback_date or date_obj > datetime.utcnow():
+                                # Date is outside lookback period - don't use it, mark as invalid
                                 news_date = None
                     except:
                         # If parsing fails, don't use the date
