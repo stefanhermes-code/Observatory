@@ -358,34 +358,60 @@ def render_html_from_content(
                             date_obj = None
                         
                         if date_obj:
-                            # Check if date is within lookback period (based on cadence)
+                            # STRICT VALIDATION: Check if date is within lookback period (based on cadence)
                             # Only include dates within the lookback period, not 2 years!
                             if date_obj >= lookback_date and date_obj <= datetime.utcnow():
                                 # Date is valid - format it
                                 formatted_date = date_obj.strftime("%b %d, %Y")
-                            # If date is outside lookback period, leave formatted_date empty
+                            else:
+                                # Date is outside lookback period - EXCLUDE ENTIRE ITEM
+                                # This prevents showing outdated news with dates
+                                formatted_date = None  # Mark as invalid to skip item
+                                news_date = None  # Clear date to skip processing
                     except:
-                        # If parsing fails, leave formatted_date empty
-                        pass
+                        # If parsing fails, don't show date and skip item if date was required
+                        formatted_date = None
+                        news_date = None
             
             # Step 4: Extract source pattern: "Text - Source" or "Text — Source"
-            # Clean up trailing separators first
-            item_text_clean = re.sub(r'\s*[-–—]\s*$', '', item_text_clean).strip()
+            # Expected format after date removal: "News summary text - Source Name"
+            # Try multiple patterns to catch different source formats
             
-            # Look for source pattern: dash/emdash followed by source name
-            # Pattern: "Text - Source Name" or "Text — Source Name"
-            source_match = re.search(r'[-–—]\s+([A-Z][A-Za-z\s&]+?)(?:\s*$|\s*\(|\s*—)', item_text_clean)
+            source = None
+            main_text = item_text_clean
+            
+            # Pattern 1: "Text - Source Name" (most common, dash with spaces)
+            # Match dash/emdash followed by source (allows lowercase start, numbers, common punctuation)
+            source_match = re.search(r'[-–—]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+            if not source_match:
+                # Pattern 2: Try without requiring space after dash (some formats might be "Text-Source")
+                source_match = re.search(r'[-–—]([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+            if not source_match:
+                # Pattern 3: Try emdash or en-dash variations
+                source_match = re.search(r'[–—]\s*([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+            
             if source_match:
                 source = source_match.group(1).strip()
+                # Remove common trailing punctuation that might be part of the source
+                source = re.sub(r'[.,;:]+$', '', source).strip()
                 main_text = item_text_clean[:source_match.start()].strip()
-                # Clean up main text
+                # Clean up main text - remove trailing dashes
                 main_text = re.sub(r'\s*[-–—]\s*$', '', main_text).strip()
-                # Only show date if it exists
-                date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+            
+            # CRITICAL: If a date was found but is outside lookback period, EXCLUDE the entire item
+            # This prevents showing outdated news
+            if news_date and not formatted_date:
+                # Date was found but is invalid/outdated - skip this item completely
+                continue
+            
+            # Only show date if it was successfully extracted AND validated (formatted_date is set)
+            # This prevents showing "imaginary" dates that weren't properly validated
+            date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+            
+            if source:
                 html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
             else:
-                # No source pattern found - just show the text with date if available
-                date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+                # No source found - just show the text with date if available
                 html_lines.append(f'<li><span class="news-item">{item_text_clean}</span>{date_html}</li>')
         else:
             if in_list:
