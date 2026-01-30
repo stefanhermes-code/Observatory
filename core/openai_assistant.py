@@ -193,13 +193,16 @@ def build_run_package(
         "- Do NOT include source URLs or hyperlinks - only include the publication date",
         "- Do NOT include markdown links [text](url) or plain URLs (http:// or https://) in the output",
         "- If you cannot verify the publication date is within the lookback period, DO NOT include that item",
-        "- If no date is available, leave the date blank (do not include the item if it has no date)",
+        "- If no date is available, DO NOT include the item at all - missing dates mean the item is excluded",
         "- Exclude outdated information: Companies like FoamPartner (acquired in 2020) should NOT appear unless reporting on current entities",
         "",
-        "## DATE REQUIREMENT:",
+        "## STRICT DATE REQUIREMENT - NO EXCEPTIONS:",
         f"- Every item MUST include publication date in YYYY-MM-DD format (first publication date only, not last updated)",
-        f"- Dates MUST be between {lookback_date} and {today.strftime('%Y-%m-%d')}",
-        f"- If date is missing or outside this range, DO NOT include the item"
+        f"- Dates MUST be between {lookback_date} and {today.strftime('%Y-%m-%d')} - NO EXCEPTIONS",
+        f"- If date is missing, outside this range, or cannot be verified, DO NOT include the item - EXCLUDE IT COMPLETELY",
+        f"- Example: If today is {today.strftime('%Y-%m-%d')} and lookback is {lookback_days} days, only include news from {lookback_date} onwards",
+        "- DO NOT include news from January 2025 or earlier if it's outside the lookback window",
+        "- When in doubt about a date, EXCLUDE the item rather than including outdated news"
     ])
     
     user_message = "\n".join(user_message_parts)
