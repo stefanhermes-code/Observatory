@@ -177,9 +177,9 @@ def update_specification(spec_id: str, newsletter_name: Optional[str] = None, ca
     """Update a specification's details."""
     supabase = get_supabase_client()
     
-    update_data = {
-        "updated_at": datetime.utcnow().isoformat()
-    }
+    update_data = {}
+    # Only include updated_at if the column exists (some schemas may not have it)
+    # We'll try to include it, but if it fails, we'll retry without it
     
     if newsletter_name:
         update_data["newsletter_name"] = newsletter_name
@@ -190,38 +190,66 @@ def update_specification(spec_id: str, newsletter_name: Optional[str] = None, ca
     if frequency:
         update_data["frequency"] = frequency
     
-    # Only include value_chain_links if provided (gracefully handle missing column)
+    if newsletter_name:
+        update_data["newsletter_name"] = newsletter_name
+    if categories is not None:
+        update_data["categories"] = categories
+    if regions is not None:
+        update_data["regions"] = regions
+    if frequency:
+        update_data["frequency"] = frequency
     if value_chain_links is not None:
-        try:
-            # Try to update with value_chain_links
-            update_data["value_chain_links"] = value_chain_links
-            result = supabase.table("newsletter_specifications")\
-                .update(update_data)\
-                .eq("id", spec_id)\
-                .execute()
-            return result.data[0] if result.data else update_data
-        except Exception as e:
-            # If column doesn't exist, update without value_chain_links
-            # This allows the app to work before migration is run
-            error_msg = str(e).lower()
-            if "column" in error_msg and "value_chain_links" in error_msg:
-                # Column doesn't exist - update without it
-                update_data_without_vcl = {k: v for k, v in update_data.items() if k != "value_chain_links"}
+        update_data["value_chain_links"] = value_chain_links
+    
+    # Try to update - handle missing columns gracefully
+    try:
+        # First attempt: include updated_at if possible
+        update_data_with_timestamp = update_data.copy()
+        update_data_with_timestamp["updated_at"] = datetime.utcnow().isoformat()
+        result = supabase.table("newsletter_specifications")\
+            .update(update_data_with_timestamp)\
+            .eq("id", spec_id)\
+            .execute()
+        return result.data[0] if result.data else update_data_with_timestamp
+    except Exception as e:
+        error_msg = str(e).lower()
+        # If updated_at column doesn't exist, retry without it
+        if "updated_at" in error_msg or "pgrst204" in error_msg:
+            try:
+                # Retry without updated_at
+                result = supabase.table("newsletter_specifications")\
+                    .update(update_data)\
+                    .eq("id", spec_id)\
+                    .execute()
+                return result.data[0] if result.data else update_data
+            except Exception as e2:
+                error_msg2 = str(e2).lower()
+                # If value_chain_links column doesn't exist, retry without it
+                if "value_chain_links" in error_msg2 or ("column" in error_msg2 and "value_chain_links" in error_msg2):
+                    update_data_without_vcl = {k: v for k, v in update_data.items() if k != "value_chain_links"}
+                    result = supabase.table("newsletter_specifications")\
+                        .update(update_data_without_vcl)\
+                        .eq("id", spec_id)\
+                        .execute()
+                    return result.data[0] if result.data else update_data_without_vcl
+                else:
+                    # Different error - re-raise it
+                    raise
+        # If value_chain_links column doesn't exist, retry without it
+        elif "value_chain_links" in error_msg or ("column" in error_msg and "value_chain_links" in error_msg):
+            update_data_without_vcl = {k: v for k, v in update_data.items() if k != "value_chain_links"}
+            try:
                 result = supabase.table("newsletter_specifications")\
                     .update(update_data_without_vcl)\
                     .eq("id", spec_id)\
                     .execute()
                 return result.data[0] if result.data else update_data_without_vcl
-            else:
-                # Different error - re-raise it
+            except Exception as e2:
+                # Still failing - re-raise
                 raise
-    
-    # Normal update without value_chain_links
-    result = supabase.table("newsletter_specifications")\
-        .update(update_data)\
-        .eq("id", spec_id)\
-        .execute()
-    return result.data[0] if result.data else update_data
+        else:
+            # Different error - re-raise it
+            raise
 
 
 def get_newsletter_specifications(workspace_id: Optional[str] = None) -> List[Dict]:
