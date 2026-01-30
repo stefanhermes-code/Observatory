@@ -154,6 +154,7 @@ def assign_request_to_workspace(request_id: str, workspace_id: str) -> bool:
         "categories": req.get("categories"),
         "regions": req.get("regions"),
         "frequency": req.get("frequency"),
+        "value_chain_links": req.get("value_chain_links", []),  # Include value chain links if present
         "status": "active",
         "created_at": datetime.utcnow().isoformat(),
         "created_by": "admin"
@@ -171,7 +172,8 @@ def assign_request_to_workspace(request_id: str, workspace_id: str) -> bool:
 
 
 def update_specification(spec_id: str, newsletter_name: Optional[str] = None, categories: Optional[List] = None, 
-                         regions: Optional[List] = None, frequency: Optional[str] = None) -> Dict:
+                         regions: Optional[List] = None, frequency: Optional[str] = None, 
+                         value_chain_links: Optional[List] = None) -> Dict:
     """Update a specification's details."""
     supabase = get_supabase_client()
     
@@ -187,6 +189,8 @@ def update_specification(spec_id: str, newsletter_name: Optional[str] = None, ca
         update_data["regions"] = regions
     if frequency:
         update_data["frequency"] = frequency
+    if value_chain_links is not None:
+        update_data["value_chain_links"] = value_chain_links
     
     result = supabase.table("newsletter_specifications")\
         .update(update_data)\

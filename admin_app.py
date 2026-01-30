@@ -1009,10 +1009,33 @@ elif page == "📰 Intelligence Specifications":
                         key=f"spec_cats_{spec.get('id')}"
                     )
                     
-                    # Show note if "Link in the PU Value Chain" is selected
+                    # Value Chain Links selection (editable, same as categories/regions)
+                    selected_value_chain_links = []
                     if "value_chain_link" in selected_cats:
-                        st.info("ℹ️ **Link in the PU Value Chain** selected. Users can choose which value chain links to include when generating reports:\n"
-                               f"- {', '.join([link['name'] for link in VALUE_CHAIN_LINKS])}")
+                        st.write("**Value Chain Links:**")
+                        st.caption("Select which value chain links should be included (same pattern as categories and regions above):")
+                        current_vcl = spec.get('value_chain_links', [])
+                        # Filter to only include valid value chain link IDs
+                        valid_current_vcl = [vcl_id for vcl_id in current_vcl if vcl_id in [l['id'] for l in VALUE_CHAIN_LINKS]]
+                        # If no stored value chain links but category is selected, default to all
+                        if not valid_current_vcl and "value_chain_link" in selected_cats:
+                            valid_current_vcl = [l['id'] for l in VALUE_CHAIN_LINKS]
+                        
+                        vcl_col1, vcl_col2 = st.columns(2)
+                        for idx, link in enumerate(VALUE_CHAIN_LINKS):
+                            col = vcl_col1 if idx % 2 == 0 else vcl_col2
+                            with col:
+                                is_checked = link['id'] in valid_current_vcl
+                                if st.checkbox(
+                                    link['name'],
+                                    value=is_checked,
+                                    help=link['description'],
+                                    key=f"admin_vcl_{spec.get('id')}_{link['id']}"
+                                ):
+                                    selected_value_chain_links.append(link['id'])
+                    else:
+                        # If value_chain_link category is not selected, clear any stored value chain links
+                        selected_value_chain_links = []
                     
                     st.write("**Regions:**")
                     current_regions = spec.get('regions', [])
@@ -1032,7 +1055,8 @@ elif page == "📰 Intelligence Specifications":
                                 newsletter_name=new_name,
                                 categories=selected_cats,
                                 regions=selected_regions,
-                                frequency=new_frequency
+                                frequency=new_frequency,
+                                value_chain_links=selected_value_chain_links if "value_chain_link" in selected_cats else []
                             )
                             log_audit_action(
                                 "update_specification",

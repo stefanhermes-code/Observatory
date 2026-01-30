@@ -249,8 +249,14 @@ elif page == "📰 Generate Report":
     # Initialize session state for selected categories/regions/value_chain_links for this spec if not exists
     spec_selection_key = f"selected_cats_regs_{spec_id}"
     if spec_selection_key not in st.session_state:
-        # Default to all categories, regions, and value chain links from specification
-        default_vcl = [l["id"] for l in VALUE_CHAIN_LINKS] if "value_chain_link" in spec.get("categories", []) else []
+        # Use stored value_chain_links from spec if available, otherwise default to all if category is selected
+        stored_vcl = spec.get("value_chain_links", [])
+        if stored_vcl and "value_chain_link" in spec.get("categories", []):
+            default_vcl = stored_vcl.copy()
+        elif "value_chain_link" in spec.get("categories", []):
+            default_vcl = [l["id"] for l in VALUE_CHAIN_LINKS]
+        else:
+            default_vcl = []
         st.session_state[spec_selection_key] = {
             "categories": spec.get("categories", []).copy(),
             "regions": spec.get("regions", []).copy(),
@@ -288,7 +294,10 @@ elif page == "📰 Generate Report":
         st.markdown("#### Link in the PU Value Chain")
         st.caption("Select which value chain position(s) to include in this report (same style as categories and regions above):")
         vcl_col1, vcl_col2 = st.columns(2)
-        current_vcl = st.session_state[spec_selection_key].get("value_chain_links", [l["id"] for l in VALUE_CHAIN_LINKS])
+        # Use stored value_chain_links from spec as default, fallback to all if not set
+        stored_vcl = spec.get("value_chain_links", [])
+        default_vcl_all = [l["id"] for l in VALUE_CHAIN_LINKS]
+        current_vcl = st.session_state[spec_selection_key].get("value_chain_links", stored_vcl if stored_vcl else default_vcl_all)
         for idx, link in enumerate(VALUE_CHAIN_LINKS):
             col = vcl_col1 if idx % 2 == 0 else vcl_col2
             with col:
