@@ -179,7 +179,7 @@ if page == "📊 Dashboard":
             with col2:
                 st.write("**Categories:**", len(spec.get("categories", [])))
                 if "value_chain_link" in spec.get("categories", []):
-                    st.write("**Value chain link:**", "Link in the PU Value Chain")
+                    st.write("**Value chain link:**", "Link in the PU Value Chain (select which links on Generate Report)")
                 st.write("**Regions:**", ", ".join(spec.get("regions", [])))
                 
                 if is_allowed:
@@ -237,23 +237,24 @@ elif page == "📰 Generate Report":
         st.write("**Available in Specification:**")
         st.write(f"- {len(spec.get('categories', []))} categories")
         if "value_chain_link" in spec.get("categories", []):
-            st.write("- **Value chain link:** Link in the PU Value Chain")
-            st.caption("Focus: " + ", ".join([l["name"] for l in VALUE_CHAIN_LINKS]))
+            st.write("- **Value chain link:** Link in the PU Value Chain — *select which links below*")
         st.write(f"- {len(spec.get('regions', []))} regions")
     
     st.markdown("---")
     
-    # Category and Region Selection for this report
-    st.markdown("### Select Categories and Regions for This Report")
-    st.write("Choose which categories and regions to include in this report (all selected by default):")
+    # Category, Region, and Value Chain Link selection for this report
+    st.markdown("### Select Categories, Regions, and Value Chain Links for This Report")
+    st.write("Choose which categories, regions, and value chain links to include (all selected by default). Use the checkboxes below:")
     
-    # Initialize session state for selected categories/regions for this spec if not exists
+    # Initialize session state for selected categories/regions/value_chain_links for this spec if not exists
     spec_selection_key = f"selected_cats_regs_{spec_id}"
     if spec_selection_key not in st.session_state:
-        # Default to all categories and regions from specification
+        # Default to all categories, regions, and value chain links from specification
+        default_vcl = [l["id"] for l in VALUE_CHAIN_LINKS] if "value_chain_link" in spec.get("categories", []) else []
         st.session_state[spec_selection_key] = {
             "categories": spec.get("categories", []).copy(),
-            "regions": spec.get("regions", []).copy()
+            "regions": spec.get("regions", []).copy(),
+            "value_chain_links": default_vcl.copy()
         }
     
     # Category selection
@@ -280,6 +281,28 @@ elif page == "📰 Generate Report":
     
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category for this report.")
+    
+    # Value chain link selection (when "Link in the PU Value Chain" is in spec) — same pattern as Categories and Regions
+    selected_value_chain_links = []
+    if "value_chain_link" in spec.get("categories", []):
+        st.markdown("#### Link in the PU Value Chain")
+        st.caption("Select which value chain position(s) to include in this report (same style as categories and regions above):")
+        vcl_col1, vcl_col2 = st.columns(2)
+        current_vcl = st.session_state[spec_selection_key].get("value_chain_links", [l["id"] for l in VALUE_CHAIN_LINKS])
+        for idx, link in enumerate(VALUE_CHAIN_LINKS):
+            col = vcl_col1 if idx % 2 == 0 else vcl_col2
+            with col:
+                is_checked = link["id"] in current_vcl if current_vcl else True
+                if st.checkbox(
+                    link["name"],
+                    value=is_checked,
+                    help=link["description"],
+                    key=f"gen_vcl_{spec_id}_{link['id']}"
+                ):
+                    selected_value_chain_links.append(link["id"])
+        st.session_state[spec_selection_key]["value_chain_links"] = selected_value_chain_links
+        if len(selected_value_chain_links) == 0:
+            st.warning("⚠️ Please select at least one value chain link for this report.")
     
     # Region selection
     st.markdown("#### Regions")
@@ -349,16 +372,22 @@ elif page == "📰 Generate Report":
             st.error("❌ Please select at least one region.")
             st.stop()
         
+        # Value chain links override (only when value_chain_link is in selected categories)
+        value_chain_links_override = None
+        if "value_chain_link" in selected_categories:
+            value_chain_links_override = st.session_state[spec_selection_key].get("value_chain_links", [])
+        
         with st.spinner("Generating report..."):
             # Execute canonical 7-step Generator execution pattern
-            # Pass selected categories and regions as override
+            # Pass selected categories, regions, and value chain links as override
             success, error_message, result_data, artifact_path = execute_generator(
                 spec_id=spec_id,
                 workspace_id=st.session_state.selected_workspace,
                 user_email=st.session_state.user_email,
                 cadence_override=override_cadence,
                 categories_override=selected_categories,
-                regions_override=selected_regions
+                regions_override=selected_regions,
+                value_chain_links_override=value_chain_links_override
             )
             
             if not success:

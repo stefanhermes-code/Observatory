@@ -47,7 +47,7 @@ from core.workspace_members import (
     remove_workspace_member,
     update_member_role
 )
-from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES
+from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
 
 # Page configuration
@@ -978,6 +978,8 @@ elif page == "📰 Intelligence Specifications":
             with col2:
                 st.write("**Categories:**", len(spec.get('categories', [])))
                 cat_names = [c['name'] for c in PU_CATEGORIES if c['id'] in spec.get('categories', [])]
+                if "value_chain_link" in spec.get('categories', []):
+                    st.caption(f"Value chain links available: {', '.join([link['name'] for link in VALUE_CHAIN_LINKS])}")
                 for cat in cat_names[:3]:
                     st.write(f"- {cat}")
                 if len(cat_names) > 3:
@@ -1006,6 +1008,11 @@ elif page == "📰 Intelligence Specifications":
                         format_func=lambda x: next((c['name'] for c in PU_CATEGORIES if c['id'] == x), x),
                         key=f"spec_cats_{spec.get('id')}"
                     )
+                    
+                    # Show note if "Link in the PU Value Chain" is selected
+                    if "value_chain_link" in selected_cats:
+                        st.info("ℹ️ **Link in the PU Value Chain** selected. Users can choose which value chain links to include when generating reports:\n"
+                               f"- {', '.join([link['name'] for link in VALUE_CHAIN_LINKS])}")
                     
                     st.write("**Regions:**")
                     current_regions = spec.get('regions', [])
