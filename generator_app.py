@@ -23,7 +23,7 @@ from core.generator_db import (
     get_last_successful_run
 )
 from core.generator_execution import execute_generator
-from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES
+from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 
 # Page configuration
 st.set_page_config(
@@ -178,6 +178,8 @@ if page == "📊 Dashboard":
             
             with col2:
                 st.write("**Categories:**", len(spec.get("categories", [])))
+                if "value_chain_link" in spec.get("categories", []):
+                    st.write("**Value chain link:**", "Link in the PU Value Chain")
                 st.write("**Regions:**", ", ".join(spec.get("regions", [])))
                 
                 if is_allowed:
@@ -234,6 +236,9 @@ elif page == "📰 Generate Report":
     with col2:
         st.write("**Available in Specification:**")
         st.write(f"- {len(spec.get('categories', []))} categories")
+        if "value_chain_link" in spec.get("categories", []):
+            st.write("- **Value chain link:** Link in the PU Value Chain")
+            st.caption("Focus: " + ", ".join([l["name"] for l in VALUE_CHAIN_LINKS]))
         st.write(f"- {len(spec.get('regions', []))} regions")
     
     st.markdown("---")
