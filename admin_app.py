@@ -1010,29 +1010,31 @@ elif page == "📰 Intelligence Specifications":
                     )
                     
                     # Value Chain Links selection (editable, same as categories/regions)
-                    # This section appears when "Link in the PU Value Chain" is selected in categories above
-                    selected_value_chain_links = []
-                    if "value_chain_link" in selected_cats:
-                        st.write("**Value Chain Links:**")
-                        st.caption("Select which value chain links should be included (same pattern as categories and regions above):")
-                        current_vcl = spec.get('value_chain_links', [])
-                        # Filter to only include valid value chain link IDs
-                        valid_current_vcl = [vcl_id for vcl_id in current_vcl if vcl_id in [l['id'] for l in VALUE_CHAIN_LINKS]]
-                        # If no stored value chain links but category is selected, default to all
-                        if not valid_current_vcl:
-                            valid_current_vcl = [l['id'] for l in VALUE_CHAIN_LINKS]
-                        
-                        # Use multiselect for consistency with categories/regions pattern
-                        selected_value_chain_links = st.multiselect(
-                            "Select Value Chain Links",
-                            options=[l['id'] for l in VALUE_CHAIN_LINKS],
-                            default=valid_current_vcl,
-                            format_func=lambda x: next((l['name'] for l in VALUE_CHAIN_LINKS if l['id'] == x), x),
-                            key=f"spec_vcl_{spec.get('id')}"
-                        )
+                    # Always show this section - it applies when "Link in the PU Value Chain" is selected in categories
+                    st.write("**Value Chain Links:**")
+                    # Check if value_chain_link is in current spec (for initial display)
+                    has_value_chain_category = "value_chain_link" in valid_current_cats
+                    if has_value_chain_category:
+                        st.caption("Select which value chain links should be included:")
                     else:
-                        # If value_chain_link category is not selected, clear any stored value chain links
-                        selected_value_chain_links = []
+                        st.caption("💡 Tip: Select 'Link in the PU Value Chain' in Categories above, then select value chain links here. Both will be saved together.")
+                    
+                    current_vcl = spec.get('value_chain_links', [])
+                    # Filter to only include valid value chain link IDs
+                    valid_current_vcl = [vcl_id for vcl_id in current_vcl if vcl_id in [l['id'] for l in VALUE_CHAIN_LINKS]]
+                    # If no stored value chain links but category is/was selected, default to all
+                    if not valid_current_vcl and has_value_chain_category:
+                        valid_current_vcl = [l['id'] for l in VALUE_CHAIN_LINKS]
+                    
+                    # Use multiselect for consistency with categories/regions pattern
+                    # Always show it - user can select links even if category not yet selected
+                    selected_value_chain_links = st.multiselect(
+                        "Select Value Chain Links",
+                        options=[l['id'] for l in VALUE_CHAIN_LINKS],
+                        default=valid_current_vcl,
+                        format_func=lambda x: next((l['name'] for l in VALUE_CHAIN_LINKS if l['id'] == x), x),
+                        key=f"spec_vcl_{spec.get('id')}"
+                    )
                     
                     st.write("**Regions:**")
                     current_regions = spec.get('regions', [])
