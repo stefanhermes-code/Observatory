@@ -29,7 +29,8 @@ def execute_generator(
     user_email: str,
     cadence_override: Optional[str] = None,
     categories_override: Optional[List[str]] = None,
-    regions_override: Optional[List[str]] = None
+    regions_override: Optional[List[str]] = None,
+    value_chain_links_override: Optional[List[str]] = None
 ) -> Tuple[bool, Optional[str], Optional[Dict], Optional[str]]:
     """
     Execute the canonical 7-step Generator execution pattern.
@@ -81,6 +82,8 @@ def execute_generator(
         run_specification["categories"] = categories_override
     if regions_override:
         run_specification["regions"] = regions_override
+    if value_chain_links_override is not None:
+        run_specification["value_chain_links"] = value_chain_links_override
     
     run_package = build_run_package(
         specification=run_specification,
