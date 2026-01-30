@@ -313,35 +313,36 @@ def render_html_from_content(
             item_text_clean = re.sub(r'www\.[^\s\)\]\>]+', '', item_text_clean)
             item_text_clean = item_text_clean.strip()
             
-            # Extract date from the content (always try to extract date, regardless of URL presence)
-            if True:  # Process all items to extract dates
-                # Remove trailing separators and clean up
-                item_text_clean = re.sub(r'\s*[-–—]\s*$', '', item_text_clean)
-                item_text_clean = re.sub(r'\s*\([^)]*\)\s*$', '', item_text_clean)
+            # Extract date and source from the content
+            # IMPORTANT: Extract date FIRST before removing anything, then extract source
+            # Expected format: "Text - Source Name (2025-01-15)" or "Text - Source Name 2025-01-15"
+            
+            # Step 1: Extract date FIRST (before removing anything)
+            date_patterns = [
+                r'\((\d{4}-\d{2}-\d{2})\)',  # YYYY-MM-DD in parentheses (most common format)
+                r'\b(\d{4}-\d{2}-\d{2})\b',  # YYYY-MM-DD standalone
+                r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b',  # MM/DD/YYYY or DD/MM/YYYY
+                r'\b(\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b',  # DD MMM YYYY
+                r'\b((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b',  # MMM DD, YYYY
+            ]
+            
+            news_date = None
+            date_match_obj = None
+            for pattern in date_patterns:
+                date_match = re.search(pattern, item_text_clean, re.IGNORECASE)
+                if date_match:
+                    news_date = date_match.group(1)
+                    date_match_obj = date_match
+                    break
                 
-                # Try to extract date from the content
-                # Look for date patterns: YYYY-MM-DD (preferred), MM/DD/YYYY, DD MMM YYYY, etc.
-                # Priority: Look for YYYY-MM-DD format first (as instructed to OpenAI)
-                date_patterns = [
-                    r'\b(\d{4}-\d{2}-\d{2})\b',  # YYYY-MM-DD (preferred format)
-                    r'\((\d{4}-\d{2}-\d{2})\)',  # YYYY-MM-DD in parentheses
-                    r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b',  # MM/DD/YYYY or DD/MM/YYYY
-                    r'\b(\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b',  # DD MMM YYYY
-                    r'\b((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b',  # MMM DD, YYYY
-                ]
-                
-                news_date = None
-                for pattern in date_patterns:
-                    date_match = re.search(pattern, item_text_clean, re.IGNORECASE)
-                    if date_match:
-                        news_date = date_match.group(1)
-                        # Remove date from text to avoid duplication
-                        item_text_clean = item_text_clean.replace(date_match.group(0), '').strip()
-                        break
-                
-                # Validate date is recent (within last 2 years)
-                from datetime import datetime, timedelta
-                if news_date:
+            # Step 2: Remove date from text (if found) to prepare for source extraction
+            if date_match_obj:
+                item_text_clean = item_text_clean.replace(date_match_obj.group(0), '').strip()
+            
+            # Step 3: Validate date is within lookback period
+            from datetime import datetime, timedelta
+            formatted_date = ""
+            if news_date:
                     try:
                         # Try to parse the date
                         if '-' in news_date and len(news_date) == 10:
@@ -359,46 +360,33 @@ def render_html_from_content(
                         if date_obj:
                             # Check if date is within lookback period (based on cadence)
                             # Only include dates within the lookback period, not 2 years!
-                            if date_obj < lookback_date or date_obj > datetime.utcnow():
-                                # Date is outside lookback period - don't use it, mark as invalid
-                                news_date = None
-                    except:
-                        # If parsing fails, don't use the date
-                        news_date = None
-                
-                # If no valid date found, leave blank
-                if not news_date:
-                    formatted_date = ""
-                else:
-                    # Format date nicely
-                    try:
-                        if '-' in news_date and len(news_date) == 10:
-                            date_obj = datetime.strptime(news_date, "%Y-%m-%d")
-                            formatted_date = date_obj.strftime("%b %d, %Y")
-                        elif '/' in news_date:
-                            parts = news_date.split('/')
-                            if len(parts) == 3 and len(parts[2]) == 4:
-                                date_obj = datetime.strptime(news_date, "%m/%d/%Y")
+                            if date_obj >= lookback_date and date_obj <= datetime.utcnow():
+                                # Date is valid - format it
                                 formatted_date = date_obj.strftime("%b %d, %Y")
-                            else:
-                                formatted_date = news_date
-                        else:
-                            formatted_date = news_date
+                            # If date is outside lookback period, leave formatted_date empty
                     except:
-                        formatted_date = news_date
-                
-                # Check for source pattern: "Text - Source" or "Text (Source)"
-                source_match = re.search(r'[-–—]\s*([A-Z][^\)]+?)(?:\s*\(|$)', item_text_clean)
-                if source_match:
-                    source = source_match.group(1).strip()
-                    main_text = item_text_clean[:source_match.start()].strip()
-                    # Only show date if it exists
-                    date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
-                    html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
-                else:
-                    # Only show date if it exists
-                    date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
-                    html_lines.append(f'<li><span class="news-item">{item_text_clean}</span>{date_html}</li>')
+                        # If parsing fails, leave formatted_date empty
+                        pass
+            
+            # Step 4: Extract source pattern: "Text - Source" or "Text — Source"
+            # Clean up trailing separators first
+            item_text_clean = re.sub(r'\s*[-–—]\s*$', '', item_text_clean).strip()
+            
+            # Look for source pattern: dash/emdash followed by source name
+            # Pattern: "Text - Source Name" or "Text — Source Name"
+            source_match = re.search(r'[-–—]\s+([A-Z][A-Za-z\s&]+?)(?:\s*$|\s*\(|\s*—)', item_text_clean)
+            if source_match:
+                source = source_match.group(1).strip()
+                main_text = item_text_clean[:source_match.start()].strip()
+                # Clean up main text
+                main_text = re.sub(r'\s*[-–—]\s*$', '', main_text).strip()
+                # Only show date if it exists
+                date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+                html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
+            else:
+                # No source pattern found - just show the text with date if available
+                date_html = f' <span class="news-date">{formatted_date}</span>' if formatted_date else ''
+                html_lines.append(f'<li><span class="news-item">{item_text_clean}</span>{date_html}</li>')
         else:
             if in_list:
                 html_lines.append('</ul>')
