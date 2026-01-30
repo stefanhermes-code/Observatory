@@ -996,14 +996,25 @@ elif page == "📰 Intelligence Specifications":
                     new_name = st.text_input("Intelligence Source Name", value=spec.get('newsletter_name', ''), key=f"spec_name_{spec.get('id')}")
                     # Extract frequency values and labels for selectbox
                     frequency_values = [f["value"] for f in FREQUENCIES]
-                    frequency_labels = [f["label"] for f in FREQUENCIES]
                     current_freq = spec.get('frequency', 'monthly')
-                    freq_index = frequency_values.index(current_freq) if current_freq in frequency_values else 0
+                    # Find index of current frequency, default to 0 if not found
+                    try:
+                        freq_index = frequency_values.index(current_freq) if current_freq in frequency_values else 0
+                    except (ValueError, AttributeError):
+                        freq_index = 0
+                    
+                    # Create a mapping function for labels
+                    def get_frequency_label(value):
+                        for f in FREQUENCIES:
+                            if f["value"] == value:
+                                return f["label"]
+                        return value  # Fallback to value if not found
+                    
                     new_frequency = st.selectbox(
                         "Frequency",
                         options=frequency_values,
                         index=freq_index,
-                        format_func=lambda x: next((f["label"] for f in FREQUENCIES if f["value"] == x), x),
+                        format_func=get_frequency_label,
                         key=f"spec_freq_{spec.get('id')}"
                     )
                     
