@@ -1049,22 +1049,30 @@ elif page == "📰 Intelligence Specifications":
                     
                     if st.form_submit_button("Save Changes", type="primary"):
                         if new_name and selected_cats and selected_regions:
-                            update_specification(
-                                spec.get('id'),
-                                newsletter_name=new_name,
-                                categories=selected_cats,
-                                regions=selected_regions,
-                                frequency=new_frequency,
-                                value_chain_links=selected_value_chain_links if "value_chain_link" in selected_cats else []
-                            )
-                            log_audit_action(
-                                "update_specification",
-                                st.session_state.user_email,
-                                {"spec_id": spec.get('id')},
-                                f"Updated specification: {new_name}"
-                            )
-                            st.success("Specification updated!")
-                            st.rerun()
+                            try:
+                                update_specification(
+                                    spec.get('id'),
+                                    newsletter_name=new_name,
+                                    categories=selected_cats,
+                                    regions=selected_regions,
+                                    frequency=new_frequency,
+                                    value_chain_links=selected_value_chain_links if "value_chain_link" in selected_cats else []
+                                )
+                                log_audit_action(
+                                    "update_specification",
+                                    st.session_state.user_email,
+                                    {"spec_id": spec.get('id')},
+                                    f"Updated specification: {new_name}"
+                                )
+                                st.success("Specification updated!")
+                                st.rerun()
+                            except Exception as e:
+                                error_msg = str(e).lower()
+                                if "column" in error_msg and "value_chain_links" in error_msg:
+                                    st.error("⚠️ Database migration required! Please run the migration SQL file `development/migration_add_value_chain_links.sql` in your Supabase SQL editor to add the value_chain_links column.")
+                                    st.info("💡 The specification was updated, but value chain links couldn't be saved. Run the migration and try again.")
+                                else:
+                                    st.error(f"Error updating specification: {str(e)}")
                         else:
                             st.error("Please fill in all required fields")
             

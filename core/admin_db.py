@@ -189,9 +189,34 @@ def update_specification(spec_id: str, newsletter_name: Optional[str] = None, ca
         update_data["regions"] = regions
     if frequency:
         update_data["frequency"] = frequency
-    if value_chain_links is not None:
-        update_data["value_chain_links"] = value_chain_links
     
+    # Only include value_chain_links if provided (gracefully handle missing column)
+    if value_chain_links is not None:
+        try:
+            # Try to update with value_chain_links
+            update_data["value_chain_links"] = value_chain_links
+            result = supabase.table("newsletter_specifications")\
+                .update(update_data)\
+                .eq("id", spec_id)\
+                .execute()
+            return result.data[0] if result.data else update_data
+        except Exception as e:
+            # If column doesn't exist, update without value_chain_links
+            # This allows the app to work before migration is run
+            error_msg = str(e).lower()
+            if "column" in error_msg and "value_chain_links" in error_msg:
+                # Column doesn't exist - update without it
+                update_data_without_vcl = {k: v for k, v in update_data.items() if k != "value_chain_links"}
+                result = supabase.table("newsletter_specifications")\
+                    .update(update_data_without_vcl)\
+                    .eq("id", spec_id)\
+                    .execute()
+                return result.data[0] if result.data else update_data_without_vcl
+            else:
+                # Different error - re-raise it
+                raise
+    
+    # Normal update without value_chain_links
     result = supabase.table("newsletter_specifications")\
         .update(update_data)\
         .eq("id", spec_id)\
