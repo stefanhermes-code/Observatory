@@ -1010,6 +1010,7 @@ elif page == "📰 Intelligence Specifications":
                     )
                     
                     # Value Chain Links selection (editable, same as categories/regions)
+                    # This section appears when "Link in the PU Value Chain" is selected in categories above
                     selected_value_chain_links = []
                     if "value_chain_link" in selected_cats:
                         st.write("**Value Chain Links:**")
@@ -1018,21 +1019,17 @@ elif page == "📰 Intelligence Specifications":
                         # Filter to only include valid value chain link IDs
                         valid_current_vcl = [vcl_id for vcl_id in current_vcl if vcl_id in [l['id'] for l in VALUE_CHAIN_LINKS]]
                         # If no stored value chain links but category is selected, default to all
-                        if not valid_current_vcl and "value_chain_link" in selected_cats:
+                        if not valid_current_vcl:
                             valid_current_vcl = [l['id'] for l in VALUE_CHAIN_LINKS]
                         
-                        vcl_col1, vcl_col2 = st.columns(2)
-                        for idx, link in enumerate(VALUE_CHAIN_LINKS):
-                            col = vcl_col1 if idx % 2 == 0 else vcl_col2
-                            with col:
-                                is_checked = link['id'] in valid_current_vcl
-                                if st.checkbox(
-                                    link['name'],
-                                    value=is_checked,
-                                    help=link['description'],
-                                    key=f"admin_vcl_{spec.get('id')}_{link['id']}"
-                                ):
-                                    selected_value_chain_links.append(link['id'])
+                        # Use multiselect for consistency with categories/regions pattern
+                        selected_value_chain_links = st.multiselect(
+                            "Select Value Chain Links",
+                            options=[l['id'] for l in VALUE_CHAIN_LINKS],
+                            default=valid_current_vcl,
+                            format_func=lambda x: next((l['name'] for l in VALUE_CHAIN_LINKS if l['id'] == x), x),
+                            key=f"spec_vcl_{spec.get('id')}"
+                        )
                     else:
                         # If value_chain_link category is not selected, clear any stored value chain links
                         selected_value_chain_links = []
