@@ -383,8 +383,14 @@ def execute_assistant(run_package: Dict) -> Dict:
                     "vector_store_ids": [vector_store_id]
                 }
             }
+            print(f"[INFO] Attaching vector store {vector_store_id} to thread for file_search")
+        else:
+            print(f"[WARNING] OPENAI_VECTOR_STORE_ID not found in environment. Vector store will not be attached to thread.")
+            print(f"[WARNING] The Assistant must have a vector store attached in the OpenAI Dashboard for file_search to work.")
+        
         thread = client.beta.threads.create(**thread_params)
         thread_id = thread.id
+        print(f"[INFO] Created thread {thread_id}")
         
         # Step 2: Add user message to thread
         # Combine system instruction and user message for the Assistant
@@ -412,6 +418,20 @@ def execute_assistant(run_package: Dict) -> Dict:
             role="user",
             content=user_message
         )
+        
+        # Step 3: Verify Assistant configuration (optional check)
+        try:
+            assistant_info = client.beta.assistants.retrieve(assistant_id=assistant_id)
+            assistant_tools = getattr(assistant_info, 'tools', [])
+            has_file_search = any(getattr(tool, 'type', None) == 'file_search' for tool in assistant_tools)
+            print(f"[INFO] Assistant tools: {[getattr(t, 'type', 'unknown') for t in assistant_tools]}")
+            if not has_file_search:
+                print(f"[WARNING] ⚠️ Assistant does not have file_search tool enabled!")
+                print(f"[WARNING] Go to OpenAI Dashboard → Your Assistant → Tools → Enable 'File search'")
+            else:
+                print(f"[INFO] ✅ Assistant has file_search tool enabled")
+        except Exception as e:
+            print(f"[WARNING] Could not verify Assistant configuration: {e}")
         
         # Step 3: Create and run the Assistant
         run = client.beta.threads.runs.create(
@@ -458,23 +478,69 @@ def execute_assistant(run_package: Dict) -> Dict:
                 run_id=run.id
             )
             
+            print(f"[INFO] Retrieved {len(run_steps.data)} run steps for tool usage tracking")
+            
             # Check each step for file_search tool calls
             for step in run_steps.data:
+                step_type = getattr(step, 'type', 'unknown')
+                print(f"[DEBUG] Step type: {step_type}")
+                
                 if hasattr(step, 'step_details') and step.step_details:
                     step_details = step.step_details
+                    step_details_type = getattr(step_details, 'type', 'unknown')
+                    print(f"[DEBUG] Step details type: {step_details_type}")
+                    
+                    # Check for tool_calls (for tool use steps)
+                    # The structure might be step_details.tool_calls or step_details.tool_calls as a list
+                    tool_calls = None
                     if hasattr(step_details, 'tool_calls') and step_details.tool_calls:
-                        for tool_call in step_details.tool_calls:
-                            if hasattr(tool_call, 'type') and tool_call.type == 'file_search':
+                        tool_calls = step_details.tool_calls
+                    elif hasattr(step_details, 'tool_call') and step_details.tool_call:
+                        # Some API versions might use singular
+                        tool_calls = [step_details.tool_call]
+                    
+                    if tool_calls:
+                        print(f"[INFO] Found {len(tool_calls)} tool call(s) in step")
+                        for tool_call in tool_calls:
+                            # Try multiple ways to get the tool type
+                            tool_type = None
+                            if hasattr(tool_call, 'type'):
+                                tool_type = tool_call.type
+                            elif isinstance(tool_call, dict):
+                                tool_type = tool_call.get('type')
+                            
+                            print(f"[INFO] Tool call type: {tool_type}")
+                            
+                            if tool_type == 'file_search':
                                 tool_usage_info["file_search_called"] = True
                                 tool_usage_info["file_search_count"] += 1
                                 tool_usage_info["vector_store_used"] = True
+                                print(f"[INFO] ✅ file_search tool was called!")
+                                
                                 # Try to extract file IDs if available
-                                if hasattr(tool_call, 'file_search') and tool_call.file_search:
-                                    if hasattr(tool_call.file_search, 'file_ids'):
-                                        tool_usage_info["files_retrieved"].extend(tool_call.file_search.file_ids)
+                                file_ids = []
+                                if hasattr(tool_call, 'file_search'):
+                                    fs = tool_call.file_search
+                                    if hasattr(fs, 'file_ids'):
+                                        file_ids = fs.file_ids
+                                elif isinstance(tool_call, dict) and 'file_search' in tool_call:
+                                    fs = tool_call['file_search']
+                                    if isinstance(fs, dict) and 'file_ids' in fs:
+                                        file_ids = fs['file_ids']
+                                
+                                if file_ids:
+                                    tool_usage_info["files_retrieved"].extend(file_ids)
+                                    print(f"[INFO] Retrieved {len(file_ids)} file(s) via file_search: {file_ids}")
+                                else:
+                                    print(f"[INFO] file_search called but no file_ids found in response")
+                    else:
+                        # Log what we found instead
+                        print(f"[DEBUG] No tool_calls found. Step details attributes: {dir(step_details)}")
         except Exception as e:
             # If we can't retrieve steps, log but don't fail
             print(f"[WARNING] Could not retrieve run steps for tool usage tracking: {e}")
+            import traceback
+            print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         
         # Step 6: Retrieve the Assistant's response
         messages = client.beta.threads.messages.list(thread_id=thread_id)
@@ -504,8 +570,17 @@ def execute_assistant(run_package: Dict) -> Dict:
         if not tool_usage_info["file_search_called"]:
             print(f"[WARNING] Company list was NOT retrieved! file_search tool was not called during this run.")
             print(f"[WARNING] The assistant may have missed companies from the knowledge base.")
+            print(f"[DEBUG] Vector store ID from env: {vector_store_id}")
+            print(f"[DEBUG] Assistant ID: {assistant_id}")
+            print(f"[DEBUG] Thread ID: {thread_id}")
             # Add warning to content metadata
-            content = f"⚠️ [SYSTEM WARNING: Company list from knowledge base was not retrieved. Results may be incomplete.]\n\n{content}"
+            warning_msg = """⚠️ [SYSTEM WARNING: Company list from knowledge base was not retrieved. Results may be incomplete.]
+💡 The OpenAI Assistant should use file_search to retrieve the company list. Check the Assistant configuration in OpenAI dashboard:
+   1. Ensure file_search tool is enabled
+   2. Ensure a vector store is attached to the Assistant
+   3. Ensure the vector store contains the company list file(s)
+   4. Verify OPENAI_VECTOR_STORE_ID in environment matches the attached vector store"""
+            content = f"{warning_msg}\n\n{content}"
         
         # Get usage information if available
         usage = getattr(run_status, "usage", None)
