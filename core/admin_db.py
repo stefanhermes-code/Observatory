@@ -263,22 +263,35 @@ def get_newsletter_specifications(workspace_id: Optional[str] = None) -> List[Di
 
 
 def update_specification_status(spec_id: str, status: str, reason: Optional[str] = None):
-    """Update newsletter specification status (activate/pause)."""
+    """Update newsletter specification status (activate/pause).
+    Tries full update first (status, updated_at, status_change_reason); on any API error,
+    retries with only status so it works even if optional columns are missing.
+    """
     supabase = get_supabase_client()
     
     update_data = {
         "status": status,
         "updated_at": datetime.utcnow().isoformat()
     }
-    
     if reason:
         update_data["status_change_reason"] = reason
     
-    result = supabase.table("newsletter_specifications")\
-        .update(update_data)\
-        .eq("id", spec_id)\
-        .execute()
-    return result.data[0] if result.data else None
+    try:
+        result = supabase.table("newsletter_specifications")\
+            .update(update_data)\
+            .eq("id", spec_id)\
+            .execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        # On any failure (e.g. missing updated_at or status_change_reason), retry with only status
+        try:
+            result = supabase.table("newsletter_specifications")\
+                .update({"status": status})\
+                .eq("id", spec_id)\
+                .execute()
+            return result.data[0] if result.data else None
+        except Exception:
+            raise
 
 
 def override_frequency_limit(spec_id: str, reason: str) -> Dict:

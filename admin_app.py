@@ -1078,7 +1078,7 @@ elif page == "📰 Intelligence Specifications":
                                     categories=selected_cats,
                                     regions=selected_regions,
                                     frequency=new_frequency,
-                                    value_chain_links=selected_value_chain_links if "value_chain_link" in selected_cats else []
+                                    value_chain_links=selected_value_chain_links
                                 )
                                 log_audit_action(
                                     "update_specification",
@@ -1116,32 +1116,38 @@ elif page == "📰 Intelligence Specifications":
                         st.success("Specification activated!")
                         st.rerun()
                 else:
-                    if st.button("⏸️ Pause", key=f"pause_{spec.get('id')}"):
-                        reason = st.text_input("Reason for pausing", key=f"pause_reason_{spec.get('id')}")
-                        if reason:
-                            update_specification_status(spec.get('id'), "paused", reason)
-                            log_audit_action(
-                                "pause_spec",
-                                st.session_state.user_email,
-                                {"spec_id": spec.get('id')},
-                                f"Paused specification: {reason}"
-                            )
-                            st.success("Specification paused!")
-                            st.rerun()
+                    # Use a form so Reason + Pause submit together (Enter in field or click Pause)
+                    with st.form(key=f"pause_form_{spec.get('id')}"):
+                        reason = st.text_input("Reason for pausing (optional)", placeholder="e.g. Temporarily disabling")
+                        submitted = st.form_submit_button("⏸️ Pause")
+                    if submitted:
+                        update_specification_status(spec.get('id'), "paused", reason.strip() or None)
+                        log_audit_action(
+                            "pause_spec",
+                            st.session_state.user_email,
+                            {"spec_id": spec.get('id')},
+                            f"Paused specification: {reason.strip() or '(no reason)'}"
+                        )
+                        st.success("Specification paused!")
+                        st.rerun()
             
             with col2:
-                if st.button("🔄 Override Frequency Limit", key=f"override_{spec.get('id')}"):
-                    reason = st.text_input("Override reason (required)", key=f"override_reason_{spec.get('id')}")
-                    if reason:
-                        override_frequency_limit(spec.get('id'), reason)
+                with st.form(key=f"override_form_{spec.get('id')}"):
+                    override_reason = st.text_input("Override reason (required)", placeholder="e.g. Marketing demo")
+                    override_submitted = st.form_submit_button("🔄 Override Frequency Limit")
+                if override_submitted:
+                    if override_reason.strip():
+                        override_frequency_limit(spec.get('id'), override_reason.strip())
                         log_audit_action(
                             "override_frequency",
                             st.session_state.user_email,
                             {"spec_id": spec.get('id')},
-                            f"Overrode frequency limit: {reason}"
+                            f"Overrode frequency limit: {override_reason.strip()}"
                         )
                         st.success("Frequency limit overridden!")
                         st.rerun()
+                    else:
+                        st.warning("Please enter an override reason.")
             
             with col3:
                 # Show enforcement state

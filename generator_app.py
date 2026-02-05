@@ -178,8 +178,14 @@ if page == "📊 Dashboard":
             
             with col2:
                 st.write("**Categories:**", len(spec.get("categories", [])))
-                if "value_chain_link" in spec.get("categories", []):
-                    st.write("**Value chain link:**", "Link in the PU Value Chain (select which links on Generate Report)")
+                # Show value chain when category is selected OR admin set value_chain_links on spec
+                if "value_chain_link" in spec.get("categories", []) or spec.get("value_chain_links"):
+                    vcl = spec.get("value_chain_links") or []
+                    if vcl:
+                        names = [next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == id), id) for id in vcl]
+                        st.write("**Value chain links:**", ", ".join(names))
+                    else:
+                        st.write("**Value chain links:**", "Link in the PU Value Chain (select which links on Generate Report)")
                 st.write("**Regions:**", ", ".join(spec.get("regions", [])))
                 
                 if is_allowed:
@@ -236,8 +242,14 @@ elif page == "📰 Generate Report":
     with col2:
         st.write("**Available in Specification:**")
         st.write(f"- {len(spec.get('categories', []))} categories")
-        if "value_chain_link" in spec.get("categories", []):
-            st.write("- **Value chain link:** Link in the PU Value Chain — *select which links below*")
+        # Show value chain when category is selected OR admin set value_chain_links on spec
+        if "value_chain_link" in spec.get("categories", []) or spec.get("value_chain_links"):
+            vcl = spec.get("value_chain_links") or []
+            if vcl:
+                names = [next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == id), id) for id in vcl]
+                st.write(f"- **Value chain links:** {', '.join(names)} — *select which links below*")
+            else:
+                st.write("- **Value chain links:** Link in the PU Value Chain — *select which links below*")
         st.write(f"- {len(spec.get('regions', []))} regions")
     
     st.markdown("---")
@@ -248,12 +260,13 @@ elif page == "📰 Generate Report":
     
     # Initialize session state for selected categories/regions/value_chain_links for this spec if not exists
     spec_selection_key = f"selected_cats_regs_{spec_id}"
+    # Spec has value chain when category "value_chain_link" is in categories OR admin set value_chain_links
+    spec_has_value_chain = "value_chain_link" in spec.get("categories", []) or bool(spec.get("value_chain_links"))
     if spec_selection_key not in st.session_state:
-        # Use stored value_chain_links from spec if available, otherwise default to all if category is selected
         stored_vcl = spec.get("value_chain_links", [])
-        if stored_vcl and "value_chain_link" in spec.get("categories", []):
+        if stored_vcl and spec_has_value_chain:
             default_vcl = stored_vcl.copy()
-        elif "value_chain_link" in spec.get("categories", []):
+        elif spec_has_value_chain:
             default_vcl = [l["id"] for l in VALUE_CHAIN_LINKS]
         else:
             default_vcl = []
@@ -288,9 +301,9 @@ elif page == "📰 Generate Report":
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category for this report.")
     
-    # Value chain link selection (when "Link in the PU Value Chain" is in spec) — same pattern as Categories and Regions
+    # Value chain link selection — show when spec has category OR admin set value_chain_links
     selected_value_chain_links = []
-    if "value_chain_link" in spec.get("categories", []):
+    if spec_has_value_chain:
         st.markdown("#### Link in the PU Value Chain")
         st.caption("Select which value chain position(s) to include in this report (same style as categories and regions above):")
         vcl_col1, vcl_col2 = st.columns(2)
@@ -383,7 +396,7 @@ elif page == "📰 Generate Report":
         
         # Value chain links override (only when value_chain_link is in selected categories)
         value_chain_links_override = None
-        if "value_chain_link" in selected_categories:
+        if spec_has_value_chain:
             value_chain_links_override = st.session_state[spec_selection_key].get("value_chain_links", [])
         
         with st.spinner("Generating report..."):
