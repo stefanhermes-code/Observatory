@@ -300,9 +300,12 @@ def render_html_from_content(
     lines = html_content.split('\n')
     html_lines = []
     in_list = False
+    items_found = 0
+    items_included = 0
     for line in lines:
         stripped = line.strip()
         if stripped.startswith('- ') or stripped.startswith('* '):
+            items_found += 1
             if not in_list:
                 html_lines.append('<ul class="news-list">')
                 in_list = True
@@ -428,14 +431,25 @@ def render_html_from_content(
                 # Date was found but is invalid/outdated - skip this item completely
                 continue
             
-            # CRITICAL: Require BOTH source AND date - skip items missing either
-            # This ensures all displayed items have complete attribution
-            if not source or not formatted_date:
-                # Missing source or date - skip this item completely
+            # CRITICAL: Require source - date is preferred but not mandatory if source is present
+            # This ensures all displayed items have attribution
+            if not source:
+                # Missing source - skip this item completely (source is mandatory)
+                print(f"[DEBUG] Skipping item - no source found: {item_text[:100]}")
                 continue
             
-            # Both source and date are present - format and display
-            date_html = f' <span class="news-date">{formatted_date}</span>'
+            # Date is preferred but if missing, we'll still include the item with source
+            # This prevents filtering out all content if Assistant doesn't format dates correctly
+            if formatted_date:
+                # Both source and date are present - format and display
+                date_html = f' <span class="news-date">{formatted_date}</span>'
+            else:
+                print(f"[DEBUG] Item has source but no valid date: {source}")
+                # Still include the item, but without date
+                date_html = ""
+            # Item passed all checks - include it
+            items_included += 1
+            
             # Add URL if available
             url_html = ""
             if urls_found:
@@ -455,44 +469,71 @@ def render_html_from_content(
         html_lines.append('</ul>')
     html_content = '\n'.join(html_lines)
     
-    # Handle Executive Summary section - ensure proper paragraph breaks
-    # The Assistant should output paragraphs separated by blank lines, but if it doesn't,
-    # we'll try to detect and format them properly
-    exec_summary_pattern = r'(##\s*Executive\s+Summary\s*\n)(.*?)(?=\n##|\n<h2>|$)'
-    def format_exec_summary(match):
-        header = match.group(1)
-        content = match.group(2).strip()
-        # Split by double line breaks (proper paragraph breaks)
-        paragraphs = re.split(r'\n\n+', content)
-        # If no double line breaks, try splitting by single line breaks that look like paragraph boundaries
-        if len(paragraphs) == 1 and len(content) > 200:
-            # Long text without breaks - try to split by sentence boundaries (period + space + capital)
-            # This is a fallback for when Assistant doesn't format properly
-            sentences = re.split(r'(\.\s+)(?=[A-Z])', content)
-            if len(sentences) > 3:
-                # Group sentences into paragraphs (3-5 sentences per paragraph)
-                paragraphs = []
-                current_para = ""
-                sentence_count = 0
-                for i in range(0, len(sentences), 2):
-                    if i < len(sentences):
-                        current_para += sentences[i] + (sentences[i+1] if i+1 < len(sentences) else "")
-                        sentence_count += 1
-                        if sentence_count >= 3 and i+2 < len(sentences):
+    # Debug logging for content filtering
+    print(f"[DEBUG] Content filtering summary: Found {items_found} news items, included {items_included} items")
+    if items_found > 0 and items_included == 0:
+        print(f"[WARNING] All {items_found} items were filtered out! Check source/date extraction logic.")
+    
+    # Extract and format Executive Summary BEFORE wrapping everything in <p> tags
+    # NOTE: Headers are already converted to <h2> tags, so we need to match HTML format
+    exec_summary_match = re.search(r'(<h2>Executive\s+Summary</h2>)(.*?)(?=<h2>|</p>\s*<div|$)', html_content, flags=re.IGNORECASE | re.DOTALL)
+    exec_summary_formatted = None
+    exec_summary_start = None
+    exec_summary_end = None
+    
+    if exec_summary_match:
+        header = exec_summary_match.group(1)
+        content = exec_summary_match.group(2).strip()
+        exec_summary_start = exec_summary_match.start()
+        exec_summary_end = exec_summary_match.end()
+        
+        # Remove any existing <p> tags
+        content = re.sub(r'</?p>', '', content)
+        # Clean up whitespace
+        content = re.sub(r'\s+', ' ', content).strip()
+        
+        # Split by sentence boundaries (period + space + capital letter)
+        sentences = re.split(r'(\.\s+)(?=[A-Z][a-z])', content)
+        
+        if len(sentences) > 1:
+            # Group sentences into paragraphs (3-5 sentences per paragraph)
+            paragraphs = []
+            current_para = ""
+            sentence_count = 0
+            
+            for i in range(0, len(sentences), 2):
+                if i < len(sentences):
+                    sentence = sentences[i]
+                    if i + 1 < len(sentences):
+                        sentence += sentences[i+1]
+                    current_para += sentence
+                    sentence_count += 1
+                    
+                    if sentence_count >= 3:
+                        if i + 2 >= len(sentences) or sentence_count >= 5:
                             paragraphs.append(current_para.strip())
                             current_para = ""
                             sentence_count = 0
-                if current_para.strip():
-                    paragraphs.append(current_para.strip())
-        # Format each paragraph with <p> tags
+            
+            if current_para.strip():
+                paragraphs.append(current_para.strip())
+        else:
+            paragraphs = [content] if content else []
+        
+        # Format with proper paragraph breaks
         formatted_paras = '\n\n'.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
-        return header + formatted_paras
-    
-    html_content = re.sub(exec_summary_pattern, format_exec_summary, html_content, flags=re.IGNORECASE | re.DOTALL)
+        exec_summary_formatted = f'{header}\n{formatted_paras}'
+        
+        # Temporarily remove Executive Summary from content so it doesn't get wrapped
+        html_content = html_content[:exec_summary_start] + f'<!--EXEC_SUMMARY_PLACEHOLDER-->' + html_content[exec_summary_end:]
     
     # Replace double line breaks with paragraph breaks for rest of content
     html_content = re.sub(r'\n\n+', '</p><p>', html_content)
     html_content = '<p>' + html_content + '</p>'
+    
+    # Re-insert the formatted Executive Summary (already has <p> tags, so don't wrap it)
+    if exec_summary_formatted:
+        html_content = html_content.replace('<!--EXEC_SUMMARY_PLACEHOLDER-->', exec_summary_formatted)
     
     # Wrap in professional HTML document (similar to invoice styling)
     html_document = f"""<!DOCTYPE html>
