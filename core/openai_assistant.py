@@ -113,7 +113,7 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 - Publication Date Only: Each intelligence item MUST include the publication date in YYYY-MM-DD format. Do NOT include source URLs or hyperlinks in the output - only the publication date.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
-- **Executive Summary at End**: After all content sections, you MUST include a final "## Executive Summary" section that synthesizes the key takeaways, trends, and implications from the entire report. This summary should be concise (3-5 paragraphs) and highlight: (1) Most significant developments, (2) Key market trends and dynamics, (3) Critical implications for decision-makers, (4) Notable risks or opportunities. This executive summary appears at the END of the report, after all other sections.
+- **Executive Summary at End**: After ALL content sections (including "Executive-Ready Briefings" if present), you MUST include a final "## Executive Summary" section at the very end of the report. This summary should be a comprehensive synthesis (3-5 paragraphs) that summarizes: (1) Most significant developments across all sections, (2) Key market trends and dynamics observed, (3) Critical implications for decision-makers, (4) Notable risks or opportunities. This executive summary is the final section before any footer - it synthesizes the entire report's content into actionable insights for executives.
 
 ## CRITICAL RULES:
 - You are stateless - you do not remember previous runs or user preferences
@@ -201,7 +201,7 @@ def build_run_package(
         "Output must be structured, factual, and relevant to the polyurethane industry.",
         "Do not expand beyond the specified scope.",
         "Present content in a clear, professional format suitable for decision-makers.",
-        "**MANDATORY: Include an Executive Summary at the END of the report** - After all content sections, add a final '## Executive Summary' section (3-5 paragraphs) that synthesizes key takeaways, trends, and implications from the entire report.",
+        "**MANDATORY: Include an Executive Summary at the END of the report** - After ALL content sections (including Executive-Ready Briefings), add a final '## Executive Summary' section (3-5 paragraphs) at the very end that comprehensively synthesizes key takeaways, trends, and implications from the entire report. This is the final section before any footer.",
         "",
         "## ⚠️ CRITICAL: MANDATORY COMPANY LIST RETRIEVAL - NO EXCEPTIONS",
         "A comprehensive list of 152+ PU industry companies is available in the attached knowledge base (vector store).",
