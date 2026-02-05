@@ -117,7 +117,7 @@ def execute_generator(
     # Use override cadence if provided for display purposes
     display_cadence = cadence_override if cadence_override else None
     # Use run_specification (with overrides) for HTML rendering
-    html_content = render_html_from_content(
+    html_content, diagnostics = render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
         assistant_content=assistant_output["content"],
         spec=run_specification,  # Use the modified specification with overrides
@@ -139,7 +139,8 @@ def execute_generator(
         "thread_id": assistant_metadata.get("thread_id"),
         "run_id": assistant_metadata.get("run_id"),
         "timestamp": assistant_metadata.get("timestamp"),
-        "tool_usage": assistant_metadata.get("tool_usage", {})  # Include vector store usage tracking
+        "tool_usage": assistant_metadata.get("tool_usage", {}),  # Include vector store usage tracking
+        "content_diagnostics": diagnostics  # Add diagnostics for Streamlit UI
     }
     
     # Update run status to success with HTML stored in metadata

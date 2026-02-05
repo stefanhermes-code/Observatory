@@ -418,8 +418,32 @@ elif page == "📰 Generate Report":
                 # Success - display results
                 html_content = result_data["html_content"]
                 
-                # Check if company list was retrieved
+                # Display diagnostics in UI
                 metadata = result_data.get("metadata", {})
+                diagnostics = metadata.get("content_diagnostics", {})
+                if diagnostics:
+                    st.markdown("### 📊 Content Processing Diagnostics")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Items Found", diagnostics.get("items_found", 0))
+                    with col2:
+                        st.metric("Items Included", diagnostics.get("items_included", 0))
+                    with col3:
+                        st.metric("Items Filtered", diagnostics.get("items_filtered_out", 0))
+                    
+                    # Show warnings
+                    warnings = diagnostics.get("warnings", [])
+                    if warnings:
+                        for warning in warnings:
+                            st.warning(f"⚠️ {warning}")
+                    
+                    # Show Executive Summary status
+                    if diagnostics.get("has_exec_summary"):
+                        st.success("✅ Executive Summary found and formatted")
+                    else:
+                        st.error("❌ Executive Summary section not found in output")
+                
+                # Check if company list was retrieved
                 tool_usage = metadata.get("tool_usage", {})
                 company_list_retrieved = tool_usage.get("file_search_called", False)
                 

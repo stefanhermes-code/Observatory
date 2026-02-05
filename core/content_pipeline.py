@@ -3,7 +3,7 @@ Content pipeline for generating newsletter content.
 Fetches, filters, deduplicates, ranks, and assembles newsletter sections.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import random
 
@@ -110,7 +110,7 @@ def render_html_from_content(
     metadata: Optional[Dict] = None,
     user_email: Optional[str] = None,
     cadence_override: Optional[str] = None
-) -> str:
+) -> Tuple[str, Dict]:
     """
     Render OpenAI Assistant content as professional HTML report.
     Converts markdown/text content from Assistant into formatted HTML similar to invoice styling.
@@ -668,7 +668,24 @@ def render_html_from_content(
 </body>
 </html>"""
     
-    return html_document
+    # Collect diagnostics for Streamlit UI
+    diagnostics = {
+        "items_found": items_found,
+        "items_included": items_included,
+        "items_filtered_out": items_found - items_included,
+        "has_exec_summary": exec_summary_formatted is not None,
+        "warnings": []
+    }
+    
+    if items_found > 0 and items_included == 0:
+        diagnostics["warnings"].append(f"All {items_found} items were filtered out - check source/date extraction")
+    elif items_included == 0:
+        diagnostics["warnings"].append("No news items found in Assistant output")
+    
+    if not diagnostics["has_exec_summary"]:
+        diagnostics["warnings"].append("Executive Summary section not found")
+    
+    return html_document, diagnostics
 
 
 def render_html(newsletter_name: str, sections: Dict[str, List[Dict]], spec: Dict) -> str:
