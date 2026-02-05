@@ -1942,6 +1942,31 @@ elif page == "📈 Reporting":
                                     st.warning("⚠️ No file_search detected")
                             else:
                                 st.info("ℹ️ Tool usage data not available (older run)")
+                            
+                            # Display content diagnostics (if available)
+                            diagnostics = metadata.get("content_diagnostics", {})
+                            if diagnostics:
+                                st.markdown("---")
+                                st.write("**📊 Content Processing Diagnostics:**")
+                                col_d1, col_d2, col_d3 = st.columns(3)
+                                with col_d1:
+                                    st.metric("Items Found", diagnostics.get("items_found", 0))
+                                with col_d2:
+                                    st.metric("Items Included", diagnostics.get("items_included", 0))
+                                with col_d3:
+                                    st.metric("Items Filtered", diagnostics.get("items_filtered_out", 0))
+                                
+                                # Show Executive Summary status
+                                if diagnostics.get("has_exec_summary"):
+                                    st.success("✅ Executive Summary found")
+                                else:
+                                    st.error("❌ Executive Summary missing")
+                                
+                                # Show warnings if any
+                                warnings = diagnostics.get("warnings", [])
+                                if warnings:
+                                    for warning in warnings:
+                                        st.warning(f"⚠️ {warning}")
                         
                         if run.get('artifact_path'):
                             # Retrieve HTML from metadata (stored when run was created)
