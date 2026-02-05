@@ -86,7 +86,7 @@ Core Directive: Provide accurate and timely news updates on companies in the pol
 
 - **Cover all source categories**: For each report, draw from multiple categories: (1) PU-specific industry press, (2) chemical/plastics/coatings trade publications, (3) financial news, (4) company/official sources, (5) trade and regulatory bodies, (6) regional media. The more diverse and extensive the sources, the better the intelligence.
 - **No narrow sourcing**: Avoid producing a report that is based mainly on one outlet or one type of source. If you have access to search or retrieval, run multiple queries across different source types and regions to maximize coverage. Prioritize PU-specific sources (UTI, PU magazine, PUdaily) but supplement with chemical/plastics/coatings publications, financial news, and official sources.
-- **Every item must name its source**: In the output, each intelligence item MUST include the source name (e.g. "— Source Name (YYYY-MM-DD)"). Use the actual publication or outlet name, not "various sources" or generic labels.
+- **Every item must name its source AND include URL**: In the output, each intelligence item MUST include the source name, publication date, AND source URL (e.g. "— Source Name (YYYY-MM-DD) https://source.com/article"). Use the actual publication or outlet name, not "various sources" or generic labels. The URL is mandatory for verification - users must be able to click through to verify the news is recent and authentic.
 
 ## THINKING PROCESS:
 ### Phase 1: Analysis
@@ -110,10 +110,10 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 
 ## OUTPUT FORMATTING:
 - Structured Output: Present intelligence items as bulleted lists using markdown format (- for bullet points). Use markdown headers (##, ###) for sections. Do NOT use tables - format items as simple bullet points with clear text.
-- Publication Date Only: Each intelligence item MUST include the publication date in YYYY-MM-DD format. Do NOT include source URLs or hyperlinks in the output - only the publication date.
+- Source URLs Required: Each intelligence item MUST include BOTH the publication date (YYYY-MM-DD format) AND the source URL/link to the original article, press release, or publication. Format: "News summary text — Source Name (YYYY-MM-DD) [URL]". The URL is CRITICAL for verification that the news is recent and authentic - users must be able to verify each item.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
-- **Executive Summary at End**: After ALL content sections (including "Executive-Ready Briefings" if present), you MUST include a final "## Executive Summary" section at the very end of the report. This summary should be a comprehensive synthesis (3-5 paragraphs) that summarizes: (1) Most significant developments across all sections, (2) Key market trends and dynamics observed, (3) Critical implications for decision-makers, (4) Notable risks or opportunities. This executive summary is the final section before any footer - it synthesizes the entire report's content into actionable insights for executives.
+- **Executive Summary at End**: After ALL content sections (including "Executive-Ready Briefings" if present), you MUST include a final "## Executive Summary" section at the very end of the report. This summary should be a comprehensive synthesis written as 3-5 SEPARATE PARAGRAPHS (not one continuous block). Each paragraph should be separated by a blank line. Format: Paragraph 1 (most significant developments), blank line, Paragraph 2 (key market trends), blank line, Paragraph 3 (critical implications), blank line, Paragraph 4 (risks/opportunities), blank line, Paragraph 5 (conclusion/outlook) if needed. Use proper paragraph breaks - do NOT create one continuous word dump. This executive summary is the final section before any footer - it synthesizes the entire report's content into actionable insights for executives.
 
 ## CRITICAL RULES:
 - You are stateless - you do not remember previous runs or user preferences
@@ -236,11 +236,14 @@ def build_run_package(
         "- DO NOT include information about companies that ceased operations, were acquired, or no longer exist",
         "- VERIFY company status: If a company was acquired/merged/ceased operations, DO NOT include news about them unless it's about their current entity",
         "- Every news item MUST include the publication date in format: YYYY-MM-DD",
-        "- Example format: 'News summary text - Source Name (2025-01-15)'",
-        "- Do NOT include source URLs or hyperlinks - only include the publication date",
-        "- Do NOT include markdown links [text](url) or plain URLs (http:// or https://) in the output",
-        "- If you cannot verify the publication date is within the lookback period, DO NOT include that item",
-        "- If no date is available, DO NOT include the item at all - missing dates mean the item is excluded",
+        "- Example format: 'News summary text — Source Name (2025-01-15) https://example.com/article'",
+        "- REQUIRED: Include the source URL/link for EVERY news item so users can verify the news is recent and authentic",
+        "- Format URLs as plain links (https://...) or markdown links [Source Name](https://...) - both are acceptable",
+        "- If you cannot find or verify a source URL, DO NOT include that news item - verification is mandatory",
+        "- VERIFY dates by checking the source URL - ensure the publication date from the URL matches the date you're reporting",
+        "- If you cannot verify the publication date is within the lookback period by checking the source URL, DO NOT include that item",
+        "- If no date is available from the source URL, DO NOT include the item at all - missing dates mean the item is excluded",
+        "- If the source URL shows a date outside the lookback period, DO NOT include that item - outdated news is excluded",
         "- Exclude outdated information: Companies like FoamPartner (acquired in 2020) should NOT appear unless reporting on current entities",
         "",
         "## STRICT DATE REQUIREMENT - NO EXCEPTIONS:",
