@@ -279,13 +279,16 @@ def render_html_from_content(
     html_content = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html_content, flags=re.MULTILINE)
     html_content = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html_content, flags=re.MULTILINE)
     
-    # Remove markdown links [text](url) - extract only the text, discard the URL
-    # We only want dates, not source links
-    html_content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', html_content)
+    # PRESERVE URLs - convert markdown links to HTML links, keep plain URLs
+    # Format: [text](url) -> <a href="url">text</a>
+    html_content = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'<a href="\2">\1</a>', html_content)
     
-    # Remove plain URLs (http://, https://, www.) - we don't want links in the output
-    html_content = re.sub(r'https?://[^\s\)\]\>]+', '', html_content)
-    html_content = re.sub(r'www\.[^\s\)\]\>]+', '', html_content)
+    # Keep plain URLs as clickable links (convert to <a> tags)
+    # Pattern: https:// or http:// followed by non-whitespace
+    def url_to_link(match):
+        url = match.group(0)
+        return f'<a href="{url}" target="_blank">{url}</a>'
+    html_content = re.sub(r'https?://[^\s\)\]\>]+', url_to_link, html_content)
     
     # Replace bold
     html_content = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html_content)
@@ -305,12 +308,20 @@ def render_html_from_content(
                 in_list = True
             item_text = stripped[2:].strip()
             
-            # Remove URLs if present (we don't want links, only dates)
-            # Remove markdown links [text](url) - keep only the text
+            # PRESERVE URLs - extract URLs before processing, then re-add them
+            # Extract URLs first (both markdown and plain)
+            urls_found = []
+            # Extract markdown links [text](url)
+            markdown_urls = re.findall(r'\[([^\]]+)\]\(([^\)]+)\)', item_text)
+            for text, url in markdown_urls:
+                urls_found.append(url)
+            # Extract plain URLs
+            plain_urls = re.findall(r'https?://[^\s\)\]\>]+', item_text)
+            urls_found.extend(plain_urls)
+            
+            # Remove URLs temporarily for source/date extraction (we'll add them back)
             item_text_clean = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', item_text)
-            # Remove plain URLs
             item_text_clean = re.sub(r'https?://[^\s\)\]\>]+', '', item_text_clean)
-            item_text_clean = re.sub(r'www\.[^\s\)\]\>]+', '', item_text_clean)
             item_text_clean = item_text_clean.strip()
             
             # Extract date and source from the content
@@ -374,11 +385,20 @@ def render_html_from_content(
                         news_date = None
             
             # Step 4: Extract source pattern: "Text - Source" or "Text — Source"
-            # Expected format after date removal: "News summary text - Source Name"
-            # Try multiple patterns to catch different source formats
+            # Expected format: "News summary text - Source Name (YYYY-MM-DD) https://url.com"
+            # After date removal: "News summary text - Source Name https://url.com"
+            # URLs may appear after the source name
             
             source = None
             main_text = item_text_clean
+            
+            # First, check if there's a URL at the end (after source)
+            # URLs should be preserved and added separately
+            url_at_end = None
+            url_match = re.search(r'\s+(https?://[^\s]+)$', item_text_clean)
+            if url_match:
+                url_at_end = url_match.group(1)
+                item_text_clean = item_text_clean[:url_match.start()].strip()
             
             # Pattern 1: "Text - Source Name" (most common, dash with spaces)
             # Match dash/emdash followed by source (allows lowercase start, numbers, common punctuation)
@@ -398,6 +418,10 @@ def render_html_from_content(
                 # Clean up main text - remove trailing dashes
                 main_text = re.sub(r'\s*[-–—]\s*$', '', main_text).strip()
             
+            # If we found a URL at the end, add it to urls_found
+            if url_at_end:
+                urls_found.append(url_at_end)
+            
             # CRITICAL: If a date was found but is outside lookback period, EXCLUDE the entire item
             # This prevents showing outdated news
             if news_date and not formatted_date:
@@ -412,7 +436,13 @@ def render_html_from_content(
             
             # Both source and date are present - format and display
             date_html = f' <span class="news-date">{formatted_date}</span>'
-            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}</li>')
+            # Add URL if available
+            url_html = ""
+            if urls_found:
+                # Use the first URL found
+                url = urls_found[0]
+                url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
+            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}{url_html}</li>')
         else:
             if in_list:
                 html_lines.append('</ul>')
@@ -425,7 +455,42 @@ def render_html_from_content(
         html_lines.append('</ul>')
     html_content = '\n'.join(html_lines)
     
-    # Replace double line breaks with paragraph breaks
+    # Handle Executive Summary section - ensure proper paragraph breaks
+    # The Assistant should output paragraphs separated by blank lines, but if it doesn't,
+    # we'll try to detect and format them properly
+    exec_summary_pattern = r'(##\s*Executive\s+Summary\s*\n)(.*?)(?=\n##|\n<h2>|$)'
+    def format_exec_summary(match):
+        header = match.group(1)
+        content = match.group(2).strip()
+        # Split by double line breaks (proper paragraph breaks)
+        paragraphs = re.split(r'\n\n+', content)
+        # If no double line breaks, try splitting by single line breaks that look like paragraph boundaries
+        if len(paragraphs) == 1 and len(content) > 200:
+            # Long text without breaks - try to split by sentence boundaries (period + space + capital)
+            # This is a fallback for when Assistant doesn't format properly
+            sentences = re.split(r'(\.\s+)(?=[A-Z])', content)
+            if len(sentences) > 3:
+                # Group sentences into paragraphs (3-5 sentences per paragraph)
+                paragraphs = []
+                current_para = ""
+                sentence_count = 0
+                for i in range(0, len(sentences), 2):
+                    if i < len(sentences):
+                        current_para += sentences[i] + (sentences[i+1] if i+1 < len(sentences) else "")
+                        sentence_count += 1
+                        if sentence_count >= 3 and i+2 < len(sentences):
+                            paragraphs.append(current_para.strip())
+                            current_para = ""
+                            sentence_count = 0
+                if current_para.strip():
+                    paragraphs.append(current_para.strip())
+        # Format each paragraph with <p> tags
+        formatted_paras = '\n\n'.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
+        return header + formatted_paras
+    
+    html_content = re.sub(exec_summary_pattern, format_exec_summary, html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Replace double line breaks with paragraph breaks for rest of content
     html_content = re.sub(r'\n\n+', '</p><p>', html_content)
     html_content = '<p>' + html_content + '</p>'
     
