@@ -110,10 +110,37 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 
 ## OUTPUT FORMATTING:
 - Structured Output: Present intelligence items as bulleted lists using markdown format (- for bullet points). Use markdown headers (##, ###) for sections. Do NOT use tables - format items as simple bullet points with clear text.
-- Source URLs Required: Each intelligence item MUST include BOTH the publication date (YYYY-MM-DD format) AND the source URL/link to the original article, press release, or publication. Format: "News summary text — Source Name (YYYY-MM-DD) [URL]". The URL is CRITICAL for verification that the news is recent and authentic - users must be able to verify each item.
+- **Source URLs Required - MANDATORY**: Each intelligence item MUST include BOTH the publication date (YYYY-MM-DD format) AND the source URL/link. This is NOT optional. Format examples:
+  - "News summary text — Source Name (2025-01-15) https://example.com/article"
+  - "News summary text — Source Name (2025-01-15) [https://example.com/article](https://example.com/article)"
+  - "News summary text — Source Name (2025-01-15) https://www.icis.com/news/article"
+  The URL MUST be included for EVERY item. If you cannot find a source URL, DO NOT include that news item. URLs are CRITICAL for verification - users must be able to click through to verify each item is recent and authentic.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
-- **Executive Summary at End**: After ALL content sections (including "Executive-Ready Briefings" if present), you MUST include a final "## Executive Summary" section at the very end of the report. This summary should be a comprehensive synthesis written as 3-5 SEPARATE PARAGRAPHS (not one continuous block). Each paragraph should be separated by a blank line. Format: Paragraph 1 (most significant developments), blank line, Paragraph 2 (key market trends), blank line, Paragraph 3 (critical implications), blank line, Paragraph 4 (risks/opportunities), blank line, Paragraph 5 (conclusion/outlook) if needed. Use proper paragraph breaks - do NOT create one continuous word dump. This executive summary is the final section before any footer - it synthesizes the entire report's content into actionable insights for executives.
+- **Executive Summary at End - MANDATORY FORMATTING**: After ALL content sections (including "Executive-Ready Briefings" if present), you MUST include a final "## Executive Summary" section at the very end. This summary MUST be written as 3-5 SEPARATE PARAGRAPHS with a blank line between each paragraph. DO NOT create one continuous block of text. 
+
+  **Correct Format Example:**
+  ```
+  ## Executive Summary
+  
+  [First paragraph about most significant developments - 3-5 sentences]
+  
+  [Second paragraph about key market trends - 3-5 sentences]
+  
+  [Third paragraph about critical implications for decision-makers - 3-5 sentences]
+  
+  [Fourth paragraph about notable risks or opportunities - 3-5 sentences]
+  
+  [Optional fifth paragraph with conclusion/outlook - 2-3 sentences]
+  ```
+  
+  **WRONG Format (DO NOT DO THIS):**
+  ```
+  ## Executive Summary
+  [One long continuous paragraph with no breaks - this is WRONG]
+  ```
+  
+  Each paragraph must be separated by a blank line. This executive summary is the final section before any footer - it synthesizes the entire report's content into actionable insights for executives.
 
 ## CRITICAL RULES:
 - You are stateless - you do not remember previous runs or user preferences
@@ -201,7 +228,7 @@ def build_run_package(
         "Output must be structured, factual, and relevant to the polyurethane industry.",
         "Do not expand beyond the specified scope.",
         "Present content in a clear, professional format suitable for decision-makers.",
-        "**MANDATORY: Include an Executive Summary at the END of the report** - After ALL content sections (including Executive-Ready Briefings), add a final '## Executive Summary' section (3-5 paragraphs) at the very end that comprehensively synthesizes key takeaways, trends, and implications from the entire report. This is the final section before any footer.",
+        "**MANDATORY: Include an Executive Summary at the END with PROPER FORMATTING** - After ALL content sections (including Executive-Ready Briefings), add a final '## Executive Summary' section at the very end. This summary MUST be written as 3-5 SEPARATE PARAGRAPHS with a BLANK LINE between each paragraph. DO NOT create one continuous block of text. Each paragraph should be 3-5 sentences covering: (1) most significant developments, (2) key market trends, (3) critical implications, (4) risks/opportunities, (5) conclusion/outlook. Format: Paragraph 1, then blank line, then Paragraph 2, then blank line, etc. This is the final section before any footer.",
         "",
         "## ⚠️ CRITICAL: MANDATORY COMPANY LIST RETRIEVAL - NO EXCEPTIONS",
         "A comprehensive list of 152+ PU industry companies is available in the attached knowledge base (vector store).",
@@ -236,10 +263,11 @@ def build_run_package(
         "- DO NOT include information about companies that ceased operations, were acquired, or no longer exist",
         "- VERIFY company status: If a company was acquired/merged/ceased operations, DO NOT include news about them unless it's about their current entity",
         "- Every news item MUST include the publication date in format: YYYY-MM-DD",
-        "- Example format: 'News summary text — Source Name (2025-01-15) https://example.com/article'",
-        "- REQUIRED: Include the source URL/link for EVERY news item so users can verify the news is recent and authentic",
-        "- Format URLs as plain links (https://...) or markdown links [Source Name](https://...) - both are acceptable",
-        "- If you cannot find or verify a source URL, DO NOT include that news item - verification is mandatory",
+        "- **MANDATORY URL FORMAT**: Every news item MUST follow this exact format: 'News summary text — Source Name (YYYY-MM-DD) https://source-url.com/article'",
+        "- **REQUIRED**: Include the source URL/link for EVERY SINGLE news item - this is NOT optional. Users must be able to click through to verify each item.",
+        "- **URL Examples**: '— ICIS (2025-01-15) https://www.icis.com/news/article' or '— Bloomberg (2025-01-15) https://www.bloomberg.com/news/article'",
+        "- **If no URL available**: DO NOT include that news item at all - verification via URL is mandatory. If you cannot find a source URL, skip that item entirely.",
+        "- **URL verification**: The URL must lead to the actual article/press release. Verify the date matches what you're reporting before including.",
         "- VERIFY dates by checking the source URL - ensure the publication date from the URL matches the date you're reporting",
         "- If you cannot verify the publication date is within the lookback period by checking the source URL, DO NOT include that item",
         "- If no date is available from the source URL, DO NOT include the item at all - missing dates mean the item is excluded",
@@ -252,7 +280,25 @@ def build_run_package(
         f"- If date is missing, outside this range, or cannot be verified, DO NOT include the item - EXCLUDE IT COMPLETELY",
         f"- Example: If today is {today.strftime('%Y-%m-%d')} and lookback is {lookback_days} days, only include news from {lookback_date} onwards",
         "- DO NOT include news from January 2025 or earlier if it's outside the lookback window",
-        "- When in doubt about a date, EXCLUDE the item rather than including outdated news"
+        "- When in doubt about a date, EXCLUDE the item rather than including outdated news",
+        "",
+        "## ⚠️ CRITICAL OUTPUT REQUIREMENTS - VERIFY BEFORE SUBMITTING:",
+        "",
+        "**1. SOURCE URLs - MANDATORY FOR EVERY ITEM:**",
+        "- Every news item MUST include a source URL: 'News text — Source Name (YYYY-MM-DD) https://url.com'",
+        "- If an item does not have a URL, DO NOT include it - skip it entirely",
+        "- Verify the URL works and shows the correct publication date",
+        "",
+        "**2. EXECUTIVE SUMMARY FORMATTING - MANDATORY:**",
+        "- The Executive Summary MUST be 3-5 separate paragraphs with blank lines between them",
+        "- Format: Paragraph 1 [blank line] Paragraph 2 [blank line] Paragraph 3 [blank line] etc.",
+        "- DO NOT create one continuous block of text - use proper paragraph breaks",
+        "- Each paragraph should be 3-5 sentences",
+        "",
+        "**VERIFY YOUR OUTPUT:** Before finishing, check that:",
+        "- Every news item has a source URL",
+        "- The Executive Summary has proper paragraph breaks (blank lines between paragraphs)",
+        "- No continuous text blocks in the Executive Summary"
     ])
     
     user_message = "\n".join(user_message_parts)
