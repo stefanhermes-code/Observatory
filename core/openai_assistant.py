@@ -51,9 +51,41 @@ Core Directive: Provide accurate and timely news updates on companies in the pol
 - **News Sources**: Identify preferred sources for news aggregation (e.g., industry publications, financial news platforms).
 
 ## MANDATORY: EXPLOIT SOURCES EXTENSIVELY
-- **Use a wide range of source types**: Do NOT rely on one or two sources. Query extensively across: industry/trade publications (e.g. ICIS, Chemical Week, PU magazine, Plastics News), financial and business news (Reuters, Bloomberg, regional business press), company announcements and press releases, regulatory and trade body sources, regional and local news for each selected region.
-- **Cover all source categories**: For each report, draw from multiple categories: (1) industry press, (2) financial news, (3) company/official sources, (4) trade and regulatory, (5) regional media. The more diverse and extensive the sources, the better the intelligence.
-- **No narrow sourcing**: Avoid producing a report that is based mainly on one outlet or one type of source. If you have access to search or retrieval, run multiple queries across different source types and regions to maximize coverage.
+- **Use a wide range of source types**: Do NOT rely on one or two sources. Query extensively across multiple source categories:
+
+  **PU-Specific / Industry Trade (Primary Sources):**
+  - Urethanes Technology International (UTI) / utech-polyurethane.com - Most authoritative global PU source since 1984; daily news, weekly newsletters, six print issues/year
+  - PU magazine - Polyurethane-focused trade publication covering sustainability, recycling, flexible/rigid foam, TPU, applications
+  - PUdaily - Independent PU market intelligence platform with prices, data, analysis, news, and reports
+  - Utech-polyurethane.com - Daily news covering financial, sustainability, materials/cases, foam products
+
+  **Chemicals / Plastics / Coatings (Secondary, High Relevance):**
+  - ICIS - Chemical commodity news and analysis; covers polyurethane, plastics, coatings, feedstocks; 500+ chemical news stories/week
+  - Chemical Week - Chemical industry news covering corporate activity, projects, M&A, regulation affecting PU raw materials and downstream
+  - Plastics News - US-based plastics industry news, resin pricing, analysis; overlaps with PU conversion and supply chain
+  - Plasteurope.com - European plastics business news and price reports; includes polyurethane price reports, composites, recyclate
+  - European Coatings Journal / European Coatings - Coatings industry publication covering CASE segment (Coatings, Adhesives, Sealants, Elastomers)
+  - Coatings World - Coatings industry news covering CASE segment, formulations, raw materials, regional markets
+
+  **Financial and Business News:**
+  - Reuters - Global news and financial coverage; company earnings, M&A, projects, regulation affecting PU companies
+  - Bloomberg - Financial and business news, data; commodity and corporate coverage
+  - Regional business press - Financial Times, Handelsblatt, Les Echos, regional Asian/LATAM business titles covering regional PU players, policy, trade
+
+  **Trade Bodies and Regulatory:**
+  - Center for the Polyurethanes Industry (CPI) - American Chemistry Council; North American PU industry advocacy, safety, benefits messaging
+  - ISOPA - European Diisocyanate & Polyol Producers Association; EU PU raw materials regulatory and safety information
+  - ALIPA - European Aliphatic Isocyanates Producers Association; aliphatic isocyanates in Europe
+  - International Isocyanate Institute (III) - Global diisocyanate technical and safety information
+  - Regional PU/chemical associations - China, Japan, Korea, India, Brazil associations for regional policy, events, statistics
+
+  **Company and Official Sources:**
+  - Company press releases - Official announcements from PU producers, systems houses, foamers, equipment suppliers
+  - Investor relations / earnings - Listed companies (BASF, Covestro, Dow, Huntsman, Recticel, etc.)
+  - Regulatory and government - EU (ECHA, DG GROW), US (EPA, OSHA), national agencies; trade and customs
+
+- **Cover all source categories**: For each report, draw from multiple categories: (1) PU-specific industry press, (2) chemical/plastics/coatings trade publications, (3) financial news, (4) company/official sources, (5) trade and regulatory bodies, (6) regional media. The more diverse and extensive the sources, the better the intelligence.
+- **No narrow sourcing**: Avoid producing a report that is based mainly on one outlet or one type of source. If you have access to search or retrieval, run multiple queries across different source types and regions to maximize coverage. Prioritize PU-specific sources (UTI, PU magazine, PUdaily) but supplement with chemical/plastics/coatings publications, financial news, and official sources.
 - **Every item must name its source**: In the output, each intelligence item MUST include the source name (e.g. "— Source Name (YYYY-MM-DD)"). Use the actual publication or outlet name, not "various sources" or generic labels.
 
 ## THINKING PROCESS:
@@ -61,11 +93,11 @@ Core Directive: Provide accurate and timely news updates on companies in the pol
 1. **Company List Retrieval**: FIRST, retrieve the company list from the attached vector store/knowledge base. This list contains 152+ companies with their value chain positions and regions.
 2. Company Filtering: Filter the company list by (a) value chain positions matching selected deliverables, (b) regions matching selected regions. This gives you the target companies to search for.
 3. Industry Identification: Analyze industry trends and key players from the filtered company list.
-4. Source Exploitation: Use many source types (industry publications, financial news, company releases, trade bodies, regional press). Assess credibility and relevance; exclude only biased or clickbait sources—do not narrow to a single outlet.
+4. Source Exploitation: Use many source types from the comprehensive list above (PU-specific sources like UTI, PU magazine, PUdaily; chemical/plastics/coatings publications like ICIS, Chemical Week, Plastics News; financial news like Reuters, Bloomberg; company releases; trade bodies like CPI, ISOPA; regional press). Assess credibility and relevance; exclude only biased or clickbait sources—do not narrow to a single outlet.
 
 ### Phase 2: News Generation
 1. **Targeted Company Search**: Use the EXACT company names and aliases from the filtered company list to search for news. Search for ALL companies in your filtered list, not just a few.
-2. Data Extraction: Gather news related to target companies from a wide range of sources (industry press, financial news, company releases, trade/regulatory, regional media). Prioritize companies from the list over general industry knowledge. Do not limit to one or two outlets—exploit sources extensively.
+2. Data Extraction: Gather news related to target companies from a wide range of sources (PU-specific: UTI, PU magazine, PUdaily; chemical/plastics/coatings: ICIS, Chemical Week, Plastics News, Plasteurope.com, European Coatings; financial: Reuters, Bloomberg; company releases; trade/regulatory: CPI, ISOPA, ALIPA; regional media). Prioritize companies from the list over general industry knowledge. Do not limit to one or two outlets—exploit sources extensively across all categories.
 3. Content Categorization: Classify news items based on relevance (e.g., financial updates, new product launches, regulatory changes).
 4. Summarization: Condense news articles into concise summaries for easy consumption.
 
@@ -244,9 +276,11 @@ def execute_assistant(run_package: Dict) -> Dict:
     try:
         import streamlit as st
         assistant_id = st.secrets.get("OPENAI_ASSISTANT_ID") or os.getenv("OPENAI_ASSISTANT_ID")
+        vector_store_id = st.secrets.get("OPENAI_VECTOR_STORE_ID") or os.getenv("OPENAI_VECTOR_STORE_ID")
     except (AttributeError, FileNotFoundError, RuntimeError):
         # Not running in Streamlit or secrets not available, use environment variables
         assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+        vector_store_id = os.getenv("OPENAI_VECTOR_STORE_ID")
     
     if not client or not assistant_id:
         # Simulate OpenAI response for development
@@ -289,8 +323,16 @@ def execute_assistant(run_package: Dict) -> Dict:
     
     try:
         # Use OpenAI Assistants API
-        # Step 1: Create a thread
-        thread = client.beta.threads.create()
+        # Step 1: Create a thread with explicit vector store attachment
+        thread_params = {}
+        if vector_store_id:
+            # Explicitly attach the vector store to the thread for file_search
+            thread_params["tool_resources"] = {
+                "file_search": {
+                    "vector_store_ids": [vector_store_id]
+                }
+            }
+        thread = client.beta.threads.create(**thread_params)
         thread_id = thread.id
         
         # Step 2: Add user message to thread
