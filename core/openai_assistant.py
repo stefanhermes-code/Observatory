@@ -339,11 +339,22 @@ def execute_assistant(run_package: Dict) -> Dict:
         # Combine system instruction and user message for the Assistant
         # Note: The Assistant's system instructions are configured in the Assistant itself
         # We pass the full specification as the user message
-        user_message = f"""{run_package["system_instruction"]}
+        # IMPORTANT: Structure the message so the Assistant understands the first part contains instructions to follow
+        user_message = f"""⚠️ CRITICAL: You must GENERATE a complete newsletter report, not describe what you will do. Follow the system instructions below exactly and produce the full newsletter content.
+
+# SYSTEM INSTRUCTIONS - FOLLOW THESE CAREFULLY
+
+{run_package["system_instruction"]}
 
 ---
 
-{run_package["user_message"]}"""
+# RUN SPECIFICATION - GENERATE REPORT BASED ON THIS
+
+{run_package["user_message"]}
+
+---
+
+⚠️ REMINDER: Generate the complete newsletter report now. Do not just describe your plan - produce the actual newsletter content."""
         
         client.beta.threads.messages.create(
             thread_id=thread_id,
