@@ -6,11 +6,12 @@ Owner-only access.
 
 import streamlit as st
 from datetime import datetime, timedelta
-from collections import defaultdict
+from collections import defaultdict, Counter
 import sys
 from pathlib import Path
 import csv
 import io
+import re
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -49,6 +50,47 @@ from core.workspace_members import (
 )
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
+
+def extract_sources_from_html(html_content: str) -> Counter:
+    """
+    Extract source names from HTML report content.
+    Returns a Counter with source names as keys and counts as values.
+    """
+    if not html_content:
+        return Counter()
+    
+    source_counter = Counter()
+    
+    # Primary pattern: HTML span format: <span class="news-source">— Source Name</span>
+    # This is the format used in the generated HTML reports
+    pattern = r'<span class="news-source">[—–-]\s*([^<]+)</span>'
+    
+    matches = re.findall(pattern, html_content, re.IGNORECASE)
+    for match in matches:
+        # Clean up the source name
+        source_name = match.strip()
+        # Remove em-dash, en-dash, or hyphen at start
+        source_name = re.sub(r'^[—–-\s]+', '', source_name)
+        # Normalize whitespace
+        source_name = re.sub(r'\s+', ' ', source_name)
+        # Remove trailing spaces
+        source_name = source_name.strip()
+        if source_name:
+            source_counter[source_name] += 1
+    
+    # Fallback: Also try to find sources in plain text format (for markdown or text content)
+    # Pattern: — Source Name (date) or — Source Name (date) URL
+    fallback_pattern = r'[—–-]\s*([^(]+?)\s*\([0-9]{4}-[0-9]{2}-[0-9]{2}\)'
+    fallback_matches = re.findall(fallback_pattern, html_content, re.IGNORECASE)
+    for match in fallback_matches:
+        source_name = match.strip()
+        source_name = re.sub(r'^[—–-\s]+', '', source_name)
+        source_name = re.sub(r'\s+', ' ', source_name)
+        source_name = source_name.strip()
+        if source_name:
+            source_counter[source_name] += 1
+    
+    return source_counter
 
 # Page configuration
 st.set_page_config(
@@ -1711,7 +1753,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Token Usage & Costs", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
     )
     
     # Get data
@@ -1946,6 +1988,126 @@ elif page == "📈 Reporting":
                 file_name=f"generation_history_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
+    
+    elif report_type == "Source Usage Analytics":
+        st.subheader("Source Usage Analytics")
+        
+        st.info("""
+        **Source Usage Analytics** shows how many times each news source was used across selected reports.
+        Select reports to analyze, and see which sources are most frequently cited.
+        """)
+        
+        st.markdown("---")
+        
+        # Get recent runs for selection
+        if not all_runs:
+            try:
+                available_runs = get_recent_runs(100)
+            except Exception as e:
+                st.error(f"Error loading runs: {str(e)}")
+                available_runs = []
+        else:
+            available_runs = all_runs[:100]
+        
+        if not available_runs:
+            st.info("No generation runs available for analysis")
+        else:
+            # Filter to only completed runs with HTML content
+            runs_with_html = []
+            for run in available_runs:
+                if run.get('status') == 'completed':
+                    metadata = run.get("metadata", {})
+                    if isinstance(metadata, dict) and metadata.get("html_content"):
+                        runs_with_html.append(run)
+            
+            if not runs_with_html:
+                st.warning("No completed runs with HTML content available for analysis")
+            else:
+                st.write(f"**Available Reports:** {len(runs_with_html)} completed runs with HTML content")
+                
+                # Multi-select for choosing reports to analyze
+                run_options = {
+                    f"{run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:10]}": run
+                    for run in runs_with_html
+                }
+                
+                selected_run_keys = st.multiselect(
+                    "Select Reports to Analyze",
+                    options=list(run_options.keys()),
+                    default=list(run_options.keys())[:10] if len(run_options) > 10 else list(run_options.keys()),
+                    help="Select one or more reports to analyze source usage"
+                )
+                
+                if selected_run_keys:
+                    selected_runs = [run_options[key] for key in selected_run_keys]
+                    
+                    # Extract sources from all selected reports
+                    all_sources = Counter()
+                    sources_by_report = {}
+                    
+                    for run in selected_runs:
+                        metadata = run.get("metadata", {})
+                        html_content = metadata.get("html_content", "")
+                        sources = extract_sources_from_html(html_content)
+                        all_sources.update(sources)
+                        sources_by_report[run.get('id')] = {
+                            'name': run.get('newsletter_name', 'Unknown'),
+                            'date': run.get('created_at', '')[:10],
+                            'sources': sources
+                        }
+                    
+                    if all_sources:
+                        st.markdown("---")
+                        st.subheader("Source Usage Summary")
+                        
+                        # Display top sources
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.write("**Total Unique Sources:**", len(all_sources))
+                            st.write("**Total Source Citations:**", sum(all_sources.values()))
+                            
+                            # Show top sources
+                            st.markdown("### Top Sources by Usage Count")
+                            top_sources = all_sources.most_common(20)
+                            
+                            source_data = {
+                                "Source Name": [source for source, count in top_sources],
+                                "Usage Count": [count for source, count in top_sources],
+                                "Percentage": [f"{(count / sum(all_sources.values()) * 100):.1f}%" 
+                                             for source, count in top_sources]
+                            }
+                            st.dataframe(source_data, use_container_width=True, hide_index=True)
+                        
+                        with col2:
+                            # Show breakdown by report
+                            st.markdown("### Sources by Report")
+                            for run_id, report_info in list(sources_by_report.items())[:10]:
+                                with st.expander(f"{report_info['name']} ({report_info['date']})"):
+                                    if report_info['sources']:
+                                        st.write(f"**Unique sources:** {len(report_info['sources'])}")
+                                        st.write(f"**Total citations:** {sum(report_info['sources'].values())}")
+                                        top_5 = report_info['sources'].most_common(5)
+                                        for source, count in top_5:
+                                            st.write(f"- {source}: {count}")
+                                    else:
+                                        st.write("No sources found")
+                        
+                        # Export option
+                        st.markdown("---")
+                        export_csv = "Source Name,Usage Count,Percentage\n"
+                        for source, count in all_sources.most_common():
+                            percentage = (count / sum(all_sources.values()) * 100)
+                            export_csv += f'"{source}",{count},{percentage:.2f}%\n'
+                        
+                        st.download_button(
+                            "📥 Export Source Usage Data",
+                            data=export_csv,
+                            file_name=f"source_usage_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                    else:
+                        st.warning("No sources found in selected reports. Make sure reports contain source citations.")
     
     elif report_type == "Token Usage & Costs":
         st.subheader("Token Usage & Cost Analysis")
