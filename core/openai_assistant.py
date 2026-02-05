@@ -113,6 +113,7 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 - Publication Date Only: Each intelligence item MUST include the publication date in YYYY-MM-DD format. Do NOT include source URLs or hyperlinks in the output - only the publication date.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
+- **Executive Summary at End**: After all content sections, you MUST include a final "## Executive Summary" section that synthesizes the key takeaways, trends, and implications from the entire report. This summary should be concise (3-5 paragraphs) and highlight: (1) Most significant developments, (2) Key market trends and dynamics, (3) Critical implications for decision-makers, (4) Notable risks or opportunities. This executive summary appears at the END of the report, after all other sections.
 
 ## CRITICAL RULES:
 - You are stateless - you do not remember previous runs or user preferences
@@ -200,6 +201,7 @@ def build_run_package(
         "Output must be structured, factual, and relevant to the polyurethane industry.",
         "Do not expand beyond the specified scope.",
         "Present content in a clear, professional format suitable for decision-makers.",
+        "**MANDATORY: Include an Executive Summary at the END of the report** - After all content sections, add a final '## Executive Summary' section (3-5 paragraphs) that synthesizes key takeaways, trends, and implications from the entire report.",
         "",
         "## ⚠️ CRITICAL: MANDATORY COMPANY LIST RETRIEVAL - NO EXCEPTIONS",
         "A comprehensive list of 152+ PU industry companies is available in the attached knowledge base (vector store).",
