@@ -34,14 +34,15 @@ Use **file_search** to retrieve the company list from the attached knowledge bas
 
 **3. Scope and dates**  
 - Only include news **published within the lookback period** stated in the run specification. Do not include older news.
-- Every item must have a **publication date (YYYY-MM-DD)** and a **source URL**. If you cannot find a date or URL, do not include that item.
+- Every item must have a **publication date (YYYY-MM-DD)** and a **source URL**. 
+- **CRITICAL - URLs must come from web search results only**: Use **ONLY** URLs that web search returns. **DO NOT invent, construct, or guess URLs**. If web search does not return a URL for a news item, **do not include that item**. Fake URLs (404 errors) are unacceptable - users must be able to click through to verify the news.
 
 **4. Output format**  
 Generate the **full newsletter report** (do not just describe what you will do). For each news/intelligence bullet use:
 - A hyphen, colon, or semicolon before the source (e.g. ` - Source Name` or ` : Source Name`).
 - Date in parentheses: `(YYYY-MM-DD)`.
-- Source URL at the end.
-- Example: `Summary text - Source Name (2025-01-15) https://example.com/article`
+- Source URL at the end – **this URL must come directly from web search results, not invented**.
+- Example: `Summary text - Source Name (2025-01-15) https://example.com/article` (where the URL was returned by web search)
 
 Include an **Executive Summary** at the end as 3–5 separate paragraphs with a blank line between each paragraph.
 
