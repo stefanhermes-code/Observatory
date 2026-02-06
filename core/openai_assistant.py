@@ -263,11 +263,18 @@ def build_run_package(
         lookback_date = (today - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
         lookback_period = f"Look back {lookback_days} days (since {lookback_date}). Provide comprehensive coverage of the month."
     
+    today_str = today.strftime("%Y-%m-%d")
+    lookback_date_range = f"from {lookback_date} to {today_str}"
+    
     user_message_parts.extend([
+        "",
+        "## Lookback Period (date range):",
+        f"Date range: {lookback_date_range}",
+        f"Details: {lookback_period}",
         "",
         "## Instructions:",
         "Generate a newsletter covering the selected content types and regions, within the output limits stated above.",
-        f"**Lookback Period:** {lookback_period} Only include intelligence items published within this timeframe.",
+        f"Only include intelligence items published within the lookback period ({lookback_date_range}).",
         "Output must be structured, factual, and relevant to the polyurethane industry.",
         "Do not expand beyond the specified scope.",
         "Present content in a clear, professional format suitable for decision-makers.",
