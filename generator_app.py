@@ -418,11 +418,11 @@ elif page == "📰 Generate Report":
                 # Success - display results
                 html_content = result_data["html_content"]
                 
-                # Display diagnostics in UI
+                # Display diagnostics in UI (always show block so user sees debug info)
                 metadata = result_data.get("metadata", {})
                 diagnostics = metadata.get("content_diagnostics", {})
+                st.markdown("### 📊 Content Processing Diagnostics")
                 if diagnostics:
-                    st.markdown("### 📊 Content Processing Diagnostics")
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric("Items Found", diagnostics.get("items_found", 0))
@@ -442,6 +442,12 @@ elif page == "📰 Generate Report":
                         st.success("✅ Executive Summary found and formatted")
                     else:
                         st.error("❌ Executive Summary section not found in output")
+                    
+                    # If no news items included, show format hint
+                    if diagnostics.get("items_included", 0) == 0 and diagnostics.get("items_found", 0) > 0:
+                        st.info("💡 **Why no news?** Bullet items were filtered out. Each item needs a source in the form: `Summary text - Source Name (YYYY-MM-DD) https://url.com` or use ` : ` or ` ; ` before the source (e.g. `Summary : Source Name`). Check Assistant instructions for output format.")
+                else:
+                    st.warning("Diagnostics not available for this run (e.g. older run or metadata not passed).")
                 
                 # Check if company list was retrieved
                 tool_usage = metadata.get("tool_usage", {})

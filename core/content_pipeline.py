@@ -387,7 +387,7 @@ def render_html_from_content(
                         formatted_date = None
                         news_date = None
             
-            # Step 4: Extract source pattern: "Text - Source" or "Text — Source"
+            # Step 4: Extract source pattern: "Text - Source", "Text : Source", or "Text ; Source"
             # Expected format: "News summary text - Source Name (YYYY-MM-DD) https://url.com"
             # After date removal: "News summary text - Source Name https://url.com"
             # URLs may appear after the source name
@@ -403,23 +403,28 @@ def render_html_from_content(
                 url_at_end = url_match.group(1)
                 item_text_clean = item_text_clean[:url_match.start()].strip()
             
-            # Pattern 1: "Text - Source Name" (most common, dash with spaces)
-            # Match dash/emdash followed by source (allows lowercase start, numbers, common punctuation)
-            source_match = re.search(r'[-–—]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+            # Source separator: hyphen, colon, or semicolon only (no en/em dash)
+            # Patterns: "Text - Source", "Text : Source", "Text ; Source"
+            source_match = re.search(r'\s*[-:;]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
             if not source_match:
-                # Pattern 2: Try without requiring space after dash (some formats might be "Text-Source")
-                source_match = re.search(r'[-–—]([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
-            if not source_match:
-                # Pattern 3: Try emdash or en-dash variations
-                source_match = re.search(r'[–—]\s*([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+                # Optional: no space after separator "Text: Source" or "Text; Source"
+                source_match = re.search(r'\s*[-:;]([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
             
             if source_match:
                 source = source_match.group(1).strip()
                 # Remove common trailing punctuation that might be part of the source
                 source = re.sub(r'[.,;:]+$', '', source).strip()
                 main_text = item_text_clean[:source_match.start()].strip()
-                # Clean up main text - remove trailing dashes
-                main_text = re.sub(r'\s*[-–—]\s*$', '', main_text).strip()
+                # Clean up main text - remove trailing separator and spaces
+                main_text = re.sub(r'\s*[-:;]\s*$', '', main_text).strip()
+            else:
+                # Lenient fallback: no source pattern matched - use whole line as content, generic source
+                # So we still show news instead of dropping everything
+                main_text = item_text_clean.strip()
+                if len(main_text) > 20:  # Only include if there's substantive content
+                    source = "Source not specified"
+                else:
+                    source = None
             
             # If we found a URL at the end, add it to urls_found
             if url_at_end:
@@ -431,11 +436,8 @@ def render_html_from_content(
                 # Date was found but is invalid/outdated - skip this item completely
                 continue
             
-            # CRITICAL: Require source - date is preferred but not mandatory if source is present
-            # This ensures all displayed items have attribution
+            # Require source (or we used fallback with "Source not specified")
             if not source:
-                # Missing source - skip this item completely (source is mandatory)
-                print(f"[DEBUG] Skipping item - no source found: {item_text[:100]}")
                 continue
             
             # Date is preferred but if missing, we'll still include the item with source
@@ -456,7 +458,7 @@ def render_html_from_content(
                 # Use the first URL found
                 url = urls_found[0]
                 url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
-            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">— {source}</span>{date_html}{url_html}</li>')
+            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">- {source}</span>{date_html}{url_html}</li>')
         else:
             if in_list:
                 html_lines.append('</ul>')

@@ -146,12 +146,12 @@ def execute_generator(
     # Update run status to success with HTML stored in metadata
     update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
     
-    # Step 7: Return Result to User
+    # Step 7: Return Result to User (include metadata_with_html so UI gets content_diagnostics and tool_usage)
     result_data = {
         "run_id": run_id,
         "html_content": html_content,
         "assistant_output": assistant_output["content"],
-        "metadata": assistant_output.get("metadata", {}),
+        "metadata": metadata_with_html,
         "artifact_path": artifact_path
     }
     
