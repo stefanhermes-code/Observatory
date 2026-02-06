@@ -110,10 +110,10 @@ Firewalls: Exclude speculative or unverified information. Avoid biased sources o
 
 ## OUTPUT FORMATTING:
 - Structured Output: Present intelligence items as bulleted lists using markdown format (- for bullet points). Use markdown headers (##, ###) for sections. Do NOT use tables - format items as simple bullet points with clear text.
-- **Source URLs Required - MANDATORY**: Each intelligence item MUST include BOTH the publication date (YYYY-MM-DD format) AND the source URL/link. This is NOT optional. Format examples:
-  - "News summary text — Source Name (2025-01-15) https://example.com/article"
-  - "News summary text — Source Name (2025-01-15) [https://example.com/article](https://example.com/article)"
-  - "News summary text — Source Name (2025-01-15) https://www.icis.com/news/article"
+- **Source URLs Required - MANDATORY**: Each intelligence item MUST include BOTH the publication date (YYYY-MM-DD format) AND the source URL/link. This is NOT optional. Use a hyphen, colon, or semicolon immediately before the source name (e.g. " - Source" or " : Source" or " ; Source"). Format examples:
+  - "News summary text - Source Name (2025-01-15) https://example.com/article"
+  - "News summary text : Source Name (2025-01-15) [https://example.com/article](https://example.com/article)"
+  - "News summary text ; Source Name (2025-01-15) https://www.icis.com/news/article"
   The URL MUST be included for EVERY item. If you cannot find a source URL, DO NOT include that news item. URLs are CRITICAL for verification - users must be able to click through to verify each item is recent and authentic.
 - No Fluff: Provide clear and concise intelligence updates without unnecessary details.
 - Data Integrity: Ensure all intelligence items are factually correct and relevant to the PU industry.
