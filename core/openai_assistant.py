@@ -161,18 +161,24 @@ def build_run_package(
     This is the ONLY context the Assistant receives.
     
     Args:
-        specification: Complete Generator Specification (deliverables, regions, etc.)
+        specification: Complete Generator Specification (content types, regions, value chain links, etc.)
         cadence: Frequency type (daily/weekly/monthly)
         historical_reference: Optional list of previous run IDs or timestamps
     
     Returns:
         Run package dictionary with system instruction and user message
     """
-    from core.taxonomy import PU_CATEGORIES
+    from core.taxonomy import PU_CATEGORIES, VALUE_CHAIN_LINKS
     
-    # Get category names for the selected categories
+    # Get category names and descriptions for the selected categories
     category_map = {cat["id"]: cat["name"] for cat in PU_CATEGORIES}
+    category_desc = {cat["id"]: cat.get("description", "") for cat in PU_CATEGORIES}
     selected_categories = [category_map.get(cat_id, cat_id) for cat_id in specification.get("categories", [])]
+    
+    # Value chain links: names for selected links
+    vcl_map = {l["id"]: l["name"] for l in VALUE_CHAIN_LINKS}
+    selected_vcl_ids = specification.get("value_chain_links", [])
+    selected_vcl_names = [vcl_map.get(vid, vid) for vid in selected_vcl_ids]
     
     # Build user message with specification details
     user_message_parts = [
@@ -181,7 +187,7 @@ def build_run_package(
         f"**Newsletter Name:** {specification.get('newsletter_name', 'Unnamed')}",
         f"**Cadence:** {cadence.title()}",
         "",
-        "## Selected Deliverables:",
+        "## Selected content types (from specification):",
     ]
     
     for cat in selected_categories:
@@ -189,11 +195,48 @@ def build_run_package(
     
     user_message_parts.extend([
         "",
-        "## Selected Regions:",
+        "## Selected Regions (geographic scope):",
     ])
     
     for region in specification.get("regions", []):
         user_message_parts.append(f"- {region}")
+    
+    if selected_vcl_names:
+        user_message_parts.extend([
+            "",
+            "## Selected Value Chain Links (filter company list by these positions):",
+        ])
+        for vcl in selected_vcl_names:
+            user_message_parts.append(f"- {vcl}")
+    
+    # Glossary: what the selected content types and value chain links mean (so the Assistant can interpret them)
+    user_message_parts.extend([
+        "",
+        "## Glossary (definitions for the selections above):",
+        "",
+        "**Content types** = Types of content to include in the report (from the specification). Each selected content type means:",
+    ])
+    for cat_id in specification.get("categories", []):
+        name = category_map.get(cat_id, cat_id)
+        desc = category_desc.get(cat_id, "")
+        if desc:
+            user_message_parts.append(f"- {name}: {desc}")
+    user_message_parts.extend([
+        "",
+        "**Value chain links** = Positions in the PU value chain. Filter the company list to companies in these positions only. Each means:",
+    ])
+    for link in VALUE_CHAIN_LINKS:
+        user_message_parts.append(f"- {link['name']}: {link.get('description', '')}")
+    user_message_parts.extend([
+        "",
+        "**Regions** = Geographic scope: EMEA, Middle East, China, NE Asia, SEA, India, North America, South America.",
+        "",
+        "**Output limits (the specification limits what you may include):**",
+        "- **Regions limit both company selection and news relevance.** Only include companies that operate in the selected regions (from the company list). Only include news that is relevant to the selected regions. Example: if China is selected, do not include news about BASF in Germany; include only news relevant to China (or that company's activities in China). If only EMEA is selected, do not include news only about North America.",
+        "- **Content types:** Only produce the content types listed under 'Selected content types' above; use the glossary to interpret each.",
+        "- **Value chain links:** If any are selected, only include companies in those positions (from the company list).",
+        "",
+    ])
     
     if historical_reference:
         user_message_parts.extend([
@@ -223,7 +266,7 @@ def build_run_package(
     user_message_parts.extend([
         "",
         "## Instructions:",
-        "Generate a newsletter covering the selected deliverables and regions.",
+        "Generate a newsletter covering the selected content types and regions, within the output limits stated above.",
         f"**Lookback Period:** {lookback_period} Only include intelligence items published within this timeframe.",
         "Output must be structured, factual, and relevant to the polyurethane industry.",
         "Do not expand beyond the specified scope.",
@@ -240,12 +283,11 @@ def build_run_package(
         "",
         "**AFTER RETRIEVING THE COMPANY LIST:**",
         "- The company list file contains 152+ companies with their names, aliases, value chain positions, regions, and status",
-        "- Filter the retrieved company list by: (1) Value chain positions matching selected deliverables, (2) Regions matching selected regions",
+        "- Filter the company list by: (1) Value chain links (if any are selected above) – only companies in those positions; (2) Regions – only companies that operate in the selected regions",
+        "- For each company in the filtered list, search for news that is **relevant to the selected regions only**. The specification limits the output: if e.g. China is selected, do not include news about BASF in Germany; include only news relevant to China (or that company's activities in China)",
         "- Search for news about ALL companies in your filtered list - do not skip any companies",
         "- Use the EXACT company names and aliases from the list when searching for news",
-        "- Prioritize companies from the list - they are the primary targets for news tracking",
-        "- Match companies to deliverables: Use the value chain positions (MDI Producer, TDI Producer, Polyols Producer, Systems, Foam Manufacturer, etc.) to filter relevant companies",
-        "- Match companies to regions: Only search for news about companies that operate in the selected regions",
+        "- Produce content only for the selected content types (from the specification); the specification limits what you may include",
         "- Include news about companies even if they're not explicitly mentioned in your training data - the company list is authoritative",
         "- Verify company status: Only include news about active companies (the list excludes acquired/merged/defunct companies)",
         "- If you find news about a company NOT in the list, you may include it if highly relevant, but ALWAYS prioritize companies from the attached list",
