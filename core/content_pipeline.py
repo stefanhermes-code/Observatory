@@ -389,6 +389,8 @@ def render_html_from_content(
             
             # Step 4: Extract source pattern: "Text - Source", "Text : Source", or "Text ; Source"
             # Expected format: "News summary text - Source Name (YYYY-MM-DD) https://url.com"
+            # When the Assistant follows this format, items display with source and date (as in previous runs).
+            # When it does not, the lenient fallback below uses "Source not specified" so we still show the item.
             # After date removal: "News summary text - Source Name https://url.com"
             # URLs may appear after the source name
             

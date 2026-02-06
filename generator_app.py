@@ -110,7 +110,7 @@ try:
         with col1:
             st.markdown('<h1 class="main-header" style="font-size: 5rem !important; font-weight: bold !important; color: #1f77b4 !important; margin: 0 !important; padding: 0 !important; line-height: 1.1 !important;">Polyurethane Observatory</h1>', unsafe_allow_html=True)
         with col2:
-            st.image(logo_path, use_container_width=False, width=120)
+            st.image(logo_path, width=120)
     else:
         st.markdown('<h1 class="main-header" style="font-size: 5rem !important; font-weight: bold !important; color: #1f77b4 !important; margin: 0 !important; padding: 0 !important; line-height: 1.1 !important;">Polyurethane Observatory</h1>', unsafe_allow_html=True)
 except:
@@ -385,7 +385,7 @@ elif page == "📰 Generate Report":
     st.markdown("---")
     
     # Generate button
-    if st.button("🚀 Generate Report Now", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Report Now", type="primary", width="stretch"):
         # Validate selections
         if len(selected_categories) == 0:
             st.error("❌ Please select at least one category.")
@@ -471,11 +471,11 @@ elif page == "📰 Generate Report":
                         data=html_content,
                         file_name=f"{spec.get('newsletter_name', 'report')}_{datetime.utcnow().strftime('%Y%m%d')}.html",
                         mime="text/html",
-                        use_container_width=True
+                        width="stretch"
                     )
                 with col2:
                     # Print button - styled exactly like download button
-                    print_clicked = st.button("🖨️ Print Report", use_container_width=True, type="primary")
+                    print_clicked = st.button("🖨️ Print Report", width="stretch", type="primary")
                     if print_clicked:
                         # Inject JavaScript to trigger print
                         st.markdown("""

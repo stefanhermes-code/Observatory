@@ -137,7 +137,7 @@ try:
         with col1:
             st.markdown('<h1 style="font-size: 2.5rem; font-weight: bold; color: #1f77b4; margin-bottom: 1rem;">PU Observatory - Administrator</h1>', unsafe_allow_html=True)
         with col2:
-            st.image(logo_path, use_container_width=False, width=120)
+            st.image(logo_path, width=120)
     else:
         st.markdown('<h1 style="font-size: 2.5rem; font-weight: bold; color: #1f77b4; margin-bottom: 1rem;">PU Observatory - Administrator</h1>', unsafe_allow_html=True)
 except:
@@ -912,7 +912,7 @@ elif page == "🔐 Administrators":
                 # Change password
                 with st.form(f"change_password_{user.get('email')}"):
                     new_password = st.text_input("New Password", type="password", key=f"new_pass_{user.get('email')}")
-                    if st.form_submit_button("Change Password", use_container_width=True):
+                    if st.form_submit_button("Change Password", width="stretch"):
                         if new_password:
                             if len(new_password) < 6:
                                 st.error("Password must be at least 6 characters.")
@@ -2102,7 +2102,7 @@ elif page == "📈 Reporting":
                                 "Percentage": [f"{(count / sum(all_sources.values()) * 100):.1f}%" 
                                              for source, count in top_sources]
                             }
-                            st.dataframe(source_data, use_container_width=True, hide_index=True)
+                            st.dataframe(source_data, width="stretch", hide_index=True)
                         
                         with col2:
                             # Show breakdown by report
@@ -2198,7 +2198,7 @@ elif page == "📈 Reporting":
                 if model_data:
                     import pandas as pd
                     df_models = pd.DataFrame(model_data)
-                    st.dataframe(df_models, use_container_width=True, hide_index=True)
+                    st.dataframe(df_models, width="stretch", hide_index=True)
             
             st.markdown("---")
             
@@ -2229,7 +2229,7 @@ elif page == "📈 Reporting":
                 
                 import pandas as pd
                 df_companies = pd.DataFrame(company_data)
-                st.dataframe(df_companies, use_container_width=True, hide_index=True)
+                st.dataframe(df_companies, width="stretch", hide_index=True)
                 
                 # Export
                 st.markdown("---")

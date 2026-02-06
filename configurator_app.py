@@ -133,7 +133,7 @@ try:
         with col1:
             st.markdown('<h1 class="main-header" style="font-size: 5rem !important; font-weight: bold !important; color: #1f77b4 !important; margin: 0 !important; padding: 0 !important; line-height: 1.1 !important;">Polyurethane Observatory</h1>', unsafe_allow_html=True)
         with col2:
-            st.image(logo_path, use_container_width=False, width=120)
+            st.image(logo_path, width=120)
     else:
         st.markdown('<h1 class="main-header" style="font-size: 5rem !important; font-weight: bold !important; color: #1f77b4 !important; margin: 0 !important; padding: 0 !important; line-height: 1.1 !important;">Polyurethane Observatory</h1>', unsafe_allow_html=True)
 except:
@@ -670,7 +670,7 @@ if not st.session_state.submitted:
     # Submit button
     st.markdown("---")
     
-    if st.button("Submit Specification Request", type="primary", use_container_width=True):
+    if st.button("Submit Specification Request", type="primary", width="stretch"):
         # Validate all fields
         is_valid, errors = validate_specification(
             spec["categories"],
@@ -768,7 +768,7 @@ if st.session_state.submitted:
     # Edit Specification button
     col_edit1, col_edit2, col_edit3 = st.columns([1, 2, 1])
     with col_edit2:
-        if st.button("✏️ Edit Specification", type="secondary", use_container_width=True):
+        if st.button("✏️ Edit Specification", type="secondary", width="stretch"):
             st.session_state.submitted = False
             st.rerun()
     

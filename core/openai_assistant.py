@@ -515,27 +515,39 @@ def execute_assistant(run_package: Dict) -> Dict:
                                 tool_usage_info["file_search_called"] = True
                                 tool_usage_info["file_search_count"] += 1
                                 tool_usage_info["vector_store_used"] = True
-                                print(f"[INFO] ✅ file_search tool was called!")
+                                print(f"[INFO] ✅ file_search tool was called (company list / vector store was used)")
                                 
-                                # Try to extract file IDs if available
+                                # Run steps for file_search do not include file_ids in the default API response.
+                                # Optional: extract file_ids or results if the API returns them (e.g. via include param).
                                 file_ids = []
                                 if hasattr(tool_call, 'file_search'):
                                     fs = tool_call.file_search
-                                    if hasattr(fs, 'file_ids'):
-                                        file_ids = fs.file_ids
+                                    if hasattr(fs, 'file_ids') and fs.file_ids:
+                                        file_ids = fs.file_ids if isinstance(fs.file_ids, list) else [fs.file_ids]
+                                    elif hasattr(fs, 'results') and fs.results:
+                                        # API can return file_search.results[*].content when include=... is used
+                                        pass  # We already recorded that file_search was used
                                 elif isinstance(tool_call, dict) and 'file_search' in tool_call:
                                     fs = tool_call['file_search']
-                                    if isinstance(fs, dict) and 'file_ids' in fs:
-                                        file_ids = fs['file_ids']
-                                
+                                    if isinstance(fs, dict):
+                                        file_ids = fs.get('file_ids') or []
+                                        if file_ids and not isinstance(file_ids, list):
+                                            file_ids = [file_ids]
+                                if hasattr(tool_call, 'model_dump'):
+                                    try:
+                                        d = tool_call.model_dump()
+                                        fs = d.get('file_search') if isinstance(d, dict) else None
+                                        if isinstance(fs, dict) and fs.get('file_ids'):
+                                            file_ids = file_ids or (fs['file_ids'] if isinstance(fs['file_ids'], list) else [fs['file_ids']])
+                                    except Exception:
+                                        pass
                                 if file_ids:
                                     tool_usage_info["files_retrieved"].extend(file_ids)
                                     print(f"[INFO] Retrieved {len(file_ids)} file(s) via file_search: {file_ids}")
-                                else:
-                                    print(f"[INFO] file_search called but no file_ids found in response")
+                                # If no file_ids: normal — API does not return them in run steps by default.
                     else:
-                        # Log what we found instead
-                        print(f"[DEBUG] No tool_calls found. Step details attributes: {dir(step_details)}")
+                        # Step has no tool_calls (e.g. message_creation)
+                        pass
         except Exception as e:
             # If we can't retrieve steps, log but don't fail
             print(f"[WARNING] Could not retrieve run steps for tool usage tracking: {e}")
