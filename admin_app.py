@@ -171,6 +171,7 @@ page = st.sidebar.radio(
         "📰 Intelligence Specifications",
         "📈 Reporting",
         "🏢 Companies",
+        "🏭 Industry list",
         "👤 Users",
         "🔐 Administrators",
         "🔗 Sources",
@@ -663,8 +664,8 @@ elif page == "🏢 Companies":
             st.info("**Note:** You'll need to create an intelligence specification before you can generate newsletters.")
             st.rerun()
 
-    st.markdown("---")
-    st.subheader("Industry list")
+elif page == "🏭 Industry list":
+    st.markdown('<p class="main-header">Industry list</p>', unsafe_allow_html=True)
     st.caption("PU industry companies used for evidence search and query planning. Synced from company_list.json.")
     tracked = get_tracked_companies(active_only=False)
     st.write(f"**In database:** {len(tracked)} companies")
