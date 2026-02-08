@@ -2537,11 +2537,14 @@ elif page == "🔗 Sources":
                 if test_key in st.session_state:
                     tr = st.session_state[test_key]
                     if tr.get("error"):
-                        st.error("Test failed: " + tr["error"])
+                        st.error("Test failed: " + str(tr["error"]))
                     else:
                         st.success(f"Test OK: {tr.get('count', 0)} item(s) fetched.")
-                        for i, p in enumerate(tr.get("preview") or [])[:3]:
-                            st.caption(f"• {p.get('title') or p.get('url', '')[:60]}")
+                        preview = tr.get("preview")
+                        if isinstance(preview, list):
+                            for p in preview[:3]:
+                                title = (p.get("title") or p.get("url") or "") if isinstance(p, dict) else str(p)
+                                st.caption(f"• {(title[:60] + '…') if len(title) > 60 else title}")
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("Test", key=f"test_{src.get('id')}"):
