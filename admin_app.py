@@ -38,6 +38,7 @@ from core.admin_db import (
     create_source,
     update_source,
     delete_source,
+    seed_sources_from_list,
     get_tracked_companies,
     seed_tracked_companies_from_list,
 )
@@ -2445,6 +2446,28 @@ elif page == "📚 Generation History":
 elif page == "🔗 Sources":
     st.markdown('<p class="main-header">Source Registry (V2)</p>', unsafe_allow_html=True)
     st.caption("Global evidence sources for the Observatory. RSS, sitemaps, or HTML list pages. Admin-only.")
+    st.markdown("---")
+    st.subheader("Import from JSON")
+    st.caption("Upload a JSON file with an array of sources. Each object: source_name, source_type, base_url, and optionally rss_url, sitemap_url, list_url, selectors, trust_tier (1–4), enabled, notes. Existing sources (same name + base_url) are skipped.")
+    sample = [{"source_name": "Example RSS", "source_type": "rss", "base_url": "https://example.com", "rss_url": "https://example.com/feed.xml", "trust_tier": 2, "enabled": True, "notes": ""}]
+    st.download_button("Download sample JSON", data=json.dumps(sample, indent=2), file_name="sources_sample.json", mime="application/json", key="dl_sources_sample")
+    uploaded = st.file_uploader("Upload sources JSON", type=["json"], key="upload_sources_json")
+    if uploaded is not None:
+        try:
+            data = json.load(uploaded)
+            sources_to_import = data if isinstance(data, list) else data.get("sources", data.get("items", []))
+            if not isinstance(sources_to_import, list):
+                st.error("JSON must be an array of source objects or an object with a 'sources' array.")
+            else:
+                n = seed_sources_from_list(sources_to_import)
+                log_audit_action("sources_imported", st.session_state.user_email, {"count": n, "filename": uploaded.name})
+                st.success(f"Imported {n} new source(s). Existing entries (same name + base URL) were skipped.")
+                st.rerun()
+        except json.JSONDecodeError as e:
+            st.error(f"Invalid JSON: {e}")
+        except Exception as e:
+            st.error(str(e))
+    st.markdown("---")
     sources_list = get_all_sources()
     if not sources_list:
         st.info("No sources yet. Add an RSS feed or other source below to get started.")

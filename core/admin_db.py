@@ -522,6 +522,48 @@ def delete_source(source_id: str) -> bool:
         return False
 
 
+def seed_sources_from_list(sources: List[Dict]) -> int:
+    """
+    Insert sources from a list of dicts (e.g. from uploaded JSON).
+    Skips any source that already exists (same source_name + base_url). Returns count inserted.
+    Each dict: source_name, source_type, base_url, rss_url?, sitemap_url?, list_url?, selectors?, trust_tier?, enabled?, notes?.
+    """
+    if not sources:
+        return 0
+    existing = get_all_sources()
+    existing_keys = {(s.get("source_name") or "").strip() + "|" + (s.get("base_url") or "").strip() for s in existing}
+    inserted = 0
+    for c in sources:
+        name = (c.get("source_name") or "").strip()
+        base = (c.get("base_url") or "").strip()
+        if not name or not base:
+            continue
+        key = name + "|" + base
+        if key in existing_keys:
+            continue
+        stype = (c.get("source_type") or "rss").lower()
+        if stype not in ("rss", "sitemap", "html_list", "search"):
+            stype = "rss"
+        try:
+            create_source(
+                source_name=name,
+                source_type=stype,
+                base_url=base,
+                rss_url=(c.get("rss_url") or "").strip() or None,
+                sitemap_url=(c.get("sitemap_url") or "").strip() or None,
+                list_url=(c.get("list_url") or "").strip() or None,
+                selectors=c.get("selectors") if isinstance(c.get("selectors"), dict) else None,
+                trust_tier=max(1, min(4, int(c.get("trust_tier", 2)))),
+                enabled=bool(c.get("enabled", True)),
+                notes=(c.get("notes") or "").strip() or None,
+            )
+            existing_keys.add(key)
+            inserted += 1
+        except Exception:
+            pass
+    return inserted
+
+
 # ---------- Tracked companies (PU industry list for evidence / query planning) ----------
 
 def get_tracked_companies(active_only: bool = True) -> List[Dict]:
