@@ -237,3 +237,51 @@ def get_last_successful_run(spec_id: str) -> Optional[Dict]:
         .execute()
     return result.data[0] if result.data else None
 
+
+def insert_candidate_articles(
+    run_id: str,
+    workspace_id: str,
+    specification_id: str,
+    candidates: List[Dict],
+) -> int:
+    """
+    V2: Insert candidate_articles for a run. Deduplicates by canonical_url within batch.
+    Each candidate dict: url, canonical_url, title, snippet, published_at, source_id?, source_name,
+    query_id?, query_text?, validation_status, http_status.
+    Returns count inserted.
+    """
+    if not candidates:
+        return 0
+    supabase = get_supabase_client()
+    seen_canonical: set = set()
+    rows = []
+    for c in candidates:
+        canonical = (c.get("canonical_url") or "").strip()
+        if not canonical or canonical in seen_canonical:
+            continue
+        seen_canonical.add(canonical)
+        row = {
+            "workspace_id": workspace_id,
+            "specification_id": specification_id,
+            "run_id": run_id,
+            "source_id": c.get("source_id"),
+            "source_name": c.get("source_name") or "unknown",
+            "query_id": c.get("query_id"),
+            "query_text": c.get("query_text"),
+            "url": (c.get("url") or canonical).strip(),
+            "canonical_url": canonical,
+            "title": c.get("title"),
+            "snippet": c.get("snippet"),
+            "published_at": c.get("published_at"),
+            "validation_status": c.get("validation_status", "not_checked"),
+            "http_status": c.get("http_status"),
+        }
+        rows.append(row)
+    if not rows:
+        return 0
+    try:
+        supabase.table("candidate_articles").insert(rows).execute()
+        return len(rows)
+    except Exception:
+        return 0
+

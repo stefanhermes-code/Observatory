@@ -91,11 +91,24 @@ def execute_generator(
         historical_reference=historical_reference
     )
     
-    # Step 4: Execute Assistant
-    # Create run record with "running" status
+    # Step 4: Create run record (run_id must exist before evidence ingestion — V2-DB-02)
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
     run_id = run["id"]
-    
+
+    # V2: Run Evidence Engine — persist candidate_articles for this run
+    try:
+        from core.evidence_engine import run_evidence_engine
+        evidence_summary = run_evidence_engine(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            specification_id=spec_id,
+            spec=run_specification,
+            validate_urls=True,
+        )
+    except Exception as ev_err:
+        evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
+
+    # Step 5: Execute Assistant
     try:
         assistant_output = execute_assistant(run_package)
     except Exception as e:
@@ -103,7 +116,7 @@ def execute_generator(
         update_run_status(run_id, "failed", error_message=str(e))
         return False, f"Assistant execution failed: {str(e)}", None, None
     
-    # Step 5: Validate Output
+    # Step 6: Validate Output
     is_valid, validation_errors = validate_output(assistant_output, spec)
     
     if not is_valid:
@@ -112,7 +125,7 @@ def execute_generator(
         # Failed runs do not consume cadence quota
         return False, error_msg, None, None
     
-    # Step 6: Persist Results
+    # Step 7: Persist Results
     # Convert Assistant output to HTML
     # Use override cadence if provided for display purposes
     display_cadence = cadence_override if cadence_override else None
@@ -139,14 +152,15 @@ def execute_generator(
         "thread_id": assistant_metadata.get("thread_id"),
         "run_id": assistant_metadata.get("run_id"),
         "timestamp": assistant_metadata.get("timestamp"),
-        "tool_usage": assistant_metadata.get("tool_usage", {}),  # Include vector store usage tracking
-        "content_diagnostics": diagnostics  # Add diagnostics for Streamlit UI
+        "tool_usage": assistant_metadata.get("tool_usage", {}),
+        "content_diagnostics": diagnostics,
+        "evidence_summary": evidence_summary,  # V2: candidates_from_sources, candidates_from_search, inserted, query_plan
     }
     
     # Update run status to success with HTML stored in metadata
     update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
     
-    # Step 7: Return Result to User (include metadata_with_html so UI gets content_diagnostics and tool_usage)
+    # Step 8: Return Result to User (include metadata_with_html so UI gets content_diagnostics and tool_usage)
     result_data = {
         "run_id": run_id,
         "html_content": html_content,

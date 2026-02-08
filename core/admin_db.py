@@ -417,3 +417,107 @@ def log_audit_action(action: str, user_email: str, details: Dict, reason: Option
     
     supabase.table("audit_log").insert(log_entry).execute()
 
+
+# ---------- V2 Source Registry (global, admin-only) ----------
+
+def get_all_sources() -> List[Dict]:
+    """Get all sources (global registry). workspace_id must be NULL."""
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("sources").select("*").order("source_name").execute()
+        return result.data if result.data else []
+    except Exception as e:
+        # Table may not exist yet if migration not applied
+        if "does not exist" in str(e).lower() or "sources" in str(e).lower():
+            return []
+        raise
+
+
+def get_source_by_id(source_id: str) -> Optional[Dict]:
+    """Get a single source by id."""
+    supabase = get_supabase_client()
+    result = supabase.table("sources").select("*").eq("id", source_id).single().execute()
+    return result.data if result.data else None
+
+
+def create_source(
+    source_name: str,
+    source_type: str,
+    base_url: str,
+    rss_url: Optional[str] = None,
+    sitemap_url: Optional[str] = None,
+    list_url: Optional[str] = None,
+    selectors: Optional[Dict] = None,
+    trust_tier: int = 2,
+    enabled: bool = True,
+    notes: Optional[str] = None,
+) -> Dict:
+    """Create a new source. workspace_id is forced to NULL (global)."""
+    supabase = get_supabase_client()
+    row = {
+        "workspace_id": None,
+        "source_name": source_name,
+        "source_type": source_type,
+        "base_url": base_url,
+        "rss_url": rss_url,
+        "sitemap_url": sitemap_url,
+        "list_url": list_url,
+        "selectors": selectors,
+        "trust_tier": max(1, min(4, trust_tier)),
+        "enabled": enabled,
+        "notes": notes,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    result = supabase.table("sources").insert(row).execute()
+    return result.data[0] if result.data else row
+
+
+def update_source(
+    source_id: str,
+    source_name: Optional[str] = None,
+    source_type: Optional[str] = None,
+    base_url: Optional[str] = None,
+    rss_url: Optional[str] = None,
+    sitemap_url: Optional[str] = None,
+    list_url: Optional[str] = None,
+    selectors: Optional[Dict] = None,
+    trust_tier: Optional[int] = None,
+    enabled: Optional[bool] = None,
+    notes: Optional[str] = None,
+) -> Optional[Dict]:
+    """Update a source."""
+    supabase = get_supabase_client()
+    update_data = {"updated_at": datetime.utcnow().isoformat()}
+    if source_name is not None:
+        update_data["source_name"] = source_name
+    if source_type is not None:
+        update_data["source_type"] = source_type
+    if base_url is not None:
+        update_data["base_url"] = base_url
+    if rss_url is not None:
+        update_data["rss_url"] = rss_url
+    if sitemap_url is not None:
+        update_data["sitemap_url"] = sitemap_url
+    if list_url is not None:
+        update_data["list_url"] = list_url
+    if selectors is not None:
+        update_data["selectors"] = selectors
+    if trust_tier is not None:
+        update_data["trust_tier"] = max(1, min(4, trust_tier))
+    if enabled is not None:
+        update_data["enabled"] = enabled
+    if notes is not None:
+        update_data["notes"] = notes
+    result = supabase.table("sources").update(update_data).eq("id", source_id).execute()
+    return result.data[0] if result.data else None
+
+
+def delete_source(source_id: str) -> bool:
+    """Delete a source."""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("sources").delete().eq("id", source_id).execute()
+        return True
+    except Exception:
+        return False
+

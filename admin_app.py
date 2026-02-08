@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 import csv
 import io
+import json
 import re
 
 # Add current directory to path
@@ -31,7 +32,12 @@ from core.admin_db import (
     override_frequency_limit,
     get_recent_runs,
     get_audit_logs,
-    log_audit_action
+    log_audit_action,
+    get_all_sources,
+    get_source_by_id,
+    create_source,
+    update_source,
+    delete_source,
 )
 from core.pricing import calculate_price, format_price
 from core.invoice_generator import generate_invoice_documents, is_thai_company
@@ -165,6 +171,7 @@ page = st.sidebar.radio(
         "🏢 Companies",
         "👤 Users",
         "🔐 Administrators",
+        "🔗 Sources",
         "📚 Generation History",
         "📋 Audit Log"
     ]
@@ -2414,6 +2421,78 @@ elif page == "📚 Generation History":
             file_name=f"generation_history_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+
+elif page == "🔗 Sources":
+    st.markdown('<p class="main-header">Source Registry (V2)</p>', unsafe_allow_html=True)
+    st.caption("Global evidence sources for the Observatory. RSS, sitemaps, or HTML list pages. Admin-only.")
+    sources_list = get_all_sources()
+    if not sources_list:
+        st.info("No sources yet. Add an RSS feed or other source below to get started.")
+    else:
+        st.markdown(f"**{len(sources_list)} source(s)**")
+        for src in sources_list:
+            with st.expander(f"{'✅' if src.get('enabled', True) else '⏸️'} {src.get('source_name', 'Unnamed')} — {src.get('source_type', '')}"):
+                st.write("**Base URL:**", src.get("base_url") or "—")
+                if src.get("source_type") == "rss" and src.get("rss_url"):
+                    st.write("**RSS URL:**", src.get("rss_url"))
+                if src.get("source_type") == "sitemap" and src.get("sitemap_url"):
+                    st.write("**Sitemap URL:**", src.get("sitemap_url"))
+                if src.get("source_type") == "html_list" and src.get("list_url"):
+                    st.write("**List URL:**", src.get("list_url"))
+                    if src.get("selectors"):
+                        st.json(src.get("selectors"))
+                st.write("**Trust tier:**", src.get("trust_tier", 2), "| **Enabled:**", src.get("enabled", True))
+                if src.get("notes"):
+                    st.caption(src.get("notes"))
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Toggle enable", key=f"toggle_{src.get('id')}"):
+                        update_source(src["id"], enabled=not src.get("enabled", True))
+                        st.rerun()
+                with col2:
+                    if st.button("Delete", key=f"del_{src.get('id')}"):
+                        delete_source(src["id"])
+                        log_audit_action("source_deleted", st.session_state.user_email, {"source_id": src["id"], "source_name": src.get("source_name")})
+                        st.rerun()
+    st.markdown("---")
+    st.subheader("Add source")
+    with st.form("add_source_form"):
+        src_name = st.text_input("Source name", placeholder="e.g. PU Magazine RSS")
+        src_type = st.selectbox("Type", ["rss", "sitemap", "html_list"], index=0)
+        base_url = st.text_input("Base URL", placeholder="https://example.com")
+        rss_url = st.text_input("RSS URL (if type = rss)", placeholder="https://example.com/feed.xml") if src_type == "rss" else None
+        sitemap_url = st.text_input("Sitemap URL (if type = sitemap)", placeholder="https://example.com/sitemap.xml") if src_type == "sitemap" else None
+        list_url = st.text_input("List URL (if type = html_list)", placeholder="https://example.com/news") if src_type == "html_list" else None
+        selectors_json = None
+        if src_type == "html_list":
+            sel_text = st.text_area("Selectors (JSON)", placeholder='{"item_selector": "article", "link_selector": "a", "title_selector": "a"}')
+            if sel_text and sel_text.strip():
+                try:
+                    selectors_json = json.loads(sel_text)
+                except json.JSONDecodeError:
+                    st.caption("Invalid JSON; leave empty or fix.")
+        trust_tier = st.number_input("Trust tier (1–4)", min_value=1, max_value=4, value=2, step=1)
+        enabled = st.checkbox("Enabled", value=True)
+        notes = st.text_input("Notes", placeholder="Optional")
+        submitted = st.form_submit_button("Create source")
+        if submitted and src_name and base_url:
+            create_source(
+                source_name=src_name.strip(),
+                source_type=src_type,
+                base_url=base_url.strip(),
+                rss_url=rss_url.strip() if rss_url and isinstance(rss_url, str) else None,
+                sitemap_url=sitemap_url.strip() if sitemap_url and isinstance(sitemap_url, str) else None,
+                list_url=list_url.strip() if list_url and isinstance(list_url, str) else None,
+                selectors=selectors_json,
+                trust_tier=trust_tier,
+                enabled=enabled,
+                notes=notes.strip() or None,
+            )
+            log_audit_action("source_created", st.session_state.user_email, {"source_name": src_name})
+            st.success("Source created.")
+            st.rerun()
+        elif submitted:
+            st.warning("Source name and Base URL are required.")
 
 elif page == "📋 Audit Log":
     st.markdown('<p class="main-header">Audit Log</p>', unsafe_allow_html=True)
