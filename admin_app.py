@@ -664,8 +664,8 @@ elif page == "🏢 Companies":
             st.rerun()
 
     st.markdown("---")
-    st.subheader("Tracked companies (PU industry list)")
-    st.caption("Companies used for evidence search and query planning. Synced from development/company_list.json.")
+    st.subheader("Industry list")
+    st.caption("PU industry companies used for evidence search and query planning. Synced from company_list.json.")
     tracked = get_tracked_companies(active_only=False)
     st.write(f"**In database:** {len(tracked)} companies")
     if st.button("Sync from file (company_list.json)", key="sync_tracked_companies"):
