@@ -41,6 +41,8 @@ from core.admin_db import (
     seed_sources_from_list,
     get_tracked_companies,
     seed_tracked_companies_from_list,
+    create_tracked_company,
+    delete_tracked_company,
 )
 from core.pricing import calculate_price, format_price
 from core.invoice_generator import generate_invoice_documents, is_thai_company
@@ -667,7 +669,7 @@ elif page == "🏢 Companies":
 
 elif page == "🏭 Industry list":
     st.markdown('<p class="main-header">Industry list</p>', unsafe_allow_html=True)
-    st.caption("PU industry companies used for evidence search and query planning. Synced from company_list.json.")
+    st.caption("PU industry companies used for evidence search and query planning.")
     tracked = get_tracked_companies(active_only=False)
     st.write(f"**In database:** {len(tracked)} companies")
     if st.button("Sync from file (company_list.json)", key="sync_tracked_companies"):
@@ -681,6 +683,43 @@ elif page == "🏭 Industry list":
         except Exception as e:
             st.error(str(e))
         st.rerun()
+    st.markdown("---")
+    st.subheader("Add company")
+    with st.form("add_tracked_company_form"):
+        tc_name = st.text_input("Company name", placeholder="e.g. BASF")
+        tc_aliases = st.text_input("Aliases (comma-separated)", placeholder="BASF SE, BASF Corporation")
+        tc_regions = st.text_input("Regions (comma-separated)", placeholder="EMEA, North America")
+        tc_status = st.selectbox("Status", ["active", "inactive"], index=0)
+        tc_notes = st.text_input("Notes", placeholder="Optional")
+        if st.form_submit_button("Add company"):
+            if tc_name and tc_name.strip():
+                aliases_list = [x.strip() for x in (tc_aliases or "").split(",") if x.strip()]
+                regions_list = [x.strip() for x in (tc_regions or "").split(",") if x.strip()]
+                created = create_tracked_company(name=tc_name.strip(), aliases=aliases_list or None, regions=regions_list or None, status=tc_status, notes=tc_notes.strip() or None)
+                if created:
+                    log_audit_action("tracked_company_added", st.session_state.user_email, {"name": tc_name})
+                    st.success(f"Added {tc_name}.")
+                    st.rerun()
+                else:
+                    st.warning("Add failed (maybe name already exists).")
+            else:
+                st.warning("Company name is required.")
+    st.markdown("---")
+    st.subheader("Companies")
+    if not tracked:
+        st.info("No companies yet. Add one above or sync from file.")
+    else:
+        for tc in tracked:
+            with st.expander(f"{'✅' if tc.get('status') == 'active' else '⏸️'} {tc.get('name', 'Unnamed')}"):
+                st.write("**Regions:**", ", ".join(tc.get("regions") or []) or "—")
+                st.write("**Aliases:**", ", ".join(tc.get("aliases") or []) or "—")
+                st.write("**Value chain:**", ", ".join(tc.get("value_chain_position") or []) or "—")
+                if tc.get("notes"):
+                    st.caption(tc.get("notes"))
+                if st.button("Delete", key=f"del_tc_{tc.get('id')}"):
+                    delete_tracked_company(tc["id"])
+                    log_audit_action("tracked_company_deleted", st.session_state.user_email, {"name": tc.get("name")})
+                    st.rerun()
 
 elif page == "👤 Users":
     st.markdown('<p class="main-header">User Management</p>', unsafe_allow_html=True)
@@ -2487,12 +2526,44 @@ elif page == "🔗 Sources":
                 st.write("**Trust tier:**", src.get("trust_tier", 2), "| **Enabled:**", src.get("enabled", True))
                 if src.get("notes"):
                     st.caption(src.get("notes"))
-                col1, col2 = st.columns(2)
+                # Show last test result if any
+                test_key = f"source_test_{src.get('id')}"
+                if test_key in st.session_state:
+                    tr = st.session_state[test_key]
+                    if tr.get("error"):
+                        st.error("Test failed: " + tr["error"])
+                    else:
+                        st.success(f"Test OK: {tr.get('count', 0)} item(s) fetched.")
+                        for i, p in enumerate(tr.get("preview") or [])[:3]:
+                            st.caption(f"• {p.get('title') or p.get('url', '')[:60]}")
+                col1, col2, col3 = st.columns(3)
                 with col1:
+                    if st.button("Test", key=f"test_{src.get('id')}"):
+                        try:
+                            from core.connectors import rss as rss_conn
+                            from core.connectors import sitemap as sitemap_conn
+                            from core.connectors import html_list as html_list_conn
+                            stype = (src.get("source_type") or "").lower()
+                            name = src.get("source_name") or "Source"
+                            items = []
+                            if stype == "rss" and src.get("rss_url"):
+                                items = rss_conn.fetch_rss(src["rss_url"], name, max_entries=20)
+                            elif stype == "sitemap" and src.get("sitemap_url"):
+                                items = sitemap_conn.fetch_sitemap(src["sitemap_url"], name, max_urls=20)
+                            elif stype == "html_list" and src.get("list_url"):
+                                items = html_list_conn.fetch_html_list(src["list_url"], name, src.get("selectors"), src.get("base_url"), max_items=20)
+                            else:
+                                st.session_state[test_key] = {"error": "Missing URL for this source type."}
+                                st.rerun()
+                            st.session_state[test_key] = {"count": len(items), "preview": items[:5], "error": None}
+                        except Exception as e:
+                            st.session_state[test_key] = {"error": str(e)}
+                        st.rerun()
+                with col2:
                     if st.button("Toggle enable", key=f"toggle_{src.get('id')}"):
                         update_source(src["id"], enabled=not src.get("enabled", True))
                         st.rerun()
-                with col2:
+                with col3:
                     if st.button("Delete", key=f"del_{src.get('id')}"):
                         delete_source(src["id"])
                         log_audit_action("source_deleted", st.session_state.user_email, {"source_id": src["id"], "source_name": src.get("source_name")})

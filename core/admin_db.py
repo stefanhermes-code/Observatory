@@ -616,3 +616,44 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
     except Exception:
         return 0
 
+
+def create_tracked_company(
+    name: str,
+    aliases: Optional[List[str]] = None,
+    value_chain_position: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
+    status: str = "active",
+    notes: Optional[str] = None,
+) -> Optional[Dict]:
+    """Insert a single tracked company."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    if status not in ("active", "inactive"):
+        status = "active"
+    supabase = get_supabase_client()
+    row = {
+        "name": name,
+        "aliases": aliases or [],
+        "value_chain_position": value_chain_position or [],
+        "regions": regions or [],
+        "status": status,
+        "notes": notes or None,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    try:
+        result = supabase.table("tracked_companies").insert(row).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
+def delete_tracked_company(company_id: str) -> bool:
+    """Delete a tracked company by id."""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("tracked_companies").delete().eq("id", company_id).execute()
+        return True
+    except Exception:
+        return False
+
