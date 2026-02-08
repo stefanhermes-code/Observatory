@@ -41,9 +41,12 @@ from core.admin_db import (
     seed_sources_from_list,
     get_tracked_companies,
     seed_tracked_companies_from_list,
-    create_tracked_company,
-    delete_tracked_company,
 )
+try:
+    from core.admin_db import create_tracked_company, delete_tracked_company
+except ImportError:
+    create_tracked_company = None  # type: ignore
+    delete_tracked_company = None  # type: ignore
 from core.pricing import calculate_price, format_price
 from core.invoice_generator import generate_invoice_documents, is_thai_company
 from urllib.parse import quote
@@ -683,6 +686,9 @@ elif page == "🏭 Industry list":
         except Exception as e:
             st.error(str(e))
         st.rerun()
+    can_manage = create_tracked_company is not None and delete_tracked_company is not None
+    if not can_manage:
+        st.warning("Add/delete companies requires the latest deployment. Redeploy the app if you need management.")
     st.markdown("---")
     st.subheader("Add company")
     with st.form("add_tracked_company_form"):
@@ -691,7 +697,7 @@ elif page == "🏭 Industry list":
         tc_regions = st.text_input("Regions (comma-separated)", placeholder="EMEA, North America")
         tc_status = st.selectbox("Status", ["active", "inactive"], index=0)
         tc_notes = st.text_input("Notes", placeholder="Optional")
-        if st.form_submit_button("Add company"):
+        if st.form_submit_button("Add company") and can_manage:
             if tc_name and tc_name.strip():
                 aliases_list = [x.strip() for x in (tc_aliases or "").split(",") if x.strip()]
                 regions_list = [x.strip() for x in (tc_regions or "").split(",") if x.strip()]
@@ -716,7 +722,7 @@ elif page == "🏭 Industry list":
                 st.write("**Value chain:**", ", ".join(tc.get("value_chain_position") or []) or "—")
                 if tc.get("notes"):
                     st.caption(tc.get("notes"))
-                if st.button("Delete", key=f"del_tc_{tc.get('id')}"):
+                if can_manage and st.button("Delete", key=f"del_tc_{tc.get('id')}"):
                     delete_tracked_company(tc["id"])
                     log_audit_action("tracked_company_deleted", st.session_state.user_email, {"name": tc.get("name")})
                     st.rerun()
