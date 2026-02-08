@@ -648,6 +648,37 @@ def create_tracked_company(
         return None
 
 
+def update_tracked_company(
+    company_id: str,
+    name: Optional[str] = None,
+    aliases: Optional[List[str]] = None,
+    value_chain_position: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
+    status: Optional[str] = None,
+    notes: Optional[str] = None,
+) -> Optional[Dict]:
+    """Update a tracked company by id."""
+    supabase = get_supabase_client()
+    update_data = {"updated_at": datetime.utcnow().isoformat()}
+    if name is not None:
+        update_data["name"] = (name or "").strip()
+    if aliases is not None:
+        update_data["aliases"] = aliases
+    if value_chain_position is not None:
+        update_data["value_chain_position"] = value_chain_position
+    if regions is not None:
+        update_data["regions"] = regions
+    if status is not None and status in ("active", "inactive"):
+        update_data["status"] = status
+    if notes is not None:
+        update_data["notes"] = notes or None
+    try:
+        result = supabase.table("tracked_companies").update(update_data).eq("id", company_id).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
 def delete_tracked_company(company_id: str) -> bool:
     """Delete a tracked company by id."""
     supabase = get_supabase_client()

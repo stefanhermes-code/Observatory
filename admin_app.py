@@ -43,9 +43,10 @@ from core.admin_db import (
     seed_tracked_companies_from_list,
 )
 try:
-    from core.admin_db import create_tracked_company, delete_tracked_company
+    from core.admin_db import create_tracked_company, update_tracked_company, delete_tracked_company
 except ImportError:
     create_tracked_company = None  # type: ignore
+    update_tracked_company = None  # type: ignore
     delete_tracked_company = None  # type: ignore
 from core.pricing import calculate_price, format_price
 from core.invoice_generator import generate_invoice_documents, is_thai_company
@@ -686,7 +687,7 @@ elif page == "🏭 Industry list":
         except Exception as e:
             st.error(str(e))
         st.rerun()
-    can_manage = create_tracked_company is not None and delete_tracked_company is not None
+    can_manage = create_tracked_company is not None and update_tracked_company is not None and delete_tracked_company is not None
     if not can_manage:
         st.warning("Add/delete companies requires the latest deployment. Redeploy the app if you need management.")
     st.markdown("---")
@@ -722,6 +723,26 @@ elif page == "🏭 Industry list":
                 st.write("**Value chain:**", ", ".join(tc.get("value_chain_position") or []) or "—")
                 if tc.get("notes"):
                     st.caption(tc.get("notes"))
+                if can_manage:
+                    with st.expander("✏️ Edit company", expanded=False):
+                        with st.form(f"edit_tc_{tc.get('id')}"):
+                            etc_name = st.text_input("Company name", value=tc.get("name") or "", key=f"etc_name_{tc.get('id')}")
+                            etc_aliases = st.text_input("Aliases (comma-separated)", value=", ".join(tc.get("aliases") or []), key=f"etc_aliases_{tc.get('id')}")
+                            etc_vcl = st.text_input("Value chain (comma-separated)", value=", ".join(tc.get("value_chain_position") or []), key=f"etc_vcl_{tc.get('id')}")
+                            etc_regions = st.text_input("Regions (comma-separated)", value=", ".join(tc.get("regions") or []), key=f"etc_regions_{tc.get('id')}")
+                            etc_status = st.selectbox("Status", ["active", "inactive"], index=0 if (tc.get("status") or "active") == "active" else 1, key=f"etc_status_{tc.get('id')}")
+                            etc_notes = st.text_input("Notes", value=tc.get("notes") or "", key=f"etc_notes_{tc.get('id')}")
+                            if st.form_submit_button("Save"):
+                                if etc_name and etc_name.strip():
+                                    aliases_list = [x.strip() for x in (etc_aliases or "").split(",") if x.strip()]
+                                    vcl_list = [x.strip() for x in (etc_vcl or "").split(",") if x.strip()]
+                                    regions_list = [x.strip() for x in (etc_regions or "").split(",") if x.strip()]
+                                    update_tracked_company(tc["id"], name=etc_name.strip(), aliases=aliases_list, value_chain_position=vcl_list, regions=regions_list, status=etc_status, notes=etc_notes.strip() or None)
+                                    log_audit_action("tracked_company_updated", st.session_state.user_email, {"company_id": tc["id"], "name": etc_name})
+                                    st.success("Company updated.")
+                                    st.rerun()
+                                else:
+                                    st.warning("Company name is required.")
                 if can_manage and st.button("Delete", key=f"del_tc_{tc.get('id')}"):
                     delete_tracked_company(tc["id"])
                     log_audit_action("tracked_company_deleted", st.session_state.user_email, {"name": tc.get("name")})
@@ -2545,6 +2566,31 @@ elif page == "🔗 Sources":
                             for p in preview[:3]:
                                 title = (p.get("title") or p.get("url") or "") if isinstance(p, dict) else str(p)
                                 st.caption(f"• {(title[:60] + '…') if len(title) > 60 else title}")
+                with st.expander("✏️ Edit source", expanded=False):
+                    with st.form(f"edit_source_{src.get('id')}"):
+                        e_name = st.text_input("Source name", value=src.get("source_name") or "", key=f"es_name_{src.get('id')}")
+                        _stype = (src.get("source_type") or "rss").lower()
+                        _type_idx = ["rss", "sitemap", "html_list"].index(_stype) if _stype in ("rss", "sitemap", "html_list") else 0
+                        e_type = st.selectbox("Type", ["rss", "sitemap", "html_list"], index=_type_idx, key=f"es_type_{src.get('id')}")
+                        e_base = st.text_input("Base URL", value=src.get("base_url") or "", key=f"es_base_{src.get('id')}")
+                        e_rss = st.text_input("RSS URL", value=src.get("rss_url") or "", key=f"es_rss_{src.get('id')}")
+                        e_sitemap = st.text_input("Sitemap URL", value=src.get("sitemap_url") or "", key=f"es_sitemap_{src.get('id')}")
+                        e_list = st.text_input("List URL", value=src.get("list_url") or "", key=f"es_list_{src.get('id')}")
+                        e_selectors = st.text_area("Selectors (JSON)", value=json.dumps(src.get("selectors") or {}, indent=2) if src.get("selectors") else "{}", key=f"es_sel_{src.get('id')}")
+                        e_tier = st.number_input("Trust tier", min_value=1, max_value=4, value=int(src.get("trust_tier") or 2), key=f"es_tier_{src.get('id')}")
+                        e_enabled = st.checkbox("Enabled", value=bool(src.get("enabled", True)), key=f"es_en_{src.get('id')}")
+                        e_notes = st.text_input("Notes", value=src.get("notes") or "", key=f"es_notes_{src.get('id')}")
+                        if st.form_submit_button("Save"):
+                            sel = None
+                            if e_selectors and e_selectors.strip():
+                                try:
+                                    sel = json.loads(e_selectors)
+                                except json.JSONDecodeError:
+                                    pass
+                            update_source(src["id"], source_name=e_name.strip() or None, source_type=e_type, base_url=e_base.strip() or None, rss_url=e_rss.strip() or None, sitemap_url=e_sitemap.strip() or None, list_url=e_list.strip() or None, selectors=sel, trust_tier=e_tier, enabled=e_enabled, notes=e_notes.strip() or None)
+                            log_audit_action("source_updated", st.session_state.user_email, {"source_id": src["id"], "source_name": e_name})
+                            st.success("Source updated.")
+                            st.rerun()
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     if st.button("Test", key=f"test_{src.get('id')}"):
