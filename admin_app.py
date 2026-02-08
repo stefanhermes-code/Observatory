@@ -695,14 +695,35 @@ elif page == "🏭 Industry list":
     with st.form("add_tracked_company_form"):
         tc_name = st.text_input("Company name", placeholder="e.g. BASF")
         tc_aliases = st.text_input("Aliases (comma-separated)", placeholder="BASF SE, BASF Corporation")
-        tc_regions = st.text_input("Regions (comma-separated)", placeholder="EMEA, North America")
+        tc_regions = st.multiselect("Regions", options=REGIONS, default=[], key="add_tc_regions")
+        tc_vcl = st.multiselect(
+            "Value chain link",
+            options=[l["id"] for l in VALUE_CHAIN_LINKS],
+            default=[],
+            format_func=lambda x: next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == x), x),
+            key="add_tc_vcl",
+        )
+        tc_categories = st.multiselect(
+            "Categories",
+            options=[c["id"] for c in PU_CATEGORIES],
+            default=[],
+            format_func=lambda x: next((c["name"] for c in PU_CATEGORIES if c["id"] == x), x),
+            key="add_tc_categories",
+        )
         tc_status = st.selectbox("Status", ["active", "inactive"], index=0)
         tc_notes = st.text_input("Notes", placeholder="Optional")
         if st.form_submit_button("Add company") and can_manage:
             if tc_name and tc_name.strip():
                 aliases_list = [x.strip() for x in (tc_aliases or "").split(",") if x.strip()]
-                regions_list = [x.strip() for x in (tc_regions or "").split(",") if x.strip()]
-                created = create_tracked_company(name=tc_name.strip(), aliases=aliases_list or None, regions=regions_list or None, status=tc_status, notes=tc_notes.strip() or None)
+                created = create_tracked_company(
+                    name=tc_name.strip(),
+                    aliases=aliases_list or None,
+                    regions=tc_regions or None,
+                    value_chain_position=tc_vcl or None,
+                    categories=tc_categories or None,
+                    status=tc_status,
+                    notes=tc_notes.strip() or None,
+                )
                 if created:
                     log_audit_action("tracked_company_added", st.session_state.user_email, {"name": tc_name})
                     st.success(f"Added {tc_name}.")
@@ -720,7 +741,12 @@ elif page == "🏭 Industry list":
             with st.expander(f"{'✅' if tc.get('status') == 'active' else '⏸️'} {tc.get('name', 'Unnamed')}"):
                 st.write("**Regions:**", ", ".join(tc.get("regions") or []) or "—")
                 st.write("**Aliases:**", ", ".join(tc.get("aliases") or []) or "—")
-                st.write("**Value chain:**", ", ".join(tc.get("value_chain_position") or []) or "—")
+                vcl_raw = tc.get("value_chain_position") or []
+                vcl_labels = [next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == v), v) for v in vcl_raw]
+                st.write("**Value chain:**", ", ".join(vcl_labels) or "—")
+                cat_raw = tc.get("categories") or []
+                cat_labels = [next((c["name"] for c in PU_CATEGORIES if c["id"] == cat), cat) for cat in cat_raw]
+                st.write("**Categories:**", ", ".join(cat_labels) or "—")
                 if tc.get("notes"):
                     st.caption(tc.get("notes"))
                 if can_manage:
@@ -728,16 +754,42 @@ elif page == "🏭 Industry list":
                         with st.form(f"edit_tc_{tc.get('id')}"):
                             etc_name = st.text_input("Company name", value=tc.get("name") or "", key=f"etc_name_{tc.get('id')}")
                             etc_aliases = st.text_input("Aliases (comma-separated)", value=", ".join(tc.get("aliases") or []), key=f"etc_aliases_{tc.get('id')}")
-                            etc_vcl = st.text_input("Value chain (comma-separated)", value=", ".join(tc.get("value_chain_position") or []), key=f"etc_vcl_{tc.get('id')}")
-                            etc_regions = st.text_input("Regions (comma-separated)", value=", ".join(tc.get("regions") or []), key=f"etc_regions_{tc.get('id')}")
+                            _vcl_raw = tc.get("value_chain_position") or []
+                            etc_vcl_default = [l["id"] for l in VALUE_CHAIN_LINKS if l["id"] in _vcl_raw or l["name"] in _vcl_raw]
+                            etc_vcl = st.multiselect(
+                                "Value chain link",
+                                options=[l["id"] for l in VALUE_CHAIN_LINKS],
+                                default=etc_vcl_default,
+                                format_func=lambda x: next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == x), x),
+                                key=f"etc_vcl_{tc.get('id')}",
+                            )
+                            _reg_raw = tc.get("regions") or []
+                            etc_regions_default = [r for r in _reg_raw if r in REGIONS]
+                            etc_regions = st.multiselect("Regions", options=REGIONS, default=etc_regions_default, key=f"etc_regions_{tc.get('id')}")
+                            _cat_raw = tc.get("categories") or []
+                            etc_cat_default = [c["id"] for c in PU_CATEGORIES if c["id"] in _cat_raw or c["name"] in _cat_raw]
+                            etc_categories = st.multiselect(
+                                "Categories",
+                                options=[c["id"] for c in PU_CATEGORIES],
+                                default=etc_cat_default,
+                                format_func=lambda x: next((c["name"] for c in PU_CATEGORIES if c["id"] == x), x),
+                                key=f"etc_categories_{tc.get('id')}",
+                            )
                             etc_status = st.selectbox("Status", ["active", "inactive"], index=0 if (tc.get("status") or "active") == "active" else 1, key=f"etc_status_{tc.get('id')}")
                             etc_notes = st.text_input("Notes", value=tc.get("notes") or "", key=f"etc_notes_{tc.get('id')}")
                             if st.form_submit_button("Save"):
                                 if etc_name and etc_name.strip():
                                     aliases_list = [x.strip() for x in (etc_aliases or "").split(",") if x.strip()]
-                                    vcl_list = [x.strip() for x in (etc_vcl or "").split(",") if x.strip()]
-                                    regions_list = [x.strip() for x in (etc_regions or "").split(",") if x.strip()]
-                                    update_tracked_company(tc["id"], name=etc_name.strip(), aliases=aliases_list, value_chain_position=vcl_list, regions=regions_list, status=etc_status, notes=etc_notes.strip() or None)
+                                    update_tracked_company(
+                                        tc["id"],
+                                        name=etc_name.strip(),
+                                        aliases=aliases_list,
+                                        value_chain_position=etc_vcl,
+                                        regions=etc_regions,
+                                        categories=etc_categories,
+                                        status=etc_status,
+                                        notes=etc_notes.strip() or None,
+                                    )
                                     log_audit_action("tracked_company_updated", st.session_state.user_email, {"company_id": tc["id"], "name": etc_name})
                                     st.success("Company updated.")
                                     st.rerun()

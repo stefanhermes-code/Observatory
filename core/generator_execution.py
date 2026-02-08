@@ -12,13 +12,7 @@ from core.generator_db import (
     check_frequency_enforcement,
     create_newsletter_run,
     update_run_status,
-    get_last_successful_run,
-    get_specification_history
-)
-from core.openai_assistant import (
-    build_run_package,
-    execute_assistant,
-    validate_output
+    get_candidate_articles_for_run,
 )
 from core.content_pipeline import render_html_from_content
 
@@ -65,17 +59,7 @@ def execute_generator(
     
     if not is_allowed:
         return False, reason, None, None
-    
-    # Step 3: Assemble Run Package
-    # Get historical reference (last successful run for context)
-    last_run = get_last_successful_run(spec_id)
-    historical_reference = None
-    if last_run:
-        historical_reference = [f"Last run: {last_run.get('created_at', '')[:10]}"]
-    
-    # Use override cadence if provided, otherwise use specification frequency
-    cadence_for_package = cadence_override if cadence_override else frequency
-    
+
     # Create a modified specification with overridden categories/regions if provided
     run_specification = spec.copy()
     if categories_override:
@@ -84,12 +68,6 @@ def execute_generator(
         run_specification["regions"] = regions_override
     if value_chain_links_override is not None:
         run_specification["value_chain_links"] = value_chain_links_override
-    
-    run_package = build_run_package(
-        specification=run_specification,
-        cadence=cadence_for_package,
-        historical_reference=historical_reference
-    )
     
     # Step 4: Create run record (run_id must exist before evidence ingestion — V2-DB-02)
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
@@ -108,66 +86,71 @@ def execute_generator(
     except Exception as ev_err:
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
 
-    # Step 5: Execute Assistant
+    # V2 Phase 4: Get candidates, run extraction, then bounded writer (report only cites candidate_articles)
+    candidates = get_candidate_articles_for_run(run_id)
     try:
-        assistant_output = execute_assistant(run_package)
+        from core.intelligence_extraction import run_intelligence_extraction
+        extraction_result = run_intelligence_extraction(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            specification_id=spec_id,
+            candidates=candidates,
+        )
+    except Exception as ext_err:
+        extraction_result = {"signals_created": 0, "occurrences_created": 0}
+
+    try:
+        from core.intelligence_writer import write_report_from_evidence
+        writer_output = write_report_from_evidence(
+            spec=run_specification,
+            candidates=candidates,
+        )
     except Exception as e:
-        # Update run status to failed
         update_run_status(run_id, "failed", error_message=str(e))
-        return False, f"Assistant execution failed: {str(e)}", None, None
-    
-    # Step 6: Validate Output
-    is_valid, validation_errors = validate_output(assistant_output, spec)
-    
-    if not is_valid:
-        error_msg = f"Output validation failed: {', '.join(validation_errors)}"
-        update_run_status(run_id, "failed", error_message=error_msg)
-        # Failed runs do not consume cadence quota
-        return False, error_msg, None, None
-    
-    # Step 7: Persist Results
-    # Convert Assistant output to HTML
-    # Use override cadence if provided for display purposes
+        return False, f"Report generation failed: {str(e)}", None, None
+
+    # Use writer content as report body (evidence-only; no Assistant)
+    report_content = writer_output["content"]
+    coverage_low = writer_output.get("coverage_low", False)
+
+    # Step 7: Persist Results — render writer output to HTML (same pipeline as before)
     display_cadence = cadence_override if cadence_override else None
-    # Use run_specification (with overrides) for HTML rendering
     html_content, diagnostics = render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
-        assistant_content=assistant_output["content"],
-        spec=run_specification,  # Use the modified specification with overrides
-        metadata=assistant_output.get("metadata", {}),
+        assistant_content=report_content,
+        spec=run_specification,
+        metadata={
+            "model": "v2_evidence_writer",
+            "tokens_used": 0,
+            "timestamp": datetime.utcnow().isoformat(),
+            "extraction": extraction_result,
+            "coverage_low": coverage_low,
+        },
         user_email=user_email,
         cadence_override=display_cadence
     )
-    
-    # Store artifact path (in production, upload to Supabase Storage)
+
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
-    
-    # Store HTML content in metadata for later retrieval (History page)
-    # Include all metadata from assistant_output, including tool_usage tracking
-    assistant_metadata = assistant_output.get("metadata", {})
     metadata_with_html = {
         "html_content": html_content,
-        "model": assistant_metadata.get("model"),
-        "tokens_used": assistant_metadata.get("tokens_used"),
-        "thread_id": assistant_metadata.get("thread_id"),
-        "run_id": assistant_metadata.get("run_id"),
-        "timestamp": assistant_metadata.get("timestamp"),
-        "tool_usage": assistant_metadata.get("tool_usage", {}),
+        "model": "v2_evidence_writer",
+        "tokens_used": 0,
+        "timestamp": datetime.utcnow().isoformat(),
         "content_diagnostics": diagnostics,
-        "evidence_summary": evidence_summary,  # V2: candidates_from_sources, candidates_from_search, inserted, query_plan
+        "evidence_summary": evidence_summary,
+        "extraction_result": extraction_result,
+        "coverage_low": coverage_low,
     }
-    
-    # Update run status to success with HTML stored in metadata
+
     update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
-    
-    # Step 8: Return Result to User (include metadata_with_html so UI gets content_diagnostics and tool_usage)
+
     result_data = {
         "run_id": run_id,
         "html_content": html_content,
-        "assistant_output": assistant_output["content"],
+        "assistant_output": report_content,
         "metadata": metadata_with_html,
         "artifact_path": artifact_path
     }
-    
+
     return True, None, result_data, artifact_path
 

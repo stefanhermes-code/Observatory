@@ -604,6 +604,7 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
             "aliases": c.get("aliases") if isinstance(c.get("aliases"), list) else [],
             "value_chain_position": c.get("value_chain_position") if isinstance(c.get("value_chain_position"), list) else [],
             "regions": c.get("regions") if isinstance(c.get("regions"), list) else [],
+            "categories": c.get("categories") if isinstance(c.get("categories"), list) else [],
             "status": status,
             "notes": (c.get("notes") or "") or None,
             "updated_at": now,
@@ -622,6 +623,7 @@ def create_tracked_company(
     aliases: Optional[List[str]] = None,
     value_chain_position: Optional[List[str]] = None,
     regions: Optional[List[str]] = None,
+    categories: Optional[List[str]] = None,
     status: str = "active",
     notes: Optional[str] = None,
 ) -> Optional[Dict]:
@@ -637,6 +639,7 @@ def create_tracked_company(
         "aliases": aliases or [],
         "value_chain_position": value_chain_position or [],
         "regions": regions or [],
+        "categories": categories or [],
         "status": status,
         "notes": notes or None,
         "updated_at": datetime.utcnow().isoformat(),
@@ -654,6 +657,7 @@ def update_tracked_company(
     aliases: Optional[List[str]] = None,
     value_chain_position: Optional[List[str]] = None,
     regions: Optional[List[str]] = None,
+    categories: Optional[List[str]] = None,
     status: Optional[str] = None,
     notes: Optional[str] = None,
 ) -> Optional[Dict]:
@@ -668,6 +672,8 @@ def update_tracked_company(
         update_data["value_chain_position"] = value_chain_position
     if regions is not None:
         update_data["regions"] = regions
+    if categories is not None:
+        update_data["categories"] = categories
     if status is not None and status in ("active", "inactive"):
         update_data["status"] = status
     if notes is not None:

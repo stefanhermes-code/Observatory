@@ -238,6 +238,17 @@ def get_last_successful_run(spec_id: str) -> Optional[Dict]:
     return result.data[0] if result.data else None
 
 
+def get_candidate_articles_for_run(run_id: str) -> List[Dict]:
+    """V2: Get all candidate_articles for a run (for extraction and writer)."""
+    supabase = get_supabase_client()
+    result = supabase.table("candidate_articles")\
+        .select("*")\
+        .eq("run_id", run_id)\
+        .order("published_at", desc=True)\
+        .execute()
+    return result.data if result.data else []
+
+
 def insert_candidate_articles(
     run_id: str,
     workspace_id: str,
