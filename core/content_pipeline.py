@@ -6,6 +6,34 @@ Fetches, filters, deduplicates, ranks, and assembles newsletter sections.
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import random
+import re
+
+try:
+    import urllib.request
+    _HAS_URLLIB = True
+except ImportError:
+    _HAS_URLLIB = False
+
+
+def _url_returns_ok(url: str, timeout: int = 4) -> bool:
+    """Return True if URL returns 2xx (HEAD then GET fallback). Used to avoid showing 404 links."""
+    if not url or not url.startswith(("http://", "https://")):
+        return False
+    if not _HAS_URLLIB:
+        return True
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        req.add_header("User-Agent", "Mozilla/5.0 (compatible; Observatory/1.0)")
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return 200 <= r.getcode() < 300
+    except Exception:
+        try:
+            req = urllib.request.Request(url, method="GET")
+            req.add_header("User-Agent", "Mozilla/5.0 (compatible; Observatory/1.0)")
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return 200 <= r.getcode() < 300
+        except Exception:
+            return False
 
 
 def fetch_content_items(categories: List[str], regions: List[str]) -> List[Dict]:
@@ -454,12 +482,14 @@ def render_html_from_content(
             # Item passed all checks - include it
             items_included += 1
             
-            # Add URL if available
+            # Add URL if available; only make it clickable if it returns 2xx (avoids 404 from hallucinated URLs)
             url_html = ""
             if urls_found:
-                # Use the first URL found
                 url = urls_found[0]
-                url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
+                if _url_returns_ok(url):
+                    url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
+                else:
+                    url_html = f' <span class="news-url-unavailable" style="color: #888;">{url} (link unavailable)</span>'
             html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">- {source}</span>{date_html}{url_html}</li>')
         else:
             if in_list:
