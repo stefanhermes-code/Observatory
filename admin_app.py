@@ -2560,12 +2560,27 @@ elif page == "🔗 Sources":
                     if tr.get("error"):
                         st.error("Test failed: " + str(tr["error"]))
                     else:
-                        st.success(f"Test OK: {tr.get('count', 0)} item(s) fetched.")
+                        count = tr.get("count", 0)
+                        st.success(f"Test OK: **{count}** item(s) fetched.")
                         preview = tr.get("preview")
-                        if isinstance(preview, list):
-                            for p in preview[:3]:
-                                title = (p.get("title") or p.get("url") or "") if isinstance(p, dict) else str(p)
-                                st.caption(f"• {(title[:60] + '…') if len(title) > 60 else title}")
+                        if isinstance(preview, list) and preview:
+                            with st.expander(f"View test results ({len(preview)} items)", expanded=True):
+                                for i, p in enumerate(preview):
+                                    if not isinstance(p, dict):
+                                        st.caption(str(p))
+                                        continue
+                                    title = (p.get("title") or "(No title)").strip()
+                                    url = (p.get("url") or "").strip()
+                                    date_str = (p.get("published_at") or "").strip()
+                                    snippet = (p.get("snippet") or "").strip()
+                                    st.markdown(f"**{i+1}. {title}**")
+                                    if date_str:
+                                        st.caption(f"Date: {date_str}")
+                                    if url:
+                                        st.markdown(f"Link: [{url}]({url})")
+                                    if snippet:
+                                        st.caption(snippet[:200] + ("…" if len(snippet) > 200 else ""))
+                                    st.markdown("---")
                 with st.expander("✏️ Edit source", expanded=False):
                     with st.form(f"edit_source_{src.get('id')}"):
                         e_name = st.text_input("Source name", value=src.get("source_name") or "", key=f"es_name_{src.get('id')}")
@@ -2610,7 +2625,7 @@ elif page == "🔗 Sources":
                             else:
                                 st.session_state[test_key] = {"error": "Missing URL for this source type."}
                                 st.rerun()
-                            st.session_state[test_key] = {"count": len(items), "preview": items[:5], "error": None}
+                            st.session_state[test_key] = {"count": len(items), "preview": items[:15], "error": None}
                         except Exception as e:
                             st.session_state[test_key] = {"error": str(e)}
                         st.rerun()
