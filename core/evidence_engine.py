@@ -12,11 +12,25 @@ from core.search_providers.openai_web_search import OpenAIWebSearchProvider
 
 
 def _company_aliases_from_spec(spec: Dict) -> List[str]:
-    """Extract company names/aliases for query plan. From spec or company list file."""
+    """Extract company names/aliases for query plan. Prefer DB (tracked_companies), else company_list.json."""
     aliases: List[str] = []
-    # Optional: spec could store company_aliases or we load from company list
     try:
-        from core.company_list_manager import load_company_list, format_company_list_for_assistant
+        from core.admin_db import get_tracked_companies
+        tracked = get_tracked_companies(active_only=True)
+        if tracked:
+            for company in tracked:
+                name = company.get("name")
+                if name:
+                    aliases.append(name.strip())
+                for a in (company.get("aliases") or []):
+                    if a and isinstance(a, str):
+                        aliases.append(a.strip())
+            return aliases[:50]
+    except Exception:
+        pass
+    # Fallback: file-based company list
+    try:
+        from core.company_list_manager import load_company_list
         data = load_company_list()
         for company in data.get("companies", []) or []:
             if company.get("status") != "active":

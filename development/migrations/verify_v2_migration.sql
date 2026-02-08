@@ -43,4 +43,7 @@ SELECT 'Index: ix_signal_occurrences_ws_spec',
 UNION ALL
 SELECT 'Index: ix_signal_occurrences_run',
   CASE WHEN EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'ix_signal_occurrences_run') THEN 'OK' ELSE 'MISSING' END
+UNION ALL
+SELECT 'Table: tracked_companies (002)',
+  CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tracked_companies') THEN 'OK' ELSE 'MISSING' END
 ORDER BY check_name;

@@ -521,3 +521,56 @@ def delete_source(source_id: str) -> bool:
     except Exception:
         return False
 
+
+# ---------- Tracked companies (PU industry list for evidence / query planning) ----------
+
+def get_tracked_companies(active_only: bool = True) -> List[Dict]:
+    """Get tracked companies from DB. If active_only, only status='active'."""
+    supabase = get_supabase_client()
+    try:
+        query = supabase.table("tracked_companies").select("*").order("name")
+        if active_only:
+            query = query.eq("status", "active")
+        result = query.execute()
+        return result.data if result.data else []
+    except Exception as e:
+        if "does not exist" in str(e).lower() or "tracked_companies" in str(e).lower():
+            return []
+        raise
+
+
+def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
+    """
+    Upsert companies into tracked_companies from a list of dicts (e.g. from company_list.json).
+    Each dict: name, aliases (list), value_chain_position (list), regions (list), status, notes.
+    Returns number of rows upserted.
+    """
+    if not companies:
+        return 0
+    supabase = get_supabase_client()
+    now = datetime.utcnow().isoformat()
+    rows = []
+    for c in companies:
+        name = (c.get("name") or "").strip()
+        if not name:
+            continue
+        status = (c.get("status") or "active").lower()
+        if status not in ("active", "inactive"):
+            status = "active"
+        rows.append({
+            "name": name,
+            "aliases": c.get("aliases") if isinstance(c.get("aliases"), list) else [],
+            "value_chain_position": c.get("value_chain_position") if isinstance(c.get("value_chain_position"), list) else [],
+            "regions": c.get("regions") if isinstance(c.get("regions"), list) else [],
+            "status": status,
+            "notes": (c.get("notes") or "") or None,
+            "updated_at": now,
+        })
+    if not rows:
+        return 0
+    try:
+        supabase.table("tracked_companies").upsert(rows, on_conflict="name").execute()
+        return len(rows)
+    except Exception:
+        return 0
+

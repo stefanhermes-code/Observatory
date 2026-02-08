@@ -38,6 +38,8 @@ from core.admin_db import (
     create_source,
     update_source,
     delete_source,
+    get_tracked_companies,
+    seed_tracked_companies_from_list,
 )
 from core.pricing import calculate_price, format_price
 from core.invoice_generator import generate_invoice_documents, is_thai_company
@@ -660,6 +662,23 @@ elif page == "🏢 Companies":
             st.code(f"Email: {admin_email}\nPassword: Stefan2025")
             st.info("**Note:** You'll need to create an intelligence specification before you can generate newsletters.")
             st.rerun()
+
+    st.markdown("---")
+    st.subheader("Tracked companies (PU industry list)")
+    st.caption("Companies used for evidence search and query planning. Synced from development/company_list.json.")
+    tracked = get_tracked_companies(active_only=False)
+    st.write(f"**In database:** {len(tracked)} companies")
+    if st.button("Sync from file (company_list.json)", key="sync_tracked_companies"):
+        try:
+            from core.company_list_manager import load_company_list
+            data = load_company_list()
+            companies = data.get("companies") or []
+            n = seed_tracked_companies_from_list(companies)
+            log_audit_action("seed_tracked_companies", st.session_state.user_email, {"count": n})
+            st.success(f"Synced {n} companies from file.")
+        except Exception as e:
+            st.error(str(e))
+        st.rerun()
 
 elif page == "👤 Users":
     st.markdown('<p class="main-header">User Management</p>', unsafe_allow_html=True)
