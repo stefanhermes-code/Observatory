@@ -1,6 +1,6 @@
 # Cursor Build Plan V2 (Evidence-first Observatory)
 
-**Current phase:** Phase 5 (Portal UI updates). Phases 1–4 are done. Phase 4 (extraction + bounded writer) implemented: report is generated from `candidate_articles` only; no OpenAI Assistant for report writing.
+**Current phase:** Phase 6 (Cleanup). Phases 1–5 are done. Phase 5 implemented with **limited end-user transparency** (no peeking behind the curtains): item count and previous-run comparison only; sources and queries are not shown.
 
 ## Guardrails
 - Do not change business workflow: Configurator → Admin → Portal run generation + cadence
@@ -119,15 +119,15 @@ Acceptance:
 
 ---
 
-## Phase 5: Portal UI updates
+## Phase 5: Portal UI updates ✅
 
-### V2-PORTAL-01 Update generator_app.py into Portal behaviors
-Add:
-- evidence counts
-- “what changed since last run”
-- show sources ingested and queries used (transparency)
+### V2-PORTAL-01 Update generator_app.py into Portal behaviors ✅
+Limited transparency (no peeking behind the curtains):
+- Evidence count: "This report is based on **N** items."
+- “Simple comparison: Previous run had **M** items”
+- History: **Items: N** per run; no Run ID, artifact path, or source/query details.
 Acceptance:
-- user can run and see evidence transparency section
+- user sees only high-level item count and optional previous-run comparison; no sources or queries shown
 
 ---
 
