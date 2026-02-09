@@ -2537,15 +2537,24 @@ elif page == "📚 Generation History":
                             st.warning("⚠️ HTML content not available for this run (older runs may not have stored HTML)")
                 
                 with col3:
-                    # Display additional metadata
+                    # Display additional metadata and timing (internal metrics — Admin only)
                     metadata = run.get("metadata", {})
                     if isinstance(metadata, dict):
                         st.write("**Model:**", metadata.get("model", "N/A"))
                         st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
+                        ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
+                        timing = ev.get("timing_seconds") or {}
+                        if timing:
+                            st.markdown("---")
+                            st.caption("**Timing (s):** ingestion {:.0f} · web search {:.0f} · validate/dedupe {:.0f} · persist {:.0f} · total {:.0f}".format(
+                                timing.get("source_ingestion", 0), timing.get("web_search", 0),
+                                timing.get("validate_dedupe", 0), timing.get("persist", 0), timing.get("total", 0),
+                            ))
                         if metadata.get("thread_id"):
                             st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
     else:
         st.info("No generation runs yet")
+        st.caption("Run history is loaded from newsletter_runs via get_recent_runs(). Same Supabase credentials are used for all apps. If you expect runs here, check in Supabase that newsletter_runs has rows and that RLS allows SELECT.")
     
     st.markdown("---")
     
