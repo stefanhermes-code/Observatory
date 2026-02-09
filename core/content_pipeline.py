@@ -312,16 +312,9 @@ def render_html_from_content(
     html_content = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html_content, flags=re.MULTILINE)
     html_content = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html_content, flags=re.MULTILINE)
     
-    # PRESERVE URLs - convert markdown links to HTML links, keep plain URLs
-    # Format: [text](url) -> <a href="url">text</a>
-    html_content = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'<a href="\2">\1</a>', html_content)
-    
-    # Keep plain URLs as clickable links (convert to <a> tags)
-    # Pattern: https:// or http:// followed by non-whitespace
-    def url_to_link(match):
-        url = match.group(0)
-        return f'<a href="{url}" target="_blank">{url}</a>'
-    html_content = re.sub(r'https?://[^\s\)\]\>]+', url_to_link, html_content)
+    # DON'T convert URLs to links yet - we'll do it after extracting source/date
+    # This prevents duplication and malformed HTML
+    # We'll preserve URLs as plain text for now, then convert them properly in the final output
     
     # Replace bold
     html_content = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html_content)
@@ -345,19 +338,26 @@ def render_html_from_content(
             item_text = stripped[2:].strip()
             
             # PRESERVE URLs - extract URLs before processing, then re-add them
-            # Extract URLs first (both markdown and plain)
+            # Extract URLs first (both markdown and plain, and already-converted HTML links)
             urls_found = []
             # Extract markdown links [text](url)
             markdown_urls = re.findall(r'\[([^\]]+)\]\(([^\)]+)\)', item_text)
             for text, url in markdown_urls:
                 urls_found.append(url)
-            # Extract plain URLs
-            plain_urls = re.findall(r'https?://[^\s\)\]\>]+', item_text)
+            # Extract plain URLs (not already in <a> tags)
+            plain_urls = re.findall(r'(?<!href=["\'])(?<!>)(https?://[^\s\)\]\>\<]+)', item_text)
             urls_found.extend(plain_urls)
+            # Extract URLs from existing <a href="url"> tags (to avoid duplication)
+            html_link_urls = re.findall(r'<a\s+href=["\']([^"\']+)["\']', item_text)
+            for url in html_link_urls:
+                if url not in urls_found:
+                    urls_found.append(url)
             
             # Remove URLs temporarily for source/date extraction (we'll add them back)
+            # Remove markdown links, plain URLs, and HTML <a> tags
             item_text_clean = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', item_text)
-            item_text_clean = re.sub(r'https?://[^\s\)\]\>]+', '', item_text_clean)
+            item_text_clean = re.sub(r'<a\s+href=["\'][^"\']+["\'][^>]*>.*?</a>', '', item_text_clean)
+            item_text_clean = re.sub(r'https?://[^\s\)\]\>\<]+', '', item_text_clean)
             item_text_clean = item_text_clean.strip()
             
             # Extract date and source from the content
@@ -421,11 +421,9 @@ def render_html_from_content(
                         news_date = None
             
             # Step 4: Extract source pattern: "Text - Source", "Text : Source", or "Text ; Source"
-            # Expected format: "News summary text - Source Name (YYYY-MM-DD) https://url.com"
-            # When the Assistant follows this format, items display with source and date (as in previous runs).
-            # When it does not, the lenient fallback below uses "Source not specified" so we still show the item.
-            # After date removal: "News summary text - Source Name https://url.com"
-            # URLs may appear after the source name
+            # Expected format: "News summary text — Source Name (optional info) (YYYY-MM-DD) https://url.com"
+            # Writer outputs: "- {text} — {source} ({date}) {url}" or "- {text} — {source} {url}"
+            # Source may include parentheses like "ICIS – Public RSS (mixed commodities)"
             
             source = None
             main_text = item_text_clean
@@ -440,25 +438,76 @@ def render_html_from_content(
             
             # Source separator: hyphen, colon, semicolon, en dash (U+2013), em dash (U+2014)
             # Writer outputs " — {source} ({date})" so we must match em dash
-            source_match = re.search(r'\s*[-:;\u2013\u2014]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-_]+?)(?:\s*$)', item_text_clean)
+            # Source can include parentheses and dashes: "ICIS – Public RSS (mixed commodities)"
+            # Match source that may include parentheses and internal dashes, stop at date pattern or end
+            # Pattern: separator + source (greedy match including parentheses) + optional date pattern
+            # Use greedy match to capture full source including internal dashes/parentheses
+            source_match = re.search(
+                r'\s*[-:;\u2013\u2014]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-_()]+?)(?:\s*\((\d{4}-\d{2}-\d{2})\))?\s*$',
+                item_text_clean
+            )
             if not source_match:
-                source_match = re.search(r'\s*[-:;\u2013\u2014]([A-Za-z0-9][A-Za-z0-9\s&.,\-_]+?)(?:\s*$)', item_text_clean)
+                # Try without requiring end anchor - source might be followed by whitespace or URL
+                # Match everything after separator until date pattern or end of string
+                source_match = re.search(
+                    r'\s*[-:;\u2013\u2014]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-_()]+?)(?:\s*\((\d{4}-\d{2}-\d{2})\))?(?=\s*$|\s+https?://)',
+                    item_text_clean
+                )
+            if not source_match:
+                # Most lenient: match everything after separator to end (for sources with dashes/parentheses)
+                # This handles "— ICIS – Public RSS (mixed commodities)" correctly
+                source_match = re.search(
+                    r'\s*[-:;\u2013\u2014]\s+(.+?)(?:\s*\((\d{4}-\d{2}-\d{2})\))?\s*$',
+                    item_text_clean
+                )
             
             if source_match:
                 source = source_match.group(1).strip()
-                # Remove common trailing punctuation that might be part of the source
+                # Remove common trailing punctuation that might be part of the source (but keep parentheses)
                 source = re.sub(r'[.,;:]+$', '', source).strip()
                 main_text = item_text_clean[:source_match.start()].strip()
                 # Clean up main text - remove trailing separator and spaces
-                main_text = re.sub(r'\s*[-:;]\s*$', '', main_text).strip()
+                main_text = re.sub(r'\s*[-:;\u2013\u2014]\s*$', '', main_text).strip()
             else:
-                # Lenient fallback: no source pattern matched - use whole line as content, generic source
-                # So we still show news instead of dropping everything
-                main_text = item_text_clean.strip()
-                if len(main_text) > 20:  # Only include if there's substantive content
-                    source = "Source not specified"
-                else:
-                    source = None
+                # Check if source is already embedded in the text (e.g., "— ICIS – Public RSS")
+                # This handles cases where the source separator appears but regex didn't match
+                embedded_source_match = re.search(
+                    r'\s*[-:;\u2013\u2014]\s+([A-Za-z][A-Za-z0-9\s&.,\-_()]+)',
+                    item_text_clean
+                )
+                if embedded_source_match:
+                    # Extract the source from the embedded match
+                    potential_source = embedded_source_match.group(1).strip()
+                    # Only use if it looks like a source name (not too long, has reasonable structure)
+                    if len(potential_source) < 100 and re.search(r'[A-Za-z]', potential_source):
+                        source = potential_source
+                        main_text = item_text_clean[:embedded_source_match.start()].strip()
+                        main_text = re.sub(r'\s*[-:;\u2013\u2014]\s*$', '', main_text).strip()
+                
+                if not source:
+                    # Check if source-like pattern exists in text but wasn't captured (e.g., "— Source Name")
+                    # This prevents showing "Source not specified" when source is actually present
+                    potential_source_in_text = re.search(
+                        r'\s*[-:;\u2013\u2014]\s+([A-Za-z][A-Za-z0-9\s&.,\-_()]{3,})',
+                        item_text_clean
+                    )
+                    if potential_source_in_text:
+                        # Source pattern exists but wasn't extracted - try to extract it more aggressively
+                        source_text = potential_source_in_text.group(1).strip()
+                        # Only use if it looks reasonable (not too long, has letters)
+                        if 3 <= len(source_text) <= 150 and re.search(r'[A-Za-z]{2,}', source_text):
+                            source = source_text
+                            main_text = item_text_clean[:potential_source_in_text.start()].strip()
+                            main_text = re.sub(r'\s*[-:;\u2013\u2014]\s*$', '', main_text).strip()
+                    
+                    if not source:
+                        # Lenient fallback: no source pattern matched - use whole line as content, generic source
+                        # So we still show news instead of dropping everything
+                        main_text = item_text_clean.strip()
+                        if len(main_text) > 20:  # Only include if there's substantive content
+                            source = "Source not specified"
+                        else:
+                            source = None
             
             # If we found a URL at the end, add it to urls_found
             if url_at_end:
@@ -486,16 +535,29 @@ def render_html_from_content(
             # Item passed all checks - include it
             items_included += 1
             
-            # Add URL if available; only make it clickable if valid and returns 2xx (avoid empty/broken links)
-            url_html = ""
+            # Format: Title (as clickable link) - Source - Date
+            # URL should be embedded in the title, not shown separately
+            title_html = ""
             if urls_found:
                 url = (urls_found[0] or "").strip()
+                # Clean up URL: remove trailing quotes, spaces, and malformed characters
+                url = re.sub(r'["\']+$', '', url)  # Remove trailing quotes
+                url = url.strip()
                 if url and url.startswith(("http://", "https://")):
                     if _url_returns_ok(url):
-                        url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
+                        # Title is a clickable link - URL embedded, not shown separately
+                        title_html = f'<a href="{url}" target="_blank" style="color: #333; text-decoration: none;"><span class="news-item">{main_text}</span></a>'
                     else:
-                        url_html = f' <span class="news-url-unavailable" style="color: #888;">{url} (link unavailable)</span>'
-            html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">- {source}</span>{date_html}{url_html}</li>')
+                        # URL invalid - show title without link
+                        title_html = f'<span class="news-item">{main_text}</span> <span class="news-url-unavailable" style="color: #888; font-size: 0.85em;">(link unavailable)</span>'
+                else:
+                    # No valid URL - just show title
+                    title_html = f'<span class="news-item">{main_text}</span>'
+            else:
+                # No URL found - just show title
+                title_html = f'<span class="news-item">{main_text}</span>'
+            
+            html_lines.append(f'<li>{title_html} <span class="news-source">- {source}</span>{date_html}</li>')
         else:
             if in_list:
                 html_lines.append('</ul>')
@@ -592,7 +654,8 @@ def render_html_from_content(
             @page {{ margin: 1cm; }}
         }}
         body {{
-            font-family: Arial, sans-serif;
+            font-family: Calibri, sans-serif;
+            font-size: 10pt;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -654,22 +717,30 @@ def render_html_from_content(
             padding-left: 30px;
         }}
         li {{
-            margin: 8px 0;
+            margin: 0 0 1.5em 0;
             line-height: 1.6;
         }}
         .news-item {{
             font-weight: 500;
         }}
-                .news-source {{
-                    color: #666;
-                    font-size: 0.9em;
-                    font-style: italic;
-                }}
-                .news-date {{
-                    color: #666;
-                    font-size: 0.9em;
-                    margin-left: 8px;
-                }}
+        a .news-item {{
+            color: #333;
+            text-decoration: none;
+        }}
+        a:hover .news-item {{
+            color: #1f77b4;
+            text-decoration: underline;
+        }}
+        .news-source {{
+            color: #666;
+            font-size: 0.9em;
+            font-style: italic;
+        }}
+        .news-date {{
+            color: #666;
+            font-size: 0.9em;
+            margin-left: 8px;
+        }}
         a {{
             color: #1f77b4;
             text-decoration: none;
