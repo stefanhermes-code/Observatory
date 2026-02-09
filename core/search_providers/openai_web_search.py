@@ -1,10 +1,11 @@
 """
 OpenAI web search provider for V2 Evidence Engine.
 Uses OpenAI Responses API / web search tool to run queries and return candidates.
-Falls back to no-op (empty list) if not configured or tool not available.
+Injects app date and recency into the prompt so the model uses correct "today" (not its own wrong date).
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 import os
 
 try:
@@ -27,19 +28,34 @@ def _get_client():
     return OpenAI(api_key=api_key)
 
 
-def _run_web_search(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+def _run_web_search(
+    query: str,
+    max_results: int = 10,
+    reference_date: Optional[datetime] = None,
+    lookback_days: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Use OpenAI with web search to get results. Returns list of {url, title, snippet, published_at?, source_name}.
-    If Responses API with web_search is not available, returns [].
+    Injects today's date and recency so the model does not use its own (possibly wrong) date.
     """
     client = _get_client()
     if not client:
         return []
+    ref = reference_date or datetime.utcnow()
+    today_str = ref.strftime("%Y-%m-%d")
+    recency = (
+        f" Prefer articles from the past {lookback_days} days (since {lookback_days} days before {today_str})."
+        if lookback_days is not None and lookback_days > 0
+        else ""
+    )
+    user_content = (
+        f"Today's date is {today_str}. Search the web for: {query}.{recency} "
+        "Return a list of relevant article URLs with title and short snippet. Only return factual search results."
+    )
     try:
-        # Use Responses API with web_search tool (model that supports it)
         response = client.responses.create(
             model="gpt-4o",
-            input=[{"role": "user", "content": f"Search the web for: {query}. Return a list of relevant article URLs with title and short snippet. Only return factual search results."}],
+            input=[{"role": "user", "content": user_content}],
             tools=[{"type": "web_search"}],
         )
         out: List[Dict[str, Any]] = []
@@ -87,7 +103,19 @@ def _run_web_search(query: str, max_results: int = 10) -> List[Dict[str, Any]]:
 
 
 class OpenAIWebSearchProvider(SearchProvider):
-    """Search provider using OpenAI web search tool."""
+    """Search provider using OpenAI web search tool. Injects app date and recency into prompt."""
 
-    def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        return _run_web_search(query, max_results=max_results)
+    def search(
+        self,
+        query: str,
+        max_results: int = 10,
+        *,
+        reference_date: Optional[datetime] = None,
+        lookback_days: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        return _run_web_search(
+            query,
+            max_results=max_results,
+            reference_date=reference_date,
+            lookback_days=lookback_days,
+        )

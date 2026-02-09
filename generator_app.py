@@ -373,20 +373,31 @@ elif page == "📰 Generate Report":
     
     st.markdown("---")
     
-    # Cadence override for stefan.hermes@htcglobal.asia
+    # Builder-only: lookback period (1/7/30 days) and unlimited runs (stefan.hermes@htcglobal.asia)
     override_cadence = None
+    lookback_override = None
     if st.session_state.user_email.lower() == "stefan.hermes@htcglobal.asia":
-        st.markdown("### Testing/Marketing Options")
-        cadence_override_options = ["Use Specification Cadence", "Daily", "Weekly", "Monthly"]
-        selected_override = st.selectbox(
-            "Override Cadence (for testing/marketing):",
-            options=cadence_override_options,
-            index=0,
-            help="Select a different cadence to test how reports look with different frequencies"
+        st.markdown("### Builder options")
+        lookback_options = {"1 day": 1, "7 days": 7, "30 days": 30}
+        lookback_label = st.selectbox(
+            "Lookback period (how far back to include news):",
+            options=list(lookback_options.keys()),
+            index=1,
+            help="Only you see this. Choose how many days of news to include.",
+            key="builder_lookback",
         )
-        if selected_override != "Use Specification Cadence":
-            override_cadence = selected_override.lower()
-            st.info(f"📊 Cadence override active: {selected_override} (specification cadence: {spec.get('frequency', '').title()})")
+        lookback_override = lookback_options.get(lookback_label, 7)
+        cadence_override_options = ["Use specification limit", "Allow run (no limit)"]
+        allow_override = st.selectbox(
+            "Run frequency:",
+            options=cadence_override_options,
+            index=1,
+            help="Allow run even if specification would block (e.g. already ran this week).",
+            key="builder_cadence_override",
+        )
+        if allow_override == "Allow run (no limit)":
+            override_cadence = "infinite"
+        st.caption("Lookback: {} · Runs: {}.".format(lookback_label, "unlimited" if override_cadence else "per specification"))
     
     st.markdown("---")
     
@@ -424,6 +435,7 @@ elif page == "📰 Generate Report":
                 user_email=st.session_state.user_email,
                 run_specification=run_spec,
                 cadence_override=override_cadence,
+                lookback_override=lookback_override,
             )
             phase1_elapsed = time.perf_counter() - phase1_start
             if err:
@@ -455,6 +467,7 @@ elif page == "📰 Generate Report":
             "workspace_id": st.session_state.selected_workspace,
             "user_email": st.session_state.user_email,
             "cadence_override": override_cadence,
+            "lookback_override": lookback_override,
         }
         st.session_state.gen_error = None
         st.rerun()
@@ -477,6 +490,8 @@ elif page == "📰 Generate Report":
                     workspace_id=params.get("workspace_id"),
                     spec_id=params.get("spec_id"),
                     run_specification=run_spec,
+                    cadence_override=params.get("cadence_override"),
+                    lookback_override=params.get("lookback_override"),
                 )
             except Exception as e:
                 from core.generator_db import update_run_status

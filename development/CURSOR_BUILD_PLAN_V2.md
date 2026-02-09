@@ -7,6 +7,7 @@
 - Implement admin-only global Source Registry
 - Metadata-only storage (no full article text)
 - Evidence-first: report can only cite candidate_articles URLs
+- **Date range**: Always use app date (`datetime.utcnow()`), never the LLM’s date. **Normal users**: lookback from spec frequency (daily=2, weekly=7, monthly=30). **Builder only** (stefan.hermes@htcglobal.asia): can choose lookback **1, 7, or 30 days** and run as often as they want (run limit bypassed). Filtering: evidence engine, writer, web search prompt, HTML render. See `core/run_dates.py` and `BUILDER_EMAIL` in `generator_execution.py`.
 
 ---
 

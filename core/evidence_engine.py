@@ -1,10 +1,16 @@
 """
 V2 Evidence Engine: orchestrates source ingestion and web search, persists candidate_articles.
 Run after run record is created (run_id exists). Metadata-only; no full article text.
+Date filtering: uses app date (reference_date) and cadence to only keep candidates within
+lookback window. Never relies on LLM/model date.
 """
 
+import time
 from typing import List, Dict, Any, Optional
+from datetime import datetime
+
 from core.admin_db import get_all_sources
+from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_date_range
 from core.generator_db import insert_candidate_articles
 from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED
 from core.query_planner import build_query_plan
@@ -85,28 +91,59 @@ def run_evidence_engine(
     spec: Dict,
     validate_urls: bool = True,
     search_provider: Optional[Any] = None,
+    cadence_override: Optional[str] = None,
+    reference_date: Optional[datetime] = None,
+    lookback_days_override: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Load enabled sources, ingest from RSS/sitemap/html_list, run query plan via search,
-    canonicalize + validate + dedupe, insert candidate_articles.
-    Returns summary: { "candidates_from_sources": int, "candidates_from_search": int, "inserted": int, "query_plan": [...] }.
+    canonicalize + validate + dedupe, filter by date range (cadence + app date), insert candidate_articles.
+    reference_date defaults to datetime.utcnow() so the app, not the model, defines "today".
+    When lookback_days_override is set (e.g. 1, 7, 30 for builder), that defines the window; otherwise
+    lookback is from spec frequency (daily=2, weekly=7, monthly=30). cadence_override only bypasses run limit.
+    Returns summary: { "candidates_from_sources": int, "candidates_from_search": int, "inserted": int, "query_plan": [...], "lookback_date": iso, "reference_date": iso }.
     """
+    ref_date = reference_date if reference_date is not None else datetime.utcnow()
+    if lookback_days_override is not None and lookback_days_override > 0:
+        from core.run_dates import get_lookback_from_days
+        lookback_date, ref_date = get_lookback_from_days(lookback_days_override, ref_date)
+        cadence = f"{lookback_days_override}d"
+        lookback_days = lookback_days_override
+    else:
+        cadence = spec.get("frequency", "monthly")
+        lookback_date, ref_date = get_lookback_from_cadence(cadence, ref_date)
+        lookback_days = get_lookback_days(cadence)
+
     summary: Dict[str, Any] = {
         "candidates_from_sources": 0,
         "candidates_from_search": 0,
         "inserted": 0,
         "query_plan": [],
+        "timing_seconds": {},
+        "lookback_date": lookback_date.isoformat(),
+        "reference_date": ref_date.isoformat(),
+        "cadence": cadence,
     }
     all_candidates: List[Dict[str, Any]] = []
+    t0 = time.perf_counter()
 
     # 1) Source ingestion
     sources = [s for s in (get_all_sources() or []) if s.get("enabled", True)]
+    t_ingest_start = time.perf_counter()
     from_sources = _ingest_sources(sources)
+    summary["timing_seconds"]["source_ingestion"] = round(time.perf_counter() - t_ingest_start, 1)
     for c in from_sources:
         c["query_id"] = None
         c["query_text"] = None
     all_candidates.extend(from_sources)
     summary["candidates_from_sources"] = len(from_sources)
+    # Per-source productivity (count by source_id/source_name for ingested items)
+    from collections import Counter
+    source_counts: Counter = Counter()
+    for c in from_sources:
+        name = (c.get("source_name") or "unknown").strip()
+        source_counts[name] += 1
+    summary["by_source"] = [{"source_name": name, "count": count} for name, count in source_counts.most_common()]
 
     # 2) Query plan + web search
     regions = spec.get("regions") or []
@@ -116,26 +153,41 @@ def run_evidence_engine(
     plan = build_query_plan(regions, categories, value_chain_links, company_aliases)
     summary["query_plan"] = [{"query_id": q.get("query_id"), "query_text": q.get("query_text"), "intent": q.get("intent")} for q in plan]
 
+    t_search_start = time.perf_counter()
     provider = search_provider or OpenAIWebSearchProvider()
     from_search: List[Dict[str, Any]] = []
     for q in plan:
         qid = q.get("query_id")
         qtext = q.get("query_text")
-        for item in provider.search(qtext or "", max_results=10):
+        for item in provider.search(
+            qtext or "",
+            max_results=10,
+            reference_date=ref_date,
+            lookback_days=lookback_days,
+        ):
             item["query_id"] = qid
             item["query_text"] = qtext
             item["source_id"] = None
             item["source_name"] = item.get("source_name") or "web_search"
             from_search.append(item)
+    summary["timing_seconds"]["web_search"] = round(time.perf_counter() - t_search_start, 1)
     all_candidates.extend(from_search)
     summary["candidates_from_search"] = len(from_search)
+    # Add web_search to per-source breakdown (for full picture we'd need to merge with by_source after dedupe; here we add search total as one row)
+    if from_search:
+        existing = summary.get("by_source") or []
+        summary["by_source"] = existing + [{"source_name": "web_search", "count": len(from_search)}]
 
-    # 3) Canonicalize, validate, dedupe
+    # 3) Canonicalize, validate, dedupe, and filter by date range (cadence + app date)
+    t_validate_start = time.perf_counter()
     seen: set = set()
     to_insert: List[Dict[str, Any]] = []
     for c in all_candidates:
         url = (c.get("url") or "").strip()
         if not url or not url.startswith(("http://", "https://")):
+            continue
+        # Date filter: only keep candidates within [lookback_date, reference_date]; keep if no date
+        if not is_in_date_range(c.get("published_at"), lookback_date, ref_date):
             continue
         canonical = canonicalize_url(url)
         if not canonical or canonical in seen:
@@ -159,8 +211,12 @@ def run_evidence_engine(
             rec["validation_status"] = status
             rec["http_status"] = code
         to_insert.append(rec)
+    summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
 
     # 4) Persist
+    t_persist_start = time.perf_counter()
     inserted = insert_candidate_articles(run_id, workspace_id, specification_id, to_insert)
+    summary["timing_seconds"]["persist"] = round(time.perf_counter() - t_persist_start, 1)
     summary["inserted"] = inserted
+    summary["timing_seconds"]["total"] = round(time.perf_counter() - t0, 1)
     return summary

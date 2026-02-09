@@ -7,6 +7,7 @@ from typing import Dict, Optional, Tuple, List
 from datetime import datetime
 import json
 
+from core.run_dates import get_lookback_from_cadence, get_lookback_from_days
 from core.generator_db import (
     get_specification_detail,
     check_frequency_enforcement,
@@ -16,12 +17,16 @@ from core.generator_db import (
 )
 from core.content_pipeline import render_html_from_content
 
+# Builder-only: can set lookback to 1/7/30 days and run without frequency limit
+BUILDER_EMAIL = "stefan.hermes@htcglobal.asia"
+
 
 def execute_generator(
     spec_id: str,
     workspace_id: str,
     user_email: str,
     cadence_override: Optional[str] = None,
+    lookback_override: Optional[int] = None,
     categories_override: Optional[List[str]] = None,
     regions_override: Optional[List[str]] = None,
     value_chain_links_override: Optional[List[str]] = None
@@ -73,7 +78,10 @@ def execute_generator(
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
     run_id = run["id"]
 
-    # V2: Run Evidence Engine — persist candidate_articles for this run
+    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 days; else spec)
+    ref_date = datetime.utcnow()
+    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
+    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30) else None)
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -82,12 +90,18 @@ def execute_generator(
             specification_id=spec_id,
             spec=run_specification,
             validate_urls=True,
+            cadence_override=cadence_override,
+            reference_date=ref_date,
+            lookback_days_override=lookback_days_override,
         )
     except Exception as ev_err:
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
 
-    # V2 Phase 4: Get candidates, run extraction, then bounded writer (report only cites candidate_articles)
     candidates = get_candidate_articles_for_run(run_id)
+    if lookback_days_override is not None:
+        lookback_date, reference_date = get_lookback_from_days(lookback_days_override, ref_date)
+    else:
+        lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
     try:
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
@@ -104,6 +118,8 @@ def execute_generator(
         writer_output = write_report_from_evidence(
             spec=run_specification,
             candidates=candidates,
+            lookback_date=lookback_date,
+            reference_date=reference_date,
         )
     except Exception as e:
         update_run_status(run_id, "failed", error_message=str(e))
@@ -164,6 +180,7 @@ def run_phase_evidence(
     user_email: str,
     run_specification: Dict,
     cadence_override: Optional[str] = None,
+    lookback_override: Optional[int] = None,
 ) -> Tuple[Optional[str], Optional[Dict], Optional[Dict], Optional[Dict], Optional[str]]:
     """
     Phase 1: Create run record and run evidence engine. Call from UI; then show "Found X items" and run next phase.
@@ -187,6 +204,9 @@ def run_phase_evidence(
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
     run_id = run["id"]
 
+    ref_date = datetime.utcnow()
+    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
+    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30) else None)
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -195,6 +215,9 @@ def run_phase_evidence(
             specification_id=spec_id,
             spec=run_specification,
             validate_urls=True,
+            cadence_override=cadence_override,
+            reference_date=ref_date,
+            lookback_days_override=lookback_days_override,
         )
     except Exception as ev_err:
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
@@ -207,11 +230,19 @@ def run_phase_extract_and_write(
     workspace_id: str,
     spec_id: str,
     run_specification: Dict,
+    cadence_override: Optional[str] = None,
+    lookback_override: Optional[int] = None,
 ) -> Tuple[Dict, Dict]:
     """
     Phase 2: Get candidates, run extraction, run writer. Returns (writer_output, extraction_result).
+    When lookback_override is set (builder only, 1/7/30 days), use it; else use spec frequency.
     """
     candidates = get_candidate_articles_for_run(run_id)
+    ref_date = datetime.utcnow()
+    if lookback_override in (1, 7, 30):
+        lookback_date, reference_date = get_lookback_from_days(lookback_override, ref_date)
+    else:
+        lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
     try:
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
@@ -224,7 +255,12 @@ def run_phase_extract_and_write(
         extraction_result = {"signals_created": 0, "occurrences_created": 0}
 
     from core.intelligence_writer import write_report_from_evidence
-    writer_output = write_report_from_evidence(spec=run_specification, candidates=candidates)
+    writer_output = write_report_from_evidence(
+        spec=run_specification,
+        candidates=candidates,
+        lookback_date=lookback_date,
+        reference_date=reference_date,
+    )
     return writer_output, extraction_result
 
 
@@ -246,6 +282,8 @@ def run_phase_render_and_save(
     report_content = writer_output["content"]
     coverage_low = writer_output.get("coverage_low", False)
 
+    run_lookback = evidence_summary.get("lookback_date") if evidence_summary else None
+    run_reference = evidence_summary.get("reference_date") if evidence_summary else None
     html_content, diagnostics = render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
         assistant_content=report_content,
@@ -258,7 +296,9 @@ def run_phase_render_and_save(
             "coverage_low": coverage_low,
         },
         user_email=user_email,
-        cadence_override=cadence_override
+        cadence_override=cadence_override,
+        lookback_date=run_lookback,
+        reference_date=run_reference,
     )
 
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"

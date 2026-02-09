@@ -3,7 +3,7 @@ Content pipeline for generating newsletter content.
 Fetches, filters, deduplicates, ranks, and assembles newsletter sections.
 """
 
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 import random
 import re
@@ -137,24 +137,29 @@ def render_html_from_content(
     spec: Dict,
     metadata: Optional[Dict] = None,
     user_email: Optional[str] = None,
-    cadence_override: Optional[str] = None
+    cadence_override: Optional[str] = None,
+    lookback_date: Optional[Any] = None,
+    reference_date: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """
     Render OpenAI Assistant content as professional HTML report.
     Converts markdown/text content from Assistant into formatted HTML similar to invoice styling.
+    When lookback_date and reference_date are provided (e.g. from run), use them for display filtering;
+    else compute from spec frequency.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime
     import base64
-    
-    # Calculate lookback period based on cadence (for date filtering)
-    cadence = cadence_override or spec.get('frequency', 'monthly')
-    if cadence == 'daily':
-        lookback_days = 2
-    elif cadence == 'weekly':
-        lookback_days = 7
-    else:  # monthly
-        lookback_days = 30
-    lookback_date = datetime.utcnow() - timedelta(days=lookback_days)
+    from core.run_dates import get_lookback_from_cadence
+
+    if lookback_date is not None and reference_date is not None:
+        try:
+            lookback_date = lookback_date if isinstance(lookback_date, datetime) else datetime.fromisoformat(str(lookback_date).replace("Z", "+00:00"))
+            reference_date = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))
+        except Exception:
+            lookback_date = reference_date = None
+    if lookback_date is None or reference_date is None:
+        cadence = spec.get('frequency', 'monthly')
+        lookback_date, _ = get_lookback_from_cadence(cadence, datetime.utcnow())
     from pathlib import Path
     import re
     
@@ -433,12 +438,11 @@ def render_html_from_content(
                 url_at_end = url_match.group(1)
                 item_text_clean = item_text_clean[:url_match.start()].strip()
             
-            # Source separator: hyphen, colon, or semicolon only (no en/em dash)
-            # Patterns: "Text - Source", "Text : Source", "Text ; Source"
-            source_match = re.search(r'\s*[-:;]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+            # Source separator: hyphen, colon, semicolon, en dash (U+2013), em dash (U+2014)
+            # Writer outputs " — {source} ({date})" so we must match em dash
+            source_match = re.search(r'\s*[-:;\u2013\u2014]\s+([A-Za-z0-9][A-Za-z0-9\s&.,\-_]+?)(?:\s*$)', item_text_clean)
             if not source_match:
-                # Optional: no space after separator "Text: Source" or "Text; Source"
-                source_match = re.search(r'\s*[-:;]([A-Za-z0-9][A-Za-z0-9\s&.,\-]+?)(?:\s*$)', item_text_clean)
+                source_match = re.search(r'\s*[-:;\u2013\u2014]([A-Za-z0-9][A-Za-z0-9\s&.,\-_]+?)(?:\s*$)', item_text_clean)
             
             if source_match:
                 source = source_match.group(1).strip()
@@ -482,14 +486,15 @@ def render_html_from_content(
             # Item passed all checks - include it
             items_included += 1
             
-            # Add URL if available; only make it clickable if it returns 2xx (avoids 404 from hallucinated URLs)
+            # Add URL if available; only make it clickable if valid and returns 2xx (avoid empty/broken links)
             url_html = ""
             if urls_found:
-                url = urls_found[0]
-                if _url_returns_ok(url):
-                    url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
-                else:
-                    url_html = f' <span class="news-url-unavailable" style="color: #888;">{url} (link unavailable)</span>'
+                url = (urls_found[0] or "").strip()
+                if url and url.startswith(("http://", "https://")):
+                    if _url_returns_ok(url):
+                        url_html = f' <a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{url}</a>'
+                    else:
+                        url_html = f' <span class="news-url-unavailable" style="color: #888;">{url} (link unavailable)</span>'
             html_lines.append(f'<li><span class="news-item">{main_text}</span> <span class="news-source">- {source}</span>{date_html}{url_html}</li>')
         else:
             if in_list:
@@ -564,6 +569,10 @@ def render_html_from_content(
     # Replace double line breaks with paragraph breaks for rest of content
     html_content = re.sub(r'\n\n+', '</p><p>', html_content)
     html_content = '<p>' + html_content + '</p>'
+    # Don't wrap block elements in <p>: remove <p>/</p> around h1,h2,h3,ul so output is valid HTML
+    html_content = re.sub(r'<p>\s*(<h[123]>|<ul\s)', r'\1', html_content)
+    html_content = re.sub(r'(</h[123]>|</ul>)\s*</p>', r'\1', html_content)
+    html_content = re.sub(r'</p>\s*<p>\s*(?=<(?:h[123]|ul))', '\n', html_content)
     
     # Re-insert the formatted Executive Summary (already has <p> tags, so don't wrap it)
     if exec_summary_formatted:
