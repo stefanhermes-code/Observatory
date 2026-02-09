@@ -22,7 +22,12 @@ from core.generator_db import (
     get_specification_history,
     get_last_successful_run
 )
-from core.generator_execution import execute_generator
+from core.generator_execution import (
+    execute_generator,
+    run_phase_evidence,
+    run_phase_extract_and_write,
+    run_phase_render_and_save,
+)
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 
 # Page configuration
@@ -384,87 +389,168 @@ elif page == "📰 Generate Report":
     
     st.markdown("---")
     
-    # Generate button
-    if st.button("🚀 Generate Report Now", type="primary", width="stretch"):
-        # Validate selections
+    # Session state for phased generation (progress feedback)
+    if "gen_phase" not in st.session_state:
+        st.session_state.gen_phase = 0
+    if "gen_error" not in st.session_state:
+        st.session_state.gen_error = None
+
+    # Generate button (only when idle)
+    if st.session_state.gen_phase == 0 and st.button("🚀 Generate Report Now", type="primary", width="stretch"):
         if len(selected_categories) == 0:
             st.error("❌ Please select at least one category.")
             st.stop()
         if len(selected_regions) == 0:
             st.error("❌ Please select at least one region.")
             st.stop()
-        
-        # Value chain links override (only when value_chain_link is in selected categories)
         value_chain_links_override = None
         if spec_has_value_chain:
             value_chain_links_override = st.session_state[spec_selection_key].get("value_chain_links", [])
-        
-        with st.spinner("Generating report..."):
-            # Execute canonical 7-step Generator execution pattern
-            # Pass selected categories, regions, and value chain links as override
-            success, error_message, result_data, artifact_path = execute_generator(
+
+        run_spec = spec.copy()
+        run_spec["categories"] = selected_categories
+        run_spec["regions"] = selected_regions
+        if value_chain_links_override is not None:
+            run_spec["value_chain_links"] = value_chain_links_override
+
+        with st.status("Creating run and collecting evidence…", expanded=True) as status:
+            st.write("Checking specification and cadence…")
+            st.write("Ingesting sources and running search (this may take a minute)…")
+            run_id, evidence_summary, run_spec, spec_for_phase, err = run_phase_evidence(
                 spec_id=spec_id,
                 workspace_id=st.session_state.selected_workspace,
                 user_email=st.session_state.user_email,
+                run_specification=run_spec,
                 cadence_override=override_cadence,
-                categories_override=selected_categories,
-                regions_override=selected_regions,
-                value_chain_links_override=value_chain_links_override
             )
-            
-            if not success:
-                st.error(f"❌ Generation failed: {error_message}")
-            else:
-                # Success - display results
-                html_content = result_data["html_content"]
-                metadata = result_data.get("metadata", {})
+            if err:
+                st.session_state.gen_error = err
+                st.session_state.gen_phase = 0
+                status.update(label="Failed", state="error")
+                st.rerun()
+            inserted = (evidence_summary or {}).get("inserted", 0)
+            st.write(f"**Found {inserted} items.** Extracting and building report…")
 
-                # Limited transparency: item count and comparison to previous run only (no sources, queries, or internal diagnostics)
-                evidence_summary = metadata.get("evidence_summary") or {}
-                item_count = evidence_summary.get("inserted", 0)
-                coverage_low = metadata.get("coverage_low", False)
+        st.session_state.gen_phase = 1
+        st.session_state.gen_run_id = run_id
+        st.session_state.gen_evidence_summary = evidence_summary
+        st.session_state.gen_run_spec = run_spec
+        st.session_state.gen_spec = spec_for_phase
+        st.session_state.gen_params = {
+            "spec_id": spec_id,
+            "workspace_id": st.session_state.selected_workspace,
+            "user_email": st.session_state.user_email,
+            "cadence_override": override_cadence,
+        }
+        st.session_state.gen_error = None
+        st.rerun()
 
-                st.success("✅ Report generated successfully.")
-                st.markdown("### Report summary")
-                if coverage_low:
-                    st.info("This run had limited coverage; the report reflects the evidence available.")
-                st.write(f"This report is based on **{item_count}** items.")
-                try:
-                    last_run = get_last_successful_run(spec_id)
-                    if last_run and last_run.get("id") != result_data.get("run_id"):
-                        prev_meta = (last_run.get("metadata") or {}) if isinstance(last_run.get("metadata"), dict) else {}
-                        prev_inserted = (prev_meta.get("evidence_summary") or {}).get("inserted")
-                        if prev_inserted is not None:
-                            st.write(f"Previous run had **{prev_inserted}** items.")
-                except Exception:
-                    pass
+    # Phase 1 done: run extraction + writer, then rerun
+    if st.session_state.gen_phase == 1:
+        run_id = st.session_state.get("gen_run_id")
+        run_spec = st.session_state.get("gen_run_spec")
+        params = st.session_state.get("gen_params", {})
+        with st.status("Building report from evidence…", expanded=True) as status:
+            st.write(f"Found **{(st.session_state.get('gen_evidence_summary') or {}).get('inserted', 0)}** items.")
+            st.write("Extracting signals and writing report…")
+            try:
+                writer_output, extraction_result = run_phase_extract_and_write(
+                    run_id=run_id,
+                    workspace_id=params.get("workspace_id"),
+                    spec_id=params.get("spec_id"),
+                    run_specification=run_spec,
+                )
+            except Exception as e:
+                from core.generator_db import update_run_status
+                update_run_status(run_id, "failed", error_message=str(e))
+                st.session_state.gen_error = str(e)
+                st.session_state.gen_phase = 0
+                status.update(label="Failed", state="error")
+                st.rerun()
+            st.write("Rendering and saving…")
 
-                # Display preview
-                st.markdown("### Preview")
-                st.components.v1.html(html_content, height=600, scrolling=True)
-                
-                # Download and Print buttons side by side
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        "📥 Download HTML",
-                        data=html_content,
-                        file_name=f"{spec.get('newsletter_name', 'report')}_{datetime.utcnow().strftime('%Y%m%d')}.html",
-                        mime="text/html",
-                        width="stretch"
-                    )
-                with col2:
-                    # Print button - styled exactly like download button
-                    print_clicked = st.button("🖨️ Print Report", width="stretch", type="primary")
-                    if print_clicked:
-                        # Inject JavaScript to trigger print
-                        st.markdown("""
-                            <script>
-                            setTimeout(function() {
-                                window.print();
-                            }, 100);
-                            </script>
-                        """, unsafe_allow_html=True)
+        st.session_state.gen_writer_output = writer_output
+        st.session_state.gen_extraction_result = extraction_result
+        st.session_state.gen_phase = 2
+        st.rerun()
+
+    # Phase 2 done: render and save, then show result
+    if st.session_state.gen_phase == 2:
+        params = st.session_state.get("gen_params", {})
+        with st.status("Finalizing report…", expanded=True) as status:
+            st.write("Rendering HTML and saving run.")
+            result_data = run_phase_render_and_save(
+                run_id=st.session_state.get("gen_run_id"),
+                workspace_id=params.get("workspace_id"),
+                spec_id=params.get("spec_id"),
+                user_email=params.get("user_email"),
+                spec=st.session_state.get("gen_spec"),
+                run_specification=st.session_state.get("gen_run_spec"),
+                writer_output=st.session_state.get("gen_writer_output"),
+                extraction_result=st.session_state.get("gen_extraction_result"),
+                evidence_summary=st.session_state.get("gen_evidence_summary"),
+                cadence_override=params.get("cadence_override"),
+            )
+            status.update(label="Done", state="complete")
+
+        st.session_state.gen_result_data = result_data
+        st.session_state.gen_phase = 3
+        st.rerun()
+
+    # Show error from any phase
+    if st.session_state.get("gen_error"):
+        st.error(f"❌ Generation failed: {st.session_state.gen_error}")
+        st.session_state.gen_phase = 0
+        st.session_state.gen_error = None
+        st.stop()
+
+    # Phase 3: show result and clear for next time
+    if st.session_state.gen_phase == 3:
+        result_data = st.session_state.get("gen_result_data")
+        if result_data:
+            html_content = result_data["html_content"]
+            metadata = result_data.get("metadata", {})
+            evidence_summary = metadata.get("evidence_summary") or {}
+            item_count = evidence_summary.get("inserted", 0)
+            coverage_low = metadata.get("coverage_low", False)
+
+            st.success("✅ Report generated successfully.")
+            st.markdown("### Report summary")
+            if coverage_low:
+                st.info("This run had limited coverage; the report reflects the evidence available.")
+            st.write(f"This report is based on **{item_count}** items.")
+            try:
+                last_run = get_last_successful_run(spec_id)
+                if last_run and last_run.get("id") != result_data.get("run_id"):
+                    prev_meta = (last_run.get("metadata") or {}) if isinstance(last_run.get("metadata"), dict) else {}
+                    prev_inserted = (prev_meta.get("evidence_summary") or {}).get("inserted")
+                    if prev_inserted is not None:
+                        st.write(f"Previous run had **{prev_inserted}** items.")
+            except Exception:
+                pass
+
+            st.markdown("### Preview")
+            st.components.v1.html(html_content, height=600, scrolling=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                    "📥 Download HTML",
+                    data=html_content,
+                    file_name=f"{spec.get('newsletter_name', 'report')}_{datetime.utcnow().strftime('%Y%m%d')}.html",
+                    mime="text/html",
+                    width="stretch"
+                )
+            with col2:
+                print_clicked = st.button("🖨️ Print Report", width="stretch", type="primary")
+                if print_clicked:
+                    st.markdown("""
+                        <script>
+                        setTimeout(function() { window.print(); }, 100);
+                        </script>
+                    """, unsafe_allow_html=True)
+
+        st.session_state.gen_phase = 0
+        st.session_state.gen_result_data = None
 
 elif page == "📚 History":
     st.subheader("📚 History")

@@ -154,3 +154,131 @@ def execute_generator(
 
     return True, None, result_data, artifact_path
 
+
+# --- Phased execution for UI progress feedback (each phase can be run, then UI updates, then next phase) ---
+
+
+def run_phase_evidence(
+    spec_id: str,
+    workspace_id: str,
+    user_email: str,
+    run_specification: Dict,
+    cadence_override: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[Dict], Optional[Dict], Optional[Dict], Optional[str]]:
+    """
+    Phase 1: Create run record and run evidence engine. Call from UI; then show "Found X items" and run next phase.
+    Returns (run_id, evidence_summary, run_specification, spec, error_message).
+    If error_message is set, other return values are None.
+    """
+    spec = get_specification_detail(spec_id)
+    if not spec:
+        return None, None, None, None, "Specification not found"
+    if spec.get("status") != "active":
+        return None, None, None, None, f"Specification is not active (status: {spec.get('status')})"
+
+    frequency = spec.get("frequency", "monthly")
+    if cadence_override:
+        is_allowed, reason, next_date = True, None, None
+    else:
+        is_allowed, reason, next_date = check_frequency_enforcement(spec_id, frequency, user_email)
+    if not is_allowed:
+        return None, None, None, None, reason or "Cadence limit reached"
+
+    run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
+    run_id = run["id"]
+
+    try:
+        from core.evidence_engine import run_evidence_engine
+        evidence_summary = run_evidence_engine(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            specification_id=spec_id,
+            spec=run_specification,
+            validate_urls=True,
+        )
+    except Exception as ev_err:
+        evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
+
+    return run_id, evidence_summary, run_specification, spec, None
+
+
+def run_phase_extract_and_write(
+    run_id: str,
+    workspace_id: str,
+    spec_id: str,
+    run_specification: Dict,
+) -> Tuple[Dict, Dict]:
+    """
+    Phase 2: Get candidates, run extraction, run writer. Returns (writer_output, extraction_result).
+    """
+    candidates = get_candidate_articles_for_run(run_id)
+    try:
+        from core.intelligence_extraction import run_intelligence_extraction
+        extraction_result = run_intelligence_extraction(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            specification_id=spec_id,
+            candidates=candidates,
+        )
+    except Exception:
+        extraction_result = {"signals_created": 0, "occurrences_created": 0}
+
+    from core.intelligence_writer import write_report_from_evidence
+    writer_output = write_report_from_evidence(spec=run_specification, candidates=candidates)
+    return writer_output, extraction_result
+
+
+def run_phase_render_and_save(
+    run_id: str,
+    workspace_id: str,
+    spec_id: str,
+    user_email: str,
+    spec: Dict,
+    run_specification: Dict,
+    writer_output: Dict,
+    extraction_result: Dict,
+    evidence_summary: Dict,
+    cadence_override: Optional[str] = None,
+) -> Dict:
+    """
+    Phase 3: Render HTML, update run status, return result_data for UI.
+    """
+    report_content = writer_output["content"]
+    coverage_low = writer_output.get("coverage_low", False)
+
+    html_content, diagnostics = render_html_from_content(
+        newsletter_name=spec.get("newsletter_name", "Newsletter"),
+        assistant_content=report_content,
+        spec=run_specification,
+        metadata={
+            "model": "v2_evidence_writer",
+            "tokens_used": 0,
+            "timestamp": datetime.utcnow().isoformat(),
+            "extraction": extraction_result,
+            "coverage_low": coverage_low,
+        },
+        user_email=user_email,
+        cadence_override=cadence_override
+    )
+
+    artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
+    metadata_with_html = {
+        "html_content": html_content,
+        "model": "v2_evidence_writer",
+        "tokens_used": 0,
+        "timestamp": datetime.utcnow().isoformat(),
+        "content_diagnostics": diagnostics,
+        "evidence_summary": evidence_summary,
+        "extraction_result": extraction_result,
+        "coverage_low": coverage_low,
+    }
+    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
+
+    return {
+        "run_id": run_id,
+        "html_content": html_content,
+        "assistant_output": report_content,
+        "metadata": metadata_with_html,
+        "artifact_path": artifact_path,
+    }
+
