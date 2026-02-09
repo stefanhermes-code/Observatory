@@ -15,10 +15,15 @@ from core.generator_db import (
     update_run_status,
     get_candidate_articles_for_run,
 )
-from core.content_pipeline import render_html_from_content
 
 # Builder-only: can set lookback to 1/7/30 days and run without frequency limit
 BUILDER_EMAIL = "stefan.hermes@htcglobal.asia"
+
+
+def _render_html_from_content(*args, **kwargs):
+    """Lazy import to avoid KeyError on 'core.content_pipeline' under Streamlit Cloud."""
+    from core.content_pipeline import render_html_from_content
+    return render_html_from_content(*args, **kwargs)
 
 
 def execute_generator(
@@ -131,7 +136,7 @@ def execute_generator(
 
     # Step 7: Persist Results — render writer output to HTML (same pipeline as before)
     display_cadence = cadence_override if cadence_override else None
-    html_content, diagnostics = render_html_from_content(
+    html_content, diagnostics = _render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
         assistant_content=report_content,
         spec=run_specification,
@@ -284,7 +289,7 @@ def run_phase_render_and_save(
 
     run_lookback = evidence_summary.get("lookback_date") if evidence_summary else None
     run_reference = evidence_summary.get("reference_date") if evidence_summary else None
-    html_content, diagnostics = render_html_from_content(
+    html_content, diagnostics = _render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
         assistant_content=report_content,
         spec=run_specification,
