@@ -34,6 +34,7 @@ from core.admin_db import (
     get_audit_logs,
     log_audit_action,
     get_all_sources,
+    get_source_productivity,
     get_source_by_id,
     create_source,
     update_source,
@@ -2587,6 +2588,19 @@ elif page == "🔗 Sources":
             st.error(str(e))
     st.markdown("---")
     sources_list = get_all_sources()
+    # Historical productivity: candidate_articles count per source (all time)
+    try:
+        productivity = get_source_productivity()
+    except Exception:
+        productivity = []
+    if productivity:
+        st.subheader("Historical productivity")
+        st.caption("Total candidate articles per source (all time). Use this to see which sources are worth keeping.")
+        import pandas as pd
+        df_prod = pd.DataFrame(productivity)[["source_name", "count"]]
+        df_prod = df_prod.rename(columns={"source_name": "Source", "count": "Items (all time)"})
+        st.dataframe(df_prod, use_container_width=True, hide_index=True)
+        st.markdown("---")
     if not sources_list:
         st.info("No sources yet. Add an RSS feed or other source below to get started.")
     else:

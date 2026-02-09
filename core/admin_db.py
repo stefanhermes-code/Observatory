@@ -433,6 +433,34 @@ def get_all_sources() -> List[Dict]:
         raise
 
 
+def get_source_productivity() -> List[Dict]:
+    """
+    Historical productivity: count of candidate_articles per source (all time).
+    Returns list of { source_id, source_name, count } sorted by count descending.
+    Includes web_search (source_id null) and any registered source that has contributed items.
+    """
+    supabase = get_supabase_client()
+    try:
+        # Fetch all candidate_articles with only source_id and source_name (may be many rows)
+        result = supabase.table("candidate_articles").select("source_id, source_name").execute()
+        rows = result.data or []
+    except Exception as e:
+        if "does not exist" in str(e).lower() or "candidate_articles" in str(e).lower():
+            return []
+        raise
+    from collections import Counter
+    # Count by (source_id, source_name) so we distinguish same name from different sources
+    counter: Counter = Counter()
+    for r in rows:
+        sid = r.get("source_id")
+        name = (r.get("source_name") or "unknown").strip()
+        counter[(sid, name)] += 1
+    out = []
+    for (sid, name), count in counter.most_common():
+        out.append({"source_id": sid, "source_name": name, "count": count})
+    return out
+
+
 def get_source_by_id(source_id: str) -> Optional[Dict]:
     """Get a single source by id."""
     supabase = get_supabase_client()
