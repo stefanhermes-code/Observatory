@@ -337,6 +337,8 @@ def get_recent_runs(limit: int = 10) -> List[Dict]:
         return runs
     except Exception as e:
         # Fallback: Get runs and specs separately, then join manually
+        import logging
+        logging.warning("get_recent_runs primary query failed: %s", e)
         try:
             # Get runs
             runs_result = supabase.table("newsletter_runs")\
@@ -369,7 +371,9 @@ def get_recent_runs(limit: int = 10) -> List[Dict]:
             
             return runs
         except Exception as fallback_error:
-            # If even fallback fails, return empty list
+            # If even fallback fails, return empty list (e.g. RLS blocking SELECT on newsletter_runs)
+            import logging
+            logging.warning("get_recent_runs failed (primary and fallback): %s", fallback_error)
             return []
 
 

@@ -2,39 +2,25 @@
 V2-LLM-02: Bounded report writer.
 Uses only candidate_articles for this run; every URL in the report must be from that set.
 If evidence count < min_evidence, returns a coverage note and stops.
-Filters: (1) search-result meta text; (2) date range (cadence + app date) when lookback/reference provided.
+Filtering is done earlier (Evidence Engine); writer only enforces min_evidence and builds structure.
+
+Report structure (hierarchy):
+  1. Categories (main structure) — ##
+  2. Regions (substructure) — ###
+  3. Value chain links (sub-substructure) — ####
+The "value_chain" category is not used as a top-level section; value chain is represented only
+by the value_chain_links selection as sub-substructure under each category/region.
 """
 
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 # Minimum number of candidate articles to generate a full report
 DEFAULT_MIN_EVIDENCE = 3
 
-# Patterns that indicate the title/snippet is search-result preamble, not actual news
-_META_SNIPPET_PATTERNS = [
-    r"^Here are (several |the most )?(relevant and )?factual",
-    r"^Here are the most relevant",
-    r"search results (for the query |related to )",
-    r"presented as titles?",
-    r"including (article|titles?)",
-    r"each with the title and a brief snippet",
-    r"short snippets?,? and (their )?source URLs",
-    r"in other words,.*?used in",
-]
-
-
-def _is_meta_snippet(text: str) -> bool:
-    """True if text looks like search-result meta/intro, not a real headline or summary."""
-    if not text or len(text.strip()) < 20:
-        return False
-    t = text.strip()
-    for pat in _META_SNIPPET_PATTERNS:
-        if re.search(pat, t, re.IGNORECASE):
-            return True
-    return False
-
+# Category IDs we exclude from top-level (replaced by value_chain_links as sub-substructure)
+EXCLUDED_CATEGORY_IDS = ("value_chain", "value_chain_link")
 
 def _format_item(c: Dict) -> str:
     """Format one candidate as a bullet: summary — Source (YYYY-MM-DD) url."""
@@ -62,6 +48,31 @@ def _format_item(c: Dict) -> str:
     return f"- {text}{source_part}"
 
 
+def _build_slots(
+    category_ids: List[str],
+    region_names: List[str],
+    value_chain_link_ids: List[str],
+    category_map: Dict[str, str],
+    region_list: List[str],
+    value_chain_link_map: Dict[str, str],
+) -> List[Tuple[str, str, str, str, str, str]]:
+    """
+    Build (category_id, category_name, region, value_chain_id, value_chain_name, slot_key) for each slot.
+    Hierarchy: Category → Region → Value chain link.
+    """
+    slots = []
+    for cid in category_ids:
+        cat_name = category_map.get(cid, cid)
+        regions = region_names if region_names else ["All regions"]
+        vc_links = value_chain_link_ids if value_chain_link_ids else [None]  # None = "Key developments"
+        for region in regions:
+            for vc_id in vc_links:
+                vc_name = value_chain_link_map.get(vc_id, "Key developments") if vc_id else "Key developments"
+                slot_key = f"{cid}|{region}|{vc_id or ''}"
+                slots.append((cid, cat_name, region, vc_id, vc_name, slot_key))
+    return slots
+
+
 def write_report_from_evidence(
     spec: Dict,
     candidates: List[Dict],
@@ -71,12 +82,11 @@ def write_report_from_evidence(
 ) -> Dict[str, Any]:
     """
     Build report content from candidate_articles only. Every URL is from the candidates list.
-    If len(candidates) < min_evidence, returns coverage-low message and stops.
-    Date filter: when lookback_date and reference_date are provided (from cadence + app date),
-    only candidates within that range (or with no date) are included.
+    Structure: Categories (##) → Regions (###) → Value chain links (####) → items.
+    The "value_chain" category is dropped from top-level; value_chain_links are used as sub-substructure only.
 
     Args:
-        spec: newsletter specification (newsletter_name, categories, regions, etc.)
+        spec: newsletter specification (newsletter_name, categories, regions, value_chain_links)
         candidates: list of candidate_articles rows (url, title, snippet, source_name, published_at)
         min_evidence: minimum candidates to produce a full report
         lookback_date, reference_date: app-defined date range; if both set, filter by published_at
@@ -84,25 +94,20 @@ def write_report_from_evidence(
     Returns:
         {"content": str, "coverage_low": bool}
     """
-    from core.taxonomy import PU_CATEGORIES
-    from core.run_dates import is_in_date_range
+    from core.taxonomy import PU_CATEGORIES, REGIONS, VALUE_CHAIN_LINKS
 
     newsletter_name = spec.get("newsletter_name", "Newsletter")
     selected_category_ids = spec.get("categories") or []
-    category_map = {cat["id"]: cat["name"] for cat in PU_CATEGORIES}
+    # Exclude value_chain and value_chain_link from top-level; value chain is represented by value_chain_links below
+    selected_category_ids = [c for c in selected_category_ids if c not in EXCLUDED_CATEGORY_IDS]
+    selected_regions = spec.get("regions") or []
+    selected_value_chain_links = spec.get("value_chain_links") or []
 
-    # Exclude candidates that are search-result meta text (e.g. "Here are several relevant...")
-    filtered_candidates = [
-        c for c in candidates
-        if not _is_meta_snippet((c.get("title") or "").strip())
-        and not _is_meta_snippet((c.get("snippet") or "").strip())
-    ]
-    # Date filter: only include candidates within [lookback_date, reference_date]; keep if no date
-    if lookback_date is not None and reference_date is not None:
-        filtered_candidates = [
-            c for c in filtered_candidates
-            if is_in_date_range(c.get("published_at"), lookback_date, reference_date)
-        ]
+    category_map = {cat["id"]: cat["name"] for cat in PU_CATEGORIES}
+    value_chain_link_map = {vc["id"]: vc["name"] for vc in VALUE_CHAIN_LINKS}
+
+    # No filtering here: Evidence Engine already filtered (meta-snippet, date, working URL). Only min_evidence check.
+    filtered_candidates = list(candidates)
 
     if len(filtered_candidates) < min_evidence:
         content = (
@@ -112,10 +117,22 @@ def write_report_from_evidence(
         )
         return {"content": content, "coverage_low": True}
 
-    # Build sections by spec categories; assign each candidate to first matching section for now
-    section_titles = [category_map.get(cid, cid) for cid in selected_category_ids]
-    if not section_titles:
-        section_titles = ["Key developments"]
+    # Build hierarchy slots: Category → Region → Value chain link
+    if not selected_category_ids:
+        selected_category_ids = ["industry_context"]  # fallback
+    slots = _build_slots(
+        selected_category_ids,
+        selected_regions,
+        selected_value_chain_links,
+        category_map,
+        selected_regions,
+        value_chain_link_map,
+    )
+    # Distribute candidates round-robin across slots
+    slot_items: Dict[str, List[Dict]] = {s[5]: [] for s in slots}
+    for j, c in enumerate(filtered_candidates):
+        slot_key = slots[j % len(slots)][5]
+        slot_items[slot_key].append(c)
 
     lines = [
         f"# {newsletter_name}",
@@ -124,27 +141,39 @@ def write_report_from_evidence(
         "",
     ]
 
-    # One section per category; distribute items across sections (round-robin)
-    for i, section_title in enumerate(section_titles):
-        lines.append(f"## {section_title}")
+    # Emit hierarchy: ## Category → ### Region → #### Value chain link → items
+    current_category = None
+    current_region = None
+    for (cid, cat_name, region, vc_id, vc_name, slot_key) in slots:
+        items = slot_items.get(slot_key, [])
+        if not items:
+            continue
+
+        if cid != current_category:
+            current_category = cid
+            current_region = None
+            lines.append(f"## {cat_name}")
+            lines.append("")
+
+        if region != current_region:
+            current_region = region
+            lines.append(f"### {region}")
+            lines.append("")
+
+        lines.append(f"#### {vc_name}")
         lines.append("")
-        # Items for this section: every (i + k*len(section_titles))-th candidate (use filtered list)
-        section_items = [
-            c for j, c in enumerate(filtered_candidates)
-            if j % len(section_titles) == i
-        ]
-        for c in section_items:
+        for c in items:
             lines.append(_format_item(c))
         lines.append("")
 
-    # Executive summary placeholder (3–5 short paragraphs as per spec)
+    # Executive summary at the end: reviews all information from the foregoing sections
     lines.extend([
         "## Executive Summary",
         "",
-        "This report is based on evidence collected from registered sources and search.",
-        "All items above cite only verified candidate articles for this run.",
+        "The following summarizes the key developments and themes from the sections above.",
         "",
-        "Key themes from the evidence set are reflected in the sections above.",
+        "This report is based on evidence collected from registered sources and search for the selected categories, regions, and value chain links. All items cite only verified candidate articles for this run.",
+        "",
         "For questions or broader coverage, adjust the specification and run again.",
         "",
     ])

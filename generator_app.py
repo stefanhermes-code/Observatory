@@ -4,7 +4,6 @@ A Streamlit application for workspace users to manually generate intelligence re
 """
 
 import streamlit as st
-import time
 from datetime import datetime
 import sys
 from pathlib import Path
@@ -428,7 +427,6 @@ elif page == "📰 Generate Report":
         with st.status("Creating run and collecting evidence…", expanded=True) as status:
             st.write("Checking specification and cadence…")
             st.write("Ingesting sources and running search (this may take a minute)…")
-            phase1_start = time.perf_counter()
             run_id, evidence_summary, run_spec, spec_for_phase, err = run_phase_evidence(
                 spec_id=spec_id,
                 workspace_id=st.session_state.selected_workspace,
@@ -437,7 +435,6 @@ elif page == "📰 Generate Report":
                 cadence_override=override_cadence,
                 lookback_override=lookback_override,
             )
-            phase1_elapsed = time.perf_counter() - phase1_start
             if err:
                 st.session_state.gen_error = err
                 st.session_state.gen_phase = 0
@@ -445,21 +442,10 @@ elif page == "📰 Generate Report":
                 st.rerun()
             inserted = (evidence_summary or {}).get("inserted", 0)
             st.write(f"**Found {inserted} items.** Extracting and building report…")
-            st.write(f"**Phase 1 total: {phase1_elapsed:.0f}s**")
-            timing = (evidence_summary or {}).get("timing_seconds") or {}
-            if timing:
-                st.caption("Breakdown: source ingestion {:.0f}s · web search {:.0f}s · validate/dedupe {:.0f}s · persist {:.0f}s".format(
-                    timing.get("source_ingestion", 0),
-                    timing.get("web_search", 0),
-                    timing.get("validate_dedupe", 0),
-                    timing.get("persist", 0),
-                ))
-            st.caption("💡 *Ingestion* = RSS/sitemap fetches. *Web search* = one OpenAI call per query (usually the slowest). *Validate* = URL checks.")
 
         st.session_state.gen_phase = 1
         st.session_state.gen_run_id = run_id
         st.session_state.gen_evidence_summary = evidence_summary
-        st.session_state.gen_phase1_elapsed = phase1_elapsed
         st.session_state.gen_run_spec = run_spec
         st.session_state.gen_spec = spec_for_phase
         st.session_state.gen_params = {
@@ -479,11 +465,7 @@ elif page == "📰 Generate Report":
         params = st.session_state.get("gen_params", {})
         with st.status("Building report from evidence…", expanded=True) as status:
             st.write(f"Found **{(st.session_state.get('gen_evidence_summary') or {}).get('inserted', 0)}** items.")
-            phase1_elapsed = st.session_state.get("gen_phase1_elapsed")
-            if phase1_elapsed is not None:
-                st.caption(f"Previous phase took {phase1_elapsed:.0f}s")
             st.write("Extracting signals and writing report…")
-            phase2_start = time.perf_counter()
             try:
                 writer_output, extraction_result = run_phase_extract_and_write(
                     run_id=run_id,
@@ -500,13 +482,10 @@ elif page == "📰 Generate Report":
                 st.session_state.gen_phase = 0
                 status.update(label="Failed", state="error")
                 st.rerun()
-            phase2_elapsed = time.perf_counter() - phase2_start
             st.write("Rendering and saving…")
-            st.write(f"**Phase 2 total: {phase2_elapsed:.0f}s**")
 
         st.session_state.gen_writer_output = writer_output
         st.session_state.gen_extraction_result = extraction_result
-        st.session_state.gen_phase2_elapsed = phase2_elapsed
         st.session_state.gen_phase = 2
         st.rerun()
 
@@ -514,10 +493,7 @@ elif page == "📰 Generate Report":
     if st.session_state.gen_phase == 2:
         params = st.session_state.get("gen_params", {})
         with st.status("Finalizing report…", expanded=True) as status:
-            if st.session_state.get("gen_phase2_elapsed") is not None:
-                st.caption(f"Previous phase took {st.session_state.gen_phase2_elapsed:.0f}s")
             st.write("Rendering HTML and saving run.")
-            phase3_start = time.perf_counter()
             result_data = run_phase_render_and_save(
                 run_id=st.session_state.get("gen_run_id"),
                 workspace_id=params.get("workspace_id"),
@@ -530,13 +506,10 @@ elif page == "📰 Generate Report":
                 evidence_summary=st.session_state.get("gen_evidence_summary"),
                 cadence_override=params.get("cadence_override"),
             )
-            phase3_elapsed = time.perf_counter() - phase3_start
-            st.write(f"**Phase 3 total: {phase3_elapsed:.0f}s**")
             status.update(label="Done", state="complete")
 
         st.session_state.gen_result_data = result_data
         st.session_state.gen_phase = 3
-        st.session_state.gen_phase3_elapsed = phase3_elapsed
         st.rerun()
 
     # Show error from any phase

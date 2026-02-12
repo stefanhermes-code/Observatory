@@ -222,6 +222,14 @@ def render_html_from_content(
     # 10. Remove date-only lines that are metadata (e.g., "Nov 19, 2025" standing alone)
     html_content = re.sub(r'^\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}\s*$', '', html_content, flags=re.MULTILINE | re.IGNORECASE)
     
+    # 11. Remove lines that are only a URL (no other content) — non-embedded link
+    html_content = re.sub(r'^\s*https?://[^\s]+\s*$', '', html_content, flags=re.MULTILINE)
+    # 12. Remove meta " — web_search" or " — web search" from content (search attribution, not a source)
+    html_content = re.sub(r'\s*—\s*web_search\b', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'\s*—\s*web search\b', '', html_content, flags=re.IGNORECASE)
+    # 13. Normalize numbered list items to bullet form so they are processed as list items
+    html_content = re.sub(r'^(\d+)\.\s+', r'- ', html_content, flags=re.MULTILINE)
+    
     # Clean up multiple consecutive empty lines
     html_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', html_content)
     
@@ -307,10 +315,11 @@ def render_html_from_content(
     
     html_content = re.sub(table_pattern, convert_table_to_list, html_content, flags=re.MULTILINE | re.DOTALL)
     
-    # Convert markdown headers
+    # Convert markdown headers (including h4 for value chain sub-subsections)
     html_content = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html_content, flags=re.MULTILINE)
     html_content = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html_content, flags=re.MULTILINE)
     html_content = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html_content, flags=re.MULTILINE)
+    html_content = re.sub(r'^#### (.+)$', r'<h4>\1</h4>', html_content, flags=re.MULTILINE)
     
     # DON'T convert URLs to links yet - we'll do it after extracting source/date
     # This prevents duplication and malformed HTML
@@ -336,6 +345,8 @@ def render_html_from_content(
                 html_lines.append('<ul class="news-list">')
                 in_list = True
             item_text = stripped[2:].strip()
+            # Strip meta "Title:" prefix so we show only the actual title
+            item_text = re.sub(r'^Title\s*:\s*', '', item_text, flags=re.IGNORECASE)
             
             # PRESERVE URLs - extract URLs before processing, then re-add them
             # Extract URLs first (both markdown and plain, and already-converted HTML links)
@@ -513,12 +524,10 @@ def render_html_from_content(
             if url_at_end:
                 urls_found.append(url_at_end)
             
-            # CRITICAL: If a date was found but is outside lookback period, EXCLUDE the entire item
-            # This prevents showing outdated news
+            # Date outside lookback: Evidence Engine already filtered by date; skip only if we re-parse and it's invalid
             if news_date and not formatted_date:
-                # Date was found but is invalid/outdated - skip this item completely
                 continue
-            
+
             # Require source (or we used fallback with "Source not specified")
             if not source:
                 continue
@@ -536,27 +545,16 @@ def render_html_from_content(
             items_included += 1
             
             # Format: Title (as clickable link) - Source - Date
-            # URL should be embedded in the title, not shown separately
-            title_html = ""
-            if urls_found:
-                url = (urls_found[0] or "").strip()
-                # Clean up URL: remove trailing quotes, spaces, and malformed characters
-                url = re.sub(r'["\']+$', '', url)  # Remove trailing quotes
-                url = url.strip()
-                if url and url.startswith(("http://", "https://")):
-                    if _url_returns_ok(url):
-                        # Title is a clickable link - URL embedded, not shown separately
-                        title_html = f'<a href="{url}" target="_blank" style="color: #333; text-decoration: none;"><span class="news-item">{main_text}</span></a>'
-                    else:
-                        # URL invalid - show title without link
-                        title_html = f'<span class="news-item">{main_text}</span> <span class="news-url-unavailable" style="color: #888; font-size: 0.85em;">(link unavailable)</span>'
-                else:
-                    # No valid URL - just show title
-                    title_html = f'<span class="news-item">{main_text}</span>'
-            else:
-                # No URL found - just show title
-                title_html = f'<span class="news-item">{main_text}</span>'
-            
+            # Evidence Engine already persisted only working (2xx) URLs when validate_urls=True; still require URL present
+            if not urls_found:
+                continue
+            url = (urls_found[0] or "").strip()
+            url = re.sub(r'["\']+$', '', url)
+            url = url.strip()
+            if not url or not url.startswith(("http://", "https://")):
+                continue
+
+            title_html = f'<a href="{url}" target="_blank" style="color: #333; text-decoration: none;"><span class="news-item">{main_text}</span></a>'
             html_lines.append(f'<li>{title_html} <span class="news-source">- {source}</span>{date_html}</li>')
         else:
             if in_list:
@@ -631,10 +629,10 @@ def render_html_from_content(
     # Replace double line breaks with paragraph breaks for rest of content
     html_content = re.sub(r'\n\n+', '</p><p>', html_content)
     html_content = '<p>' + html_content + '</p>'
-    # Don't wrap block elements in <p>: remove <p>/</p> around h1,h2,h3,ul so output is valid HTML
-    html_content = re.sub(r'<p>\s*(<h[123]>|<ul\s)', r'\1', html_content)
-    html_content = re.sub(r'(</h[123]>|</ul>)\s*</p>', r'\1', html_content)
-    html_content = re.sub(r'</p>\s*<p>\s*(?=<(?:h[123]|ul))', '\n', html_content)
+    # Don't wrap block elements in <p>: remove <p>/</p> around h1,h2,h3,h4,ul so output is valid HTML
+    html_content = re.sub(r'<p>\s*(<h[1234]>|<ul\s)', r'\1', html_content)
+    html_content = re.sub(r'(</h[1234]>|</ul>)\s*</p>', r'\1', html_content)
+    html_content = re.sub(r'</p>\s*<p>\s*(?=<(?:h[1234]|ul))', '\n', html_content)
     
     # Re-insert the formatted Executive Summary (already has <p> tags, so don't wrap it)
     if exec_summary_formatted:
@@ -707,6 +705,12 @@ def render_html_from_content(
             color: #555;
             margin-top: 20px;
             font-size: 16px;
+        }}
+        h4 {{
+            color: #555;
+            margin-top: 16px;
+            font-size: 14px;
+            font-weight: bold;
         }}
         p {{
             margin: 10px 0;

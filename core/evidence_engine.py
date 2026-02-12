@@ -14,6 +14,7 @@ from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_d
 from core.generator_db import insert_candidate_articles
 from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED
 from core.query_planner import build_query_plan
+from core.report_filters import is_meta_snippet
 from core.search_providers.openai_web_search import OpenAIWebSearchProvider
 
 
@@ -178,38 +179,62 @@ def run_evidence_engine(
         existing = summary.get("by_source") or []
         summary["by_source"] = existing + [{"source_name": "web_search", "count": len(from_search)}]
 
-    # 3) Canonicalize, validate, dedupe, and filter by date range (cadence + app date)
+    # 3) Filter early: meta-snippet, URL, date, then canonicalize, validate (2xx-only when validate_urls), dedupe by (url, title)
+    # Dedupe by (canonical_url, title) so one URL (e.g. newsletter page) can have multiple candidates with different titles.
     t_validate_start = time.perf_counter()
-    seen: set = set()
+    seen: set = set()  # (canonical_url, title_normalized)
     to_insert: List[Dict[str, Any]] = []
     for c in all_candidates:
         url = (c.get("url") or "").strip()
         if not url or not url.startswith(("http://", "https://")):
             continue
+        # Meta-snippet filter: drop search-result preamble, not real news
+        if is_meta_snippet((c.get("title") or "").strip()) or is_meta_snippet((c.get("snippet") or "").strip()):
+            continue
         # Date filter: only keep candidates within [lookback_date, reference_date]; keep if no date
         if not is_in_date_range(c.get("published_at"), lookback_date, ref_date):
             continue
         canonical = canonicalize_url(url)
-        if not canonical or canonical in seen:
+        if not canonical:
             continue
-        seen.add(canonical)
-        rec = {
-            "url": url,
-            "canonical_url": canonical,
-            "title": c.get("title"),
-            "snippet": c.get("snippet"),
-            "published_at": c.get("published_at"),
-            "source_id": c.get("source_id"),
-            "source_name": c.get("source_name") or "unknown",
-            "query_id": c.get("query_id"),
-            "query_text": c.get("query_text"),
-            "validation_status": NOT_CHECKED,
-            "http_status": None,
-        }
+        title_norm = (c.get("title") or "").strip()
+        dedupe_key = (canonical, title_norm)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+
+        # When validating URLs, only persist if link works (2xx) — so downstream does not need to re-check
         if validate_urls:
             status, code = validate_url(url)
-            rec["validation_status"] = status
-            rec["http_status"] = code
+            if status != VALID_2XX:
+                continue  # dismiss non-working links early
+            rec = {
+                "url": url,
+                "canonical_url": canonical,
+                "title": c.get("title"),
+                "snippet": c.get("snippet"),
+                "published_at": c.get("published_at"),
+                "source_id": c.get("source_id"),
+                "source_name": c.get("source_name") or "unknown",
+                "query_id": c.get("query_id"),
+                "query_text": c.get("query_text"),
+                "validation_status": status,
+                "http_status": code,
+            }
+        else:
+            rec = {
+                "url": url,
+                "canonical_url": canonical,
+                "title": c.get("title"),
+                "snippet": c.get("snippet"),
+                "published_at": c.get("published_at"),
+                "source_id": c.get("source_id"),
+                "source_name": c.get("source_name") or "unknown",
+                "query_id": c.get("query_id"),
+                "query_text": c.get("query_text"),
+                "validation_status": NOT_CHECKED,
+                "http_status": None,
+            }
         to_insert.append(rec)
     summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
 

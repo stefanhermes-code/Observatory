@@ -256,7 +256,8 @@ def insert_candidate_articles(
     candidates: List[Dict],
 ) -> int:
     """
-    V2: Insert candidate_articles for a run. Deduplicates by canonical_url within batch.
+    V2: Insert candidate_articles for a run. Deduplicates by (canonical_url, title) within batch
+    so one URL (e.g. newsletter page) can have multiple candidates with different titles.
     Each candidate dict: url, canonical_url, title, snippet, published_at, source_id?, source_name,
     query_id?, query_text?, validation_status, http_status.
     Returns count inserted.
@@ -264,13 +265,17 @@ def insert_candidate_articles(
     if not candidates:
         return 0
     supabase = get_supabase_client()
-    seen_canonical: set = set()
+    seen: set = set()  # (canonical_url, title_normalized)
     rows = []
     for c in candidates:
         canonical = (c.get("canonical_url") or "").strip()
-        if not canonical or canonical in seen_canonical:
+        title_norm = (c.get("title") or "").strip()
+        if not canonical:
             continue
-        seen_canonical.add(canonical)
+        key = (canonical, title_norm)
+        if key in seen:
+            continue
+        seen.add(key)
         row = {
             "workspace_id": workspace_id,
             "specification_id": specification_id,
