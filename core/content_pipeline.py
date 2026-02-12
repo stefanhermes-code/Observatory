@@ -334,7 +334,10 @@ def render_html_from_content(
     # Replace bullet points and extract URLs
     lines = html_content.split('\n')
     html_lines = []
+    # Track which URLs and which normalized texts we've already emitted, so we don't
+    # repeat the same item across categories/sections or via near-identical copies.
     seen_item_urls: set[str] = set()
+    seen_item_texts: set[str] = set()
     in_list = False
     items_found = 0
     items_included = 0
@@ -531,8 +534,12 @@ def render_html_from_content(
             if news_date and not formatted_date:
                 continue
 
-            # Require source (or we used fallback with "Source not specified")
+            # Require source; we no longer want to show items with a generic
+            # "Source not specified" label, as this looks like a leak of internal
+            # parsing rather than a real publication.
             if not source:
+                continue
+            if source.strip().lower() == "source not specified":
                 continue
             
             # Date is preferred but if missing, we'll still include the item with source
@@ -544,11 +551,27 @@ def render_html_from_content(
                 print(f"[DEBUG] Item has source but no valid date: {source}")
                 # Still include the item, but without date
                 date_html = ""
-            # Item passed all checks - include it
-            items_included += 1
-            
-            # Format: Title (as clickable link) - Source - Date
-            # Evidence Engine already persisted only working (2xx) URLs when validate_urls=True; still require URL present
+            # Item passed all checks - ready to include, subject to de-duplication by text and URL.
+            # Normalise text for duplicate detection across categories/sections.
+            text_key = re.sub(r"\s+", " ", main_text).strip().lower()
+            # Drop obvious placeholder/meta texts that leak from upstream prompts.
+            if text_key in {
+                "summary/snippet",
+                "summary / snippet",
+            }:
+                continue
+            if "summary/snippet" in text_key:
+                continue
+            if "snippet:" in text_key:
+                continue
+
+            # De-duplicate by text: if we've already shown this exact headline/text once,
+            # don't show it again even if it reappears under another category.
+            if text_key in seen_item_texts:
+                continue
+            seen_item_texts.add(text_key)
+
+            # Now require a usable URL and de-duplicate by URL.
             if not urls_found:
                 continue
             url = (urls_found[0] or "").strip()
@@ -557,11 +580,11 @@ def render_html_from_content(
             if not url or not url.startswith(("http://", "https://")):
                 continue
 
-            # De-duplicate by URL at the final HTML stage: if we've already added an item for this URL,
-            # do not repeat it in another section/slot.
             if url in seen_item_urls:
                 continue
             seen_item_urls.add(url)
+
+            items_included += 1
 
             # Only now, when we know we have a valid item, open the list if needed
             if not in_list:

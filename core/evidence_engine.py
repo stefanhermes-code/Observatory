@@ -12,7 +12,7 @@ from datetime import datetime
 from core.admin_db import get_all_sources
 from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_date_range
 from core.generator_db import insert_candidate_articles
-from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED
+from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED, source_from_url
 from core.query_planner import build_query_plan
 from core.report_filters import is_meta_snippet
 from core.search_providers.openai_web_search import OpenAIWebSearchProvider
@@ -172,7 +172,16 @@ def run_evidence_engine(
             item["query_id"] = qid
             item["query_text"] = qtext
             item["source_id"] = None
-            item["source_name"] = item.get("source_name") or "web_search"
+            # Prefer a real source name; if the search provider only gives a generic
+            # label like "web_search", derive a readable publisher name from the URL.
+            raw_source = (item.get("source_name") or "").strip()
+            url_for_source = (item.get("url") or "").strip()
+            if raw_source and raw_source.lower() != "web_search":
+                source_name = raw_source
+            else:
+                inferred = source_from_url(url_for_source)
+                source_name = inferred or "web_search"
+            item["source_name"] = source_name
             from_search.append(item)
     summary["timing_seconds"]["web_search"] = round(time.perf_counter() - t_search_start, 1)
     all_candidates.extend(from_search)

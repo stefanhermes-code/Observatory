@@ -95,3 +95,41 @@ def validate_url(url: str, timeout: int = 8) -> Tuple[str, Optional[int]]:
             return ERROR_OTHER, e.code
         except Exception:
             return ERROR_OTHER, None
+
+
+def source_from_url(url: str) -> str:
+    """
+    Derive a human-readable source name from a URL when we don't have a better label.
+    Examples:
+      - https://www.einpresswire.com/...        -> "Einpresswire"
+      - https://news.everchem.com/...          -> "Everchem"
+      - https://www.pudaily.com/...            -> "Pudaily"
+    We do NOT perform any network I/O here; this is purely string parsing.
+    """
+    if not url or not isinstance(url, str):
+        return ""
+    try:
+        p = urlparse(url)
+        host = (p.netloc or "").lower()
+        if not host:
+            return ""
+        # Strip port if present
+        if ":" in host:
+            host = host.split(":", 1)[0]
+        # Drop common leading www.
+        if host.startswith("www."):
+            host = host[4:]
+        # Take the second-level domain as the base name where possible
+        parts = host.split(".")
+        base = ""
+        if len(parts) >= 2:
+            base = parts[-2]
+        else:
+            base = parts[0]
+        base = base.replace("-", " ").strip()
+        if not base:
+            return ""
+        # Title-case the base; this gives reasonable defaults like "Einpresswire", "Everchem", "Pudaily"
+        return base.title()
+    except Exception:
+        return ""
