@@ -334,6 +334,7 @@ def render_html_from_content(
     # Replace bullet points and extract URLs
     lines = html_content.split('\n')
     html_lines = []
+    seen_item_urls: set[str] = set()
     in_list = False
     items_found = 0
     items_included = 0
@@ -341,9 +342,6 @@ def render_html_from_content(
         stripped = line.strip()
         if stripped.startswith('- ') or stripped.startswith('* '):
             items_found += 1
-            if not in_list:
-                html_lines.append('<ul class="news-list">')
-                in_list = True
             item_text = stripped[2:].strip()
             # Strip meta "Title:" prefix so we show only the actual title
             item_text = re.sub(r'^Title\s*:\s*', '', item_text, flags=re.IGNORECASE)
@@ -376,6 +374,8 @@ def render_html_from_content(
             # Expected format: "Text - Source Name (2025-01-15)" or "Text - Source Name 2025-01-15"
             
             # Step 1: Extract date FIRST (before removing anything)
+            # IMPORTANT: Prefer the LAST date in the line (typically the appended (YYYY-MM-DD) from the writer),
+            # not the first date that appears inside the snippet text.
             date_patterns = [
                 r'\((\d{4}-\d{2}-\d{2})\)',  # YYYY-MM-DD in parentheses (most common format)
                 r'\b(\d{4}-\d{2}-\d{2})\b',  # YYYY-MM-DD standalone
@@ -387,10 +387,13 @@ def render_html_from_content(
             news_date = None
             date_match_obj = None
             for pattern in date_patterns:
-                date_match = re.search(pattern, item_text_clean, re.IGNORECASE)
-                if date_match:
-                    news_date = date_match.group(1)
-                    date_match_obj = date_match
+                # Use the last match for each pattern (if any), so we favour the date appended by the writer.
+                last_match = None
+                for m in re.finditer(pattern, item_text_clean, re.IGNORECASE):
+                    last_match = m
+                if last_match:
+                    news_date = last_match.group(1)
+                    date_match_obj = last_match
                     break
                 
             # Step 2: Remove date from text (if found) to prepare for source extraction
@@ -554,6 +557,17 @@ def render_html_from_content(
             if not url or not url.startswith(("http://", "https://")):
                 continue
 
+            # De-duplicate by URL at the final HTML stage: if we've already added an item for this URL,
+            # do not repeat it in another section/slot.
+            if url in seen_item_urls:
+                continue
+            seen_item_urls.add(url)
+
+            # Only now, when we know we have a valid item, open the list if needed
+            if not in_list:
+                html_lines.append('<ul class="news-list">')
+                in_list = True
+
             title_html = f'<a href="{url}" target="_blank" style="color: #333; text-decoration: none;"><span class="news-item">{main_text}</span></a>'
             html_lines.append(f'<li>{title_html} <span class="news-source">- {source}</span>{date_html}</li>')
         else:
@@ -562,7 +576,21 @@ def render_html_from_content(
                 in_list = False
             # Only skip empty lines or lines that are just separators
             if stripped and stripped != '':
-                # Don't skip lines that might contain content
+                # Drop leftover meta / diagnostic lines that still slipped through:
+                #  - any non-bullet line containing a raw URL
+                #  - lines mentioning "web_search"
+                #  - common search-diagnostic phrases ("No results", "No news results", "To assist further", etc.)
+                if re.search(r'https?://', stripped, re.IGNORECASE):
+                    continue
+                if 'web_search' in stripped:
+                    continue
+                if re.search(r'\bNo (relevant )?results\b', stripped, re.IGNORECASE):
+                    continue
+                if re.search(r'\bNo news results\b', stripped, re.IGNORECASE):
+                    continue
+                if stripped.startswith(('Here ', 'Snippet:', 'To assist further', 'I found no news')):
+                    continue
+                # Keep other narrative lines (if any)
                 html_lines.append(line)
     if in_list:
         html_lines.append('</ul>')

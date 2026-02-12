@@ -23,12 +23,15 @@ DEFAULT_MIN_EVIDENCE = 3
 EXCLUDED_CATEGORY_IDS = ("value_chain", "value_chain_link")
 
 def _format_item(c: Dict) -> str:
-    """Format one candidate as a bullet: summary — Source (YYYY-MM-DD) url."""
+    """Format one candidate as a bullet: title — Source (YYYY-MM-DD) url.
+
+    IMPORTANT: The visible text must be the article TITLE, not the snippet,
+    so the HTML report shows clean, headline-style links.
+    """
     title = (c.get("title") or "").strip()
     snippet = (c.get("snippet") or "").strip()
-    text = snippet if snippet else title
-    if not text:
-        text = "No title"
+    # Prefer title for link text; fall back to snippet only if there is no title.
+    text = title or snippet or "No title"
     source = (c.get("source_name") or "Source").strip()
     url = (c.get("url") or c.get("canonical_url") or "").strip()
     pub = c.get("published_at")
@@ -117,7 +120,10 @@ def write_report_from_evidence(
         )
         return {"content": content, "coverage_low": True}
 
-    # Build hierarchy slots: Category → Region → Value chain link
+    # Build hierarchy slots (Category → Region → Value chain link), but use them only
+    # to *distribute* items. The VISIBLE structure in the report is:
+    #   - Category (##) as the only section header level.
+    # Regions and value chain links act as invisible sub-structure.
     if not selected_category_ids:
         selected_category_ids = ["industry_context"]  # fallback
     slots = _build_slots(
@@ -134,6 +140,13 @@ def write_report_from_evidence(
         slot_key = slots[j % len(slots)][5]
         slot_items[slot_key].append(c)
 
+    # Flatten slots per category: for each category, gather all items across regions/value-chain links.
+    category_items: Dict[str, List[Dict]] = {cid: [] for cid in selected_category_ids}
+    for (cid, _cat_name, _region, _vc_id, _vc_name, slot_key) in slots:
+        items = slot_items.get(slot_key, [])
+        if items:
+            category_items.setdefault(cid, []).extend(items)
+
     lines = [
         f"# {newsletter_name}",
         "",
@@ -141,26 +154,13 @@ def write_report_from_evidence(
         "",
     ]
 
-    # Emit hierarchy: ## Category → ### Region → #### Value chain link → items
-    current_category = None
-    current_region = None
-    for (cid, cat_name, region, vc_id, vc_name, slot_key) in slots:
-        items = slot_items.get(slot_key, [])
+    # Emit visible structure: ## Category only, with items listed underneath.
+    for cid in selected_category_ids:
+        items = category_items.get(cid) or []
         if not items:
             continue
-
-        if cid != current_category:
-            current_category = cid
-            current_region = None
-            lines.append(f"## {cat_name}")
-            lines.append("")
-
-        if region != current_region:
-            current_region = region
-            lines.append(f"### {region}")
-            lines.append("")
-
-        lines.append(f"#### {vc_name}")
+        cat_name = category_map.get(cid, cid)
+        lines.append(f"## {cat_name}")
         lines.append("")
         for c in items:
             lines.append(_format_item(c))

@@ -150,7 +150,10 @@ def run_evidence_engine(
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
     value_chain_links = spec.get("value_chain_links") or []
-    company_aliases = _company_aliases_from_spec(spec)
+    # Company list is OPTIONAL: only use it when the Company News category is selected.
+    # If "company_news" is not in the spec categories, we skip company-specific aliases entirely.
+    use_company_list = "company_news" in categories
+    company_aliases = _company_aliases_from_spec(spec) if use_company_list else []
     plan = build_query_plan(regions, categories, value_chain_links, company_aliases)
     summary["query_plan"] = [{"query_id": q.get("query_id"), "query_text": q.get("query_text"), "intent": q.get("intent")} for q in plan]
 
