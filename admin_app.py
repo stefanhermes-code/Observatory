@@ -196,7 +196,9 @@ if page == "📊 Dashboard":
     all_requests = get_all_specification_requests()
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    all_runs = get_recent_runs(100)  # Get more for performance metrics
+    all_runs, runs_err = get_recent_runs(100)  # Get more for performance metrics
+    if runs_err:
+        st.warning(f"Could not load run history: {runs_err}")
     recent_runs = all_runs[:5]
     
     # Calculate performance metrics
@@ -1906,11 +1908,11 @@ elif page == "📈 Reporting":
     # Get data
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    try:
-        all_runs = get_recent_runs(1000)
-    except Exception as e:
-        st.warning(f"⚠️ Could not load all runs: {str(e)}. Using limited dataset.")
-        all_runs = get_recent_runs(100)  # Fallback to smaller limit
+    all_runs, runs_err = get_recent_runs(1000)
+    if runs_err:
+        all_runs, _ = get_recent_runs(100)
+        st.warning(f"⚠️ Could not load run data: {runs_err}")
+    all_runs = all_runs or []
     all_requests = get_all_specification_requests()
     active_specs = [s for s in specifications if s.get("status") == "active"]
     
@@ -2048,15 +2050,13 @@ elif page == "📈 Reporting":
         st.markdown("---")
         
         # Get recent runs (limit to 50 for display)
-        # If all_runs failed to load, try direct call
-        if not all_runs:
-            try:
-                recent_runs = get_recent_runs(50)
-            except Exception as e:
-                st.error(f"Error loading generation history: {str(e)}")
-                recent_runs = []
+        if not all_runs and runs_err:
+            recent_runs, recent_err = get_recent_runs(50)
+            if recent_err:
+                st.error(f"Error loading generation history: {recent_err}")
+            recent_runs = recent_runs or []
         else:
-            recent_runs = all_runs[:50]
+            recent_runs = all_runs[:50] if all_runs else []
         
         if recent_runs:
             st.write(f"**Total Runs:** {len(recent_runs)} (showing most recent 50)")
@@ -2172,14 +2172,13 @@ elif page == "📈 Reporting":
         st.markdown("---")
         
         # Get recent runs for selection
-        if not all_runs:
-            try:
-                available_runs = get_recent_runs(100)
-            except Exception as e:
-                st.error(f"Error loading runs: {str(e)}")
-                available_runs = []
+        if not all_runs and runs_err:
+            available_runs, available_err = get_recent_runs(100)
+            if available_err:
+                st.error(f"Error loading runs: {available_err}")
+            available_runs = available_runs or []
         else:
-            available_runs = all_runs[:100]
+            available_runs = all_runs[:100] if all_runs else []
         
         if not available_runs:
             st.info("No generation runs available for analysis")
@@ -2486,9 +2485,12 @@ elif page == "📚 Generation History":
     st.markdown("---")
     
     # Get recent runs
-    recent_runs = get_recent_runs(50)
+    recent_runs, runs_err = get_recent_runs(50)
     
-    if recent_runs:
+    if runs_err:
+        st.error(f"Could not load run history: {runs_err}")
+        st.caption("This is usually a Supabase permission issue (e.g. RLS on newsletter_runs blocking SELECT). Generator, Admin and Configurator use the same secrets.")
+    elif recent_runs:
         st.write(f"**Total Runs:** {len(recent_runs)}")
         
         for run in recent_runs:
@@ -2552,9 +2554,9 @@ elif page == "📚 Generation History":
                             ))
                         if metadata.get("thread_id"):
                             st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
-    else:
+    elif not runs_err:
         st.info("No generation runs yet")
-        st.caption("Run history is loaded from newsletter_runs via get_recent_runs(). Same Supabase credentials are used for all apps. If you expect runs here, check in Supabase that newsletter_runs has rows and that RLS allows SELECT.")
+        st.caption("Run a report in the Generator app to see it here.")
     
     st.markdown("---")
     

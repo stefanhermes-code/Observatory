@@ -5,7 +5,7 @@ Handles specification requests, workspaces, users, and audit logs.
 
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 import json
 from pathlib import Path
 from dotenv import load_dotenv
@@ -311,8 +311,11 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
     return result.data[0] if result.data else override_data
 
 
-def get_recent_runs(limit: int = 10) -> List[Dict]:
-    """Get recent newsletter generation runs with specification names."""
+def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
+    """
+    Get recent newsletter generation runs with specification names.
+    Returns (runs, error_message). error_message is set only when both primary and fallback queries fail.
+    """
     supabase = get_supabase_client()
     
     try:
@@ -334,7 +337,7 @@ def get_recent_runs(limit: int = 10) -> List[Dict]:
                     run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
                 del run["newsletter_specifications"]
         
-        return runs
+        return (runs, None)
     except Exception as e:
         # Fallback: Get runs and specs separately, then join manually
         import logging
@@ -350,7 +353,7 @@ def get_recent_runs(limit: int = 10) -> List[Dict]:
             runs = runs_result.data if runs_result.data else []
             
             if not runs:
-                return []
+                return ([], None)
             
             # Get all specification IDs
             spec_ids = [run.get("specification_id") for run in runs if run.get("specification_id")]
@@ -369,12 +372,11 @@ def get_recent_runs(limit: int = 10) -> List[Dict]:
                     spec_id = run.get("specification_id")
                     run["newsletter_name"] = specs_dict.get(spec_id, "Unknown")
             
-            return runs
+            return (runs, None)
         except Exception as fallback_error:
-            # If even fallback fails, return empty list (e.g. RLS blocking SELECT on newsletter_runs)
             import logging
             logging.warning("get_recent_runs failed (primary and fallback): %s", fallback_error)
-            return []
+            return ([], str(fallback_error))
 
 
 def get_audit_logs(limit: int = 50) -> List[Dict]:
