@@ -97,13 +97,29 @@ def validate_url(url: str, timeout: int = 8) -> Tuple[str, Optional[int]]:
             return ERROR_OTHER, None
 
 
+# Known multi-part TLDs (suffixes). For these, the "brand" is the label before the suffix.
+# E.g. bbc.co.uk -> bbc, something.com.au -> something (not "co" or "com").
+MULTIPART_TLDS = frozenset({
+    "co.uk", "org.uk", "me.uk", "ltd.uk", "plc.uk", "net.uk", "ac.uk", "gov.uk",
+    "com.au", "org.au", "net.au", "edu.au", "gov.au", "asn.au", "id.au", "co.au",
+    "co.nz", "net.nz", "org.nz", "ac.nz", "govt.nz",
+    "com.br", "co.za", "co.jp", "ne.jp", "or.jp", "ac.jp",
+    "com.mx", "org.mx", "gob.mx", "edu.mx",
+    "com.ar", "org.ar", "gov.ar", "co.in", "org.in", "ac.in", "gov.in",
+    "co.id", "or.id", "ac.id", "go.id", "web.id",
+    "com.sg", "org.sg", "gov.sg", "edu.sg",
+    "com.ph", "org.ph", "gov.ph", "edu.ph",
+})
+
+
 def source_from_url(url: str) -> str:
     """
     Derive a human-readable source name from a URL when we don't have a better label.
     Examples:
       - https://www.einpresswire.com/...        -> "Einpresswire"
       - https://news.everchem.com/...          -> "Everchem"
-      - https://www.pudaily.com/...            -> "Pudaily"
+      - https://www.bbc.co.uk/...              -> "Bbc" (brand, not "Co")
+      - https://example.com.au/...            -> "Example" (brand, not "Com")
     We do NOT perform any network I/O here; this is purely string parsing.
     """
     if not url or not isinstance(url, str):
@@ -119,17 +135,22 @@ def source_from_url(url: str) -> str:
         # Drop common leading www.
         if host.startswith("www."):
             host = host[4:]
-        # Take the second-level domain as the base name where possible
         parts = host.split(".")
         base = ""
-        if len(parts) >= 2:
+        if len(parts) >= 3:
+            two_part_suffix = parts[-2] + "." + parts[-1]
+            if two_part_suffix in MULTIPART_TLDS:
+                base = parts[-3]
+            else:
+                base = parts[-2]
+        elif len(parts) >= 2:
             base = parts[-2]
         else:
-            base = parts[0]
+            base = parts[0] if parts else ""
         base = base.replace("-", " ").strip()
         if not base:
             return ""
-        # Title-case the base; this gives reasonable defaults like "Einpresswire", "Everchem", "Pudaily"
+        # Title-case the base; this gives reasonable defaults like "Einpresswire", "Everchem", "Bbc"
         return base.title()
     except Exception:
         return ""

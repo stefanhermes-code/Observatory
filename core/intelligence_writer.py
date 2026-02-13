@@ -22,6 +22,20 @@ DEFAULT_MIN_EVIDENCE = 3
 # Category IDs we exclude from top-level (replaced by value_chain_links as sub-substructure)
 EXCLUDED_CATEGORY_IDS = ("value_chain", "value_chain_link")
 
+def _sanitize_link_text(text: str) -> str:
+    """Remove markdown artefacts (** etc.) from text used as link labels."""
+    if not text or not isinstance(text, str):
+        return text
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*+', '', text)
+    text = text.strip()
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        text = text[1:-1].strip()
+    elif text.startswith('"'):
+        text = text.lstrip('"').strip()
+    return text
+
+
 def _format_item(c: Dict) -> str:
     """Format one candidate as a bullet: title — Source (YYYY-MM-DD) url.
 
@@ -31,7 +45,7 @@ def _format_item(c: Dict) -> str:
     title = (c.get("title") or "").strip()
     snippet = (c.get("snippet") or "").strip()
     # Prefer title for link text; fall back to snippet only if there is no title.
-    text = title or snippet or "No title"
+    text = _sanitize_link_text(title or snippet or "No title")
     source = (c.get("source_name") or "Source").strip()
     url = (c.get("url") or c.get("canonical_url") or "").strip()
     pub = c.get("published_at")

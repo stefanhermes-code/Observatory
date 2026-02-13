@@ -15,6 +15,26 @@ except ImportError:
     _HAS_URLLIB = False
 
 
+def _sanitize_link_text(text: str) -> str:
+    """
+    Remove markdown artefacts from text used as link labels so ** and similar
+    do not appear in the final report. Keeps the text readable.
+    """
+    if not text or not isinstance(text, str):
+        return text
+    # Replace paired **...** with inner text only
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    # Remove any remaining standalone ** or single *
+    text = re.sub(r'\*+', '', text)
+    # Strip leading/trailing artefact quotes that sometimes wrap titles
+    text = text.strip()
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        text = text[1:-1].strip()
+    elif text.startswith('"'):
+        text = text.lstrip('"').strip()
+    return text
+
+
 def _url_returns_ok(url: str, timeout: int = 4) -> bool:
     """Return True if URL returns 2xx (HEAD then GET fallback). Used to avoid showing 404 links."""
     if not url or not url.startswith(("http://", "https://")):
@@ -525,6 +545,9 @@ def render_html_from_content(
                             source = "Source not specified"
                         else:
                             source = None
+            
+            # Sanitize link text: remove ** and similar markdown so labels are plain text
+            main_text = _sanitize_link_text(main_text)
             
             # If we found a URL at the end, add it to urls_found
             if url_at_end:
