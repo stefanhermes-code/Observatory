@@ -39,7 +39,6 @@ from core.admin_db import (
     log_audit_action,
     get_all_sources,
     get_source_productivity,
-    get_criteria_productivity,
     get_source_by_id,
     create_source,
     update_source,
@@ -48,6 +47,10 @@ from core.admin_db import (
     get_tracked_companies,
     seed_tracked_companies_from_list,
 )
+try:
+    from core.admin_db import get_criteria_productivity
+except ImportError:
+    get_criteria_productivity = None  # type: ignore
 try:
     from core.admin_db import create_tracked_company, update_tracked_company, delete_tracked_company
 except ImportError:
@@ -2116,49 +2119,52 @@ elif page == "📈 Reporting":
         Only web-search–sourced candidates are attributed to a criterion; source-ingested items are not included in these tables.
         """)
         st.markdown("---")
-        by_category, by_region, by_value_chain_link = get_criteria_productivity()
-        import pandas as pd
-        # Table 1: By category
-        st.markdown("#### By category")
-        if not by_category:
-            st.info("No candidate articles attributed to categories yet (only web-search candidates with category query_id are counted).")
+        if get_criteria_productivity is None:
+            st.warning("Criteria productivity is not available in this deployment. Deploy the latest version of the app.")
         else:
-            df_cat = pd.DataFrame(by_category)
-            df_cat.columns = ["Category", "Candidates"]
-            st.dataframe(df_cat, use_container_width=True, hide_index=True)
-        st.markdown("---")
-        # Table 2: By region
-        st.markdown("#### By region")
-        if not by_region:
-            st.info("No candidate articles attributed to regions yet.")
-        else:
-            df_reg = pd.DataFrame(by_region)
-            df_reg.columns = ["Region", "Candidates"]
-            st.dataframe(df_reg, use_container_width=True, hide_index=True)
-        st.markdown("---")
-        # Table 3: By value chain link
-        st.markdown("#### By value chain link")
-        if not by_value_chain_link:
-            st.info("No candidate articles attributed to value chain links yet.")
-        else:
-            df_vcl = pd.DataFrame(by_value_chain_link)
-            df_vcl.columns = ["Value chain link", "Candidates"]
-            st.dataframe(df_vcl, use_container_width=True, hide_index=True)
-        st.markdown("---")
-        # Combined CSV: Section, Name, Count
-        crit_csv = "Section,Name,Candidates\n"
-        for r in by_category:
-            crit_csv += f"Category,{r['name']},{r['count']}\n"
-        for r in by_region:
-            crit_csv += f"Region,{r['name']},{r['count']}\n"
-        for r in by_value_chain_link:
-            crit_csv += f"Value chain link,{r['name']},{r['count']}\n"
-        st.download_button(
-            "📥 Export Criteria Productivity",
-            data=crit_csv,
-            file_name=f"criteria_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
+            by_category, by_region, by_value_chain_link = get_criteria_productivity()
+            import pandas as pd
+            # Table 1: By category
+            st.markdown("#### By category")
+            if not by_category:
+                st.info("No candidate articles attributed to categories yet (only web-search candidates with category query_id are counted).")
+            else:
+                df_cat = pd.DataFrame(by_category)
+                df_cat.columns = ["Category", "Candidates"]
+                st.dataframe(df_cat, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            # Table 2: By region
+            st.markdown("#### By region")
+            if not by_region:
+                st.info("No candidate articles attributed to regions yet.")
+            else:
+                df_reg = pd.DataFrame(by_region)
+                df_reg.columns = ["Region", "Candidates"]
+                st.dataframe(df_reg, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            # Table 3: By value chain link
+            st.markdown("#### By value chain link")
+            if not by_value_chain_link:
+                st.info("No candidate articles attributed to value chain links yet.")
+            else:
+                df_vcl = pd.DataFrame(by_value_chain_link)
+                df_vcl.columns = ["Value chain link", "Candidates"]
+                st.dataframe(df_vcl, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            # Combined CSV: Section, Name, Count
+            crit_csv = "Section,Name,Candidates\n"
+            for r in by_category:
+                crit_csv += f"Category,{r['name']},{r['count']}\n"
+            for r in by_region:
+                crit_csv += f"Region,{r['name']},{r['count']}\n"
+            for r in by_value_chain_link:
+                crit_csv += f"Value chain link,{r['name']},{r['count']}\n"
+            st.download_button(
+                "📥 Export Criteria Productivity",
+                data=crit_csv,
+                file_name=f"criteria_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
     
     elif report_type == "Generation History":
         st.subheader("Generation History Report")
