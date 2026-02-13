@@ -2184,10 +2184,10 @@ elif page == "📈 Reporting":
         if not available_runs:
             st.info("No generation runs available for analysis")
         else:
-            # Filter to only completed runs with HTML content
+            # Filter to only successful runs with HTML content (generator uses status 'success', not 'completed')
             runs_with_html = []
             for run in available_runs:
-                if run.get('status') == 'completed':
+                if run.get('status') == 'success':
                     metadata = run.get("metadata", {})
                     if isinstance(metadata, dict) and metadata.get("html_content"):
                         runs_with_html.append(run)
