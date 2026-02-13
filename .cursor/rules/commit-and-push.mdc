@@ -12,6 +12,6 @@ When you complete code changes in this repo:
 2. **Commit** with a clear message that describes what was done (e.g. "Add X" / "Fix Y" / "Refactor Z").
 3. **Push** to the current branch (`git push`).
 
-Do this as part of the same task—do not wait for the user to ask. If the user has no remote or prefers not to push, the push step may fail; that is acceptable.
+**Always** do this in the same turn as your code changes—never leave commit/push for the user to request. Before you reply "done" or end your response, if you modified any tracked files, you must have already run git add, commit, and push. If the user has no remote or prefers not to push, the push step may fail; that is acceptable.
 
 Use PowerShell-compatible commands in this workspace (e.g. `Set-Location` and `;` instead of `&&` for chaining, or run commands separately).
