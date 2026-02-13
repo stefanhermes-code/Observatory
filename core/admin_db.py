@@ -541,7 +541,6 @@ def get_criteria_productivity(limit_runs: int = RECENT_RUNS_LIMIT) -> Tuple[List
     reg_counter: Counter = Counter()
     vcl_counter: Counter = Counter()
     runs_with_candidates: set = set()
-    counted = 0
     for r in rows:
         qid = (r.get("query_id") or "").strip()
         if not qid:
@@ -549,20 +548,21 @@ def get_criteria_productivity(limit_runs: int = RECENT_RUNS_LIMIT) -> Tuple[List
         run_id = r.get("run_id")
         if run_id:
             runs_with_candidates.add(run_id)
-        counted += 1
         if qid.startswith("cat_"):
             cat_counter[qid[4:]] += 1
         elif qid.startswith("region_"):
             reg_counter[qid[7:].replace("_", " ")] += 1
         elif qid.startswith("vcl_"):
             vcl_counter[qid[4:].replace("_", " ")] += 1
+    # Only count rows that appear in one of the three tables (excludes company_* and generic query_id)
+    candidate_articles_counted = sum(cat_counter.values()) + sum(reg_counter.values()) + sum(vcl_counter.values())
     by_category = [{"name": k, "count": v} for k, v in cat_counter.most_common()]
     by_region = [{"name": k, "count": v} for k, v in reg_counter.most_common()]
     by_value_chain_link = [{"name": k, "count": v} for k, v in vcl_counter.most_common()]
     stats = {
         "runs_considered": len(run_ids),
         "runs_with_candidates": len(runs_with_candidates),
-        "candidate_articles_counted": counted,
+        "candidate_articles_counted": candidate_articles_counted,
     }
     return (by_category, by_region, by_value_chain_link, stats)
 
