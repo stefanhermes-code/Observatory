@@ -179,8 +179,11 @@ def update_run_status(
     error_message: Optional[str] = None,
     metadata: Optional[Dict] = None,
     generation_duration_seconds: Optional[float] = None,
+    categories_count: Optional[int] = None,
+    regions_count: Optional[int] = None,
+    links_count: Optional[int] = None,
 ):
-    """Update newsletter run status. Optionally set generation_duration_seconds (total time to generate, in seconds)."""
+    """Update newsletter run status. Optionally set duration and scope counts (categories, regions, links used in run)."""
     supabase = get_supabase_client()
     update_data = {
         "status": status,
@@ -194,6 +197,12 @@ def update_run_status(
         update_data["metadata"] = metadata
     if generation_duration_seconds is not None:
         update_data["generation_duration_seconds"] = round(generation_duration_seconds, 1)
+    if categories_count is not None:
+        update_data["categories_count"] = min(32767, max(0, int(categories_count)))
+    if regions_count is not None:
+        update_data["regions_count"] = min(32767, max(0, int(regions_count)))
+    if links_count is not None:
+        update_data["links_count"] = min(32767, max(0, int(links_count)))
     supabase.table("newsletter_runs").update(update_data).eq("id", run_id).execute()
 
 

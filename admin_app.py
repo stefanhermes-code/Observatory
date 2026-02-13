@@ -2044,15 +2044,15 @@ elif page == "📈 Reporting":
     
     elif report_type == "Generation Time":
         st.subheader("Generation Time Report")
-        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Duration comes from the **generation_duration_seconds** column.")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Duration and scope (categories, regions, links) from run columns.")
         st.info("""
-        **Generation Time** shows how long each report took to generate (in seconds). 
-        Only successful runs with a stored duration are included. Older or failed runs may have no duration.
+        **Generation Time** shows duration and scope per run: how many categories, regions, and links (news items) were used.
+        Only successful runs with a stored duration are included. New runs also store categories_count, regions_count, links_count.
         """)
         st.markdown("---")
         runs_with_duration = [r for r in all_runs if r.get("status") == "success" and r.get("generation_duration_seconds") is not None]
         if not runs_with_duration:
-            st.info("No runs with generation duration yet. New successful runs will have duration stored.")
+            st.info("No runs with generation duration yet. New successful runs will have duration and scope stored.")
         else:
             durations = [float(r["generation_duration_seconds"]) for r in runs_with_duration]
             col1, col2, col3, col4 = st.columns(4)
@@ -2064,22 +2064,41 @@ elif page == "📈 Reporting":
                 st.metric("Min (seconds)", f"{min(durations):.1f}")
             with col4:
                 st.metric("Max (seconds)", f"{max(durations):.1f}")
+            runs_with_scope = [r for r in runs_with_duration if r.get("categories_count") is not None or r.get("links_count") is not None]
+            if runs_with_scope:
+                cat_vals = [r["categories_count"] for r in runs_with_scope if r.get("categories_count") is not None]
+                reg_vals = [r["regions_count"] for r in runs_with_scope if r.get("regions_count") is not None]
+                link_vals = [r["links_count"] for r in runs_with_scope if r.get("links_count") is not None]
+                st.markdown("---")
+                sc1, sc2, sc3 = st.columns(3)
+                with sc1:
+                    st.metric("Avg categories/run", f"{sum(cat_vals) / len(cat_vals):.1f}" if cat_vals else "—")
+                with sc2:
+                    st.metric("Avg regions/run", f"{sum(reg_vals) / len(reg_vals):.1f}" if reg_vals else "—")
+                with sc3:
+                    st.metric("Avg links/run", f"{sum(link_vals) / len(link_vals):.1f}" if link_vals else "—")
             st.markdown("---")
             import pandas as pd
-            rows = [
-                {
+            rows = []
+            for r in runs_with_duration:
+                row = {
                     "Intelligence Source": r.get("newsletter_name", "Unknown"),
                     "Created": (r.get("created_at") or "")[:19],
                     "Duration (s)": round(float(r["generation_duration_seconds"]), 1),
                 }
-                for r in runs_with_duration
-            ]
+                if r.get("categories_count") is not None:
+                    row["Categories"] = r["categories_count"]
+                if r.get("regions_count") is not None:
+                    row["Regions"] = r["regions_count"]
+                if r.get("links_count") is not None:
+                    row["Links"] = r["links_count"]
+                rows.append(row)
             df = pd.DataFrame(rows)
             st.dataframe(df, use_container_width=True, hide_index=True)
             st.markdown("---")
-            gen_time_csv = "Intelligence Source,Created,Duration (seconds)\n"
+            gen_time_csv = "Intelligence Source,Created,Duration (seconds),Categories,Regions,Links\n"
             for r in runs_with_duration:
-                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)}\n"
+                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
             st.download_button(
                 "📥 Export Generation Time",
                 data=gen_time_csv,

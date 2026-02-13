@@ -311,7 +311,7 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
 
 
 # Columns for run list only (exclude metadata JSONB)
-_RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at, generation_duration_seconds"
+_RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at, generation_duration_seconds, categories_count, regions_count, links_count"
 
 # Single place for run-fetch limits (change here to affect Dashboard, Reporting, Generation History, Source Usage)
 RECENT_RUNS_LIMIT = 100

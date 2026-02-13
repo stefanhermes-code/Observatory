@@ -170,7 +170,16 @@ def execute_generator(
                 duration = float(timing["total"])
             except (TypeError, ValueError):
                 pass
-    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html, generation_duration_seconds=duration)
+    categories_count = len(run_specification.get("categories") or [])
+    regions_count = len(run_specification.get("regions") or [])
+    links_count = (diagnostics or {}).get("items_included") if isinstance(diagnostics, dict) else None
+    if links_count is None and isinstance(evidence_summary, dict):
+        links_count = evidence_summary.get("inserted")
+    update_run_status(
+        run_id, "success", artifact_path, metadata=metadata_with_html,
+        generation_duration_seconds=duration,
+        categories_count=categories_count, regions_count=regions_count, links_count=links_count,
+    )
 
     result_data = {
         "run_id": run_id,
@@ -332,7 +341,16 @@ def run_phase_render_and_save(
                 duration = float(timing["total"])
             except (TypeError, ValueError):
                 pass
-    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html, generation_duration_seconds=duration)
+    categories_count = len(run_specification.get("categories") or [])
+    regions_count = len(run_specification.get("regions") or [])
+    links_count = (diagnostics or {}).get("items_included") if isinstance(diagnostics, dict) else None
+    if links_count is None and isinstance(evidence_summary, dict):
+        links_count = evidence_summary.get("inserted")
+    update_run_status(
+        run_id, "success", artifact_path, metadata=metadata_with_html,
+        generation_duration_seconds=duration,
+        categories_count=categories_count, regions_count=regions_count, links_count=links_count,
+    )
 
     return {
         "run_id": run_id,
