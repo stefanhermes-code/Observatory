@@ -2112,11 +2112,10 @@ elif page == "📈 Reporting":
     
     elif report_type == "Criteria Productivity":
         st.subheader("Criteria Productivity Report")
-        st.caption("Complete run history: how many candidate articles were found per category, per region, and per value chain link.")
+        st.caption("Three tables only: productivity by category, by region, and by value chain link. No run listing.")
         st.info("""
-        **Criteria Productivity** shows how productive each criterion has been: total candidate articles found for each **category**,
-        each **region**, and each **value chain link** across all runs. Counts come from the candidate_articles table (query_id).
-        Only web-search–sourced candidates are attributed to a criterion; source-ingested items are not included in these tables.
+        **Criteria Productivity** = three tables showing how many candidate articles were found (all time) **per category**, **per region**, and **per value chain link**.
+        Each table has two columns: the criterion name and the number of candidates. Data comes from candidate_articles (query_id). No runs are listed here.
         """)
         st.markdown("---")
         if get_criteria_productivity is None:
@@ -2124,34 +2123,31 @@ elif page == "📈 Reporting":
         else:
             by_category, by_region, by_value_chain_link = get_criteria_productivity()
             import pandas as pd
-            # Table 1: By category
-            st.markdown("#### By category")
+            # Table 1: Productivity by category (criterion name -> count)
+            st.markdown("#### Table 1 — Productivity by category")
+            df_cat = pd.DataFrame(by_category if by_category else [{"name": "(none yet)", "count": 0}])
+            df_cat.columns = ["Category", "Candidates"]
             if not by_category:
-                st.info("No candidate articles attributed to categories yet (only web-search candidates with category query_id are counted).")
-            else:
-                df_cat = pd.DataFrame(by_category)
-                df_cat.columns = ["Category", "Candidates"]
-                st.dataframe(df_cat, use_container_width=True, hide_index=True)
+                st.caption("No candidate articles attributed to categories yet (web-search candidates with category query_id only).")
+            st.dataframe(df_cat, use_container_width=True, hide_index=True)
             st.markdown("---")
-            # Table 2: By region
-            st.markdown("#### By region")
+            # Table 2: Productivity by region (criterion name -> count)
+            st.markdown("#### Table 2 — Productivity by region")
+            df_reg = pd.DataFrame(by_region if by_region else [{"name": "(none yet)", "count": 0}])
+            df_reg.columns = ["Region", "Candidates"]
             if not by_region:
-                st.info("No candidate articles attributed to regions yet.")
-            else:
-                df_reg = pd.DataFrame(by_region)
-                df_reg.columns = ["Region", "Candidates"]
-                st.dataframe(df_reg, use_container_width=True, hide_index=True)
+                st.caption("No candidate articles attributed to regions yet.")
+            st.dataframe(df_reg, use_container_width=True, hide_index=True)
             st.markdown("---")
-            # Table 3: By value chain link
-            st.markdown("#### By value chain link")
+            # Table 3: Productivity by value chain link (criterion name -> count)
+            st.markdown("#### Table 3 — Productivity by value chain link")
+            df_vcl = pd.DataFrame(by_value_chain_link if by_value_chain_link else [{"name": "(none yet)", "count": 0}])
+            df_vcl.columns = ["Value chain link", "Candidates"]
             if not by_value_chain_link:
-                st.info("No candidate articles attributed to value chain links yet.")
-            else:
-                df_vcl = pd.DataFrame(by_value_chain_link)
-                df_vcl.columns = ["Value chain link", "Candidates"]
-                st.dataframe(df_vcl, use_container_width=True, hide_index=True)
+                st.caption("No candidate articles attributed to value chain links yet.")
+            st.dataframe(df_vcl, use_container_width=True, hide_index=True)
             st.markdown("---")
-            # Combined CSV: Section, Name, Count
+            # Combined CSV: Section, Name, Count (no runs)
             crit_csv = "Section,Name,Candidates\n"
             for r in by_category:
                 crit_csv += f"Category,{r['name']},{r['count']}\n"
