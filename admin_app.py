@@ -1906,7 +1906,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Generation Time", "Generation History", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation Time", "Generation History", "Source Productivity", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
     )
     
     # Get data (same run limit as Dashboard so Platform Overview / Company Activity / Generation Performance stay in sync)
@@ -2344,6 +2344,35 @@ elif page == "📈 Reporting":
                     else:
                         st.warning("No sources found in selected reports. Make sure reports contain source citations.")
     
+    elif report_type == "Source Productivity":
+        st.subheader("Source Productivity Report")
+        st.info("""
+        **Source Productivity** shows total candidate articles per evidence source (all time).
+        Use this to see which sources are worth keeping and which contribute little.
+        """)
+        st.markdown("---")
+        try:
+            productivity = get_source_productivity()
+        except Exception:
+            productivity = []
+        if not productivity:
+            st.info("No source productivity data yet. Candidate articles are recorded as runs execute.")
+        else:
+            import pandas as pd
+            df_prod = pd.DataFrame(productivity)[["source_name", "count"]]
+            df_prod = df_prod.rename(columns={"source_name": "Source", "count": "Items (all time)"})
+            st.dataframe(df_prod, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            prod_csv = "Source,Items (all time)\n"
+            for row in productivity:
+                prod_csv += f"{row.get('source_name', '')},{row.get('count', 0)}\n"
+            st.download_button(
+                "📥 Export Source Productivity",
+                data=prod_csv,
+                file_name=f"source_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+    
     elif report_type == "Token Usage & Costs":
         st.subheader("Token Usage & Cost Analysis")
         
@@ -2667,19 +2696,6 @@ elif page == "🔗 Sources":
             st.error(str(e))
     st.markdown("---")
     sources_list = get_all_sources()
-    # Historical productivity: candidate_articles count per source (all time)
-    try:
-        productivity = get_source_productivity()
-    except Exception:
-        productivity = []
-    if productivity:
-        st.subheader("Historical productivity")
-        st.caption("Total candidate articles per source (all time). Use this to see which sources are worth keeping.")
-        import pandas as pd
-        df_prod = pd.DataFrame(productivity)[["source_name", "count"]]
-        df_prod = df_prod.rename(columns={"source_name": "Source", "count": "Items (all time)"})
-        st.dataframe(df_prod, use_container_width=True, hide_index=True)
-        st.markdown("---")
     if not sources_list:
         st.info("No sources yet. Add an RSS feed or other source below to get started.")
     else:
