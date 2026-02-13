@@ -50,3 +50,6 @@ workspace_users.json
 merged_companies.txt
 test_company_list.json
 
+# Development docs (local only, not for GitHub)
+development/*.md
+
