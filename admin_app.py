@@ -1907,12 +1907,11 @@ elif page == "📈 Reporting":
         ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
     )
     
-    # Get data
+    # Get data (same run limit as Dashboard so Platform Overview / Company Activity / Generation Performance stay in sync)
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    all_runs, runs_err = get_recent_runs(1000)
+    all_runs, runs_err = get_recent_runs(100)
     if runs_err:
-        all_runs, _ = get_recent_runs(100)
         st.warning(f"⚠️ Could not load run data: {runs_err}")
     all_runs = all_runs or []
     all_requests = get_all_specification_requests()
@@ -1920,7 +1919,7 @@ elif page == "📈 Reporting":
     
     if report_type == "Platform Overview":
         st.subheader("Platform Overview Report")
-        
+        st.caption("Same run data as Dashboard: last 100 runs.")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Companies", len(workspaces))
@@ -1963,7 +1962,7 @@ elif page == "📈 Reporting":
     
     elif report_type == "Company Activity":
         st.subheader("Company Activity Report")
-        
+        st.caption("Same run data as Dashboard: last 100 runs.")
         if workspaces:
             for ws in workspaces:
                 specs = get_newsletter_specifications(ws.get('id'))
@@ -1998,7 +1997,7 @@ elif page == "📈 Reporting":
     
     elif report_type == "Generation Performance":
         st.subheader("Generation Performance Report")
-        
+        st.caption("Same run data as Dashboard: last 100 runs.")
         # Success rate
         success_runs = [r for r in all_runs if r.get('status') == 'success']
         failed_runs = [r for r in all_runs if r.get('status') == 'failed']
@@ -2047,21 +2046,20 @@ elif page == "📈 Reporting":
         st.info("""
         **Generation History** shows all intelligence source generation runs with detailed information including vector store usage.
         Each entry shows whether the company list was retrieved from the vector store during generation.
+        Uses the same data as the **📚 Generation History** page (last 50 runs with full metadata).
         """)
         
         st.markdown("---")
         
-        # Get recent runs (limit to 50 for display)
-        if not all_runs and runs_err:
-            recent_runs, recent_err = get_recent_runs(50)
-            if recent_err:
-                st.error(f"Error loading generation history: {recent_err}")
-            recent_runs = recent_runs or []
-        else:
-            recent_runs = all_runs[:50] if all_runs else []
+        # Use same data as Generation History page: runs with metadata (HTML, tool_usage, etc.)
+        recent_runs, recent_err = get_recent_runs_with_metadata(limit=50)
+        if recent_err:
+            st.error(f"Error loading generation history: {recent_err}")
+        recent_runs = recent_runs or []
         
         if recent_runs:
-            st.write(f"**Total Runs:** {len(recent_runs)} (showing most recent 50)")
+            st.caption("Same data as 📚 Generation History page: last 50 runs with full metadata (HTML, vector store, timing).")
+            st.write(f"**Total Runs:** {len(recent_runs)} (most recent 50)")
             
             for run in recent_runs:
                 with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]} - {run.get('status', 'unknown').upper()}"):
