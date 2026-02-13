@@ -313,69 +313,36 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
 def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
     """
     Get recent newsletter generation runs with specification names.
-    Returns (runs, error_message). error_message is set only when both primary and fallback queries fail.
+    Uses two lightweight queries (runs then specs) to avoid statement timeout on the nested join.
+    Returns (runs, error_message). error_message is set only when a query fails.
     """
     supabase = get_supabase_client()
-    
     try:
-        # Try nested select first (more efficient)
-        result = supabase.table("newsletter_runs")\
-            .select("*, newsletter_specifications(newsletter_name)")\
+        runs_result = supabase.table("newsletter_runs")\
+            .select("*")\
             .order("created_at", desc=True)\
             .limit(limit)\
             .execute()
-        
-        runs = result.data if result.data else []
-        # Flatten the nested specification name
-        for run in runs:
-            if run.get("newsletter_specifications"):
-                spec = run["newsletter_specifications"]
-                if isinstance(spec, list) and len(spec) > 0:
-                    run["newsletter_name"] = spec[0].get("newsletter_name", "Unknown")
-                elif isinstance(spec, dict):
-                    run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
-                del run["newsletter_specifications"]
-        
+        runs = runs_result.data if runs_result.data else []
+        if not runs:
+            return ([], None)
+        spec_ids = list({run.get("specification_id") for run in runs if run.get("specification_id")})
+        if spec_ids:
+            specs_result = supabase.table("newsletter_specifications")\
+                .select("id, newsletter_name")\
+                .in_("id", spec_ids)\
+                .execute()
+            specs_dict = {spec["id"]: spec.get("newsletter_name", "Unknown") for spec in (specs_result.data or [])}
+            for run in runs:
+                run["newsletter_name"] = specs_dict.get(run.get("specification_id"), "Unknown")
+        else:
+            for run in runs:
+                run["newsletter_name"] = "Unknown"
         return (runs, None)
     except Exception as e:
-        # Fallback: Get runs and specs separately, then join manually
         import logging
-        logging.warning("get_recent_runs primary query failed: %s", e)
-        try:
-            # Get runs
-            runs_result = supabase.table("newsletter_runs")\
-                .select("*")\
-                .order("created_at", desc=True)\
-                .limit(limit)\
-                .execute()
-            
-            runs = runs_result.data if runs_result.data else []
-            
-            if not runs:
-                return ([], None)
-            
-            # Get all specification IDs
-            spec_ids = [run.get("specification_id") for run in runs if run.get("specification_id")]
-            
-            if spec_ids:
-                # Get specifications
-                specs_result = supabase.table("newsletter_specifications")\
-                    .select("id, newsletter_name")\
-                    .in_("id", spec_ids)\
-                    .execute()
-                
-                specs_dict = {spec["id"]: spec.get("newsletter_name", "Unknown") for spec in (specs_result.data if specs_result.data else [])}
-                
-                # Add newsletter_name to each run
-                for run in runs:
-                    spec_id = run.get("specification_id")
-                    run["newsletter_name"] = specs_dict.get(spec_id, "Unknown")
-            
-            return (runs, None)
-        except Exception as fallback_error:
-            import logging
-            logging.warning("get_recent_runs failed (primary and fallback): %s", fallback_error)
-            return ([], str(fallback_error))
+        logging.warning("get_recent_runs failed: %s", e)
+        return ([], str(e))
 
 
 def get_audit_logs(limit: int = 50) -> List[Dict]:
