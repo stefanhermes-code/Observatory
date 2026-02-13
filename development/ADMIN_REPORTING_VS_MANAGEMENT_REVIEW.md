@@ -87,10 +87,11 @@ Review of all Admin pages to identify where **reporting** (analytics, summaries,
 
 ## 4. Reporting page – current and proposed report types
 
-**Current:** Platform Overview, Company Activity, Generation Performance, Generation Time, Generation History, Source Usage Analytics, Token Usage & Costs, Revenue Analytics.
+**Current:** Platform Overview, Company Activity, Generation Performance, Generation Time, **Criteria Productivity**, Generation History, **Source Productivity**, Source Usage Analytics, Token Usage & Costs, Revenue Analytics.
 
-**Proposed additions:**
-- **Source Productivity** (from Sources page) – candidate_articles count per source, all time. **Implemented.**
+**Criteria Productivity:** Categories, regions, and links usage from run count data (`categories_count`, `regions_count`, `links_count` on newsletter_runs). One report with summary metrics, per-run table, and CSV export.
+
+**Source Productivity** (from Sources page): candidate_articles count per source, all time. **Implemented.**
 
 ---
 

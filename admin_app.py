@@ -1906,7 +1906,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Generation Time", "Generation History", "Source Productivity", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation Time", "Criteria Productivity", "Generation History", "Source Productivity", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
     )
     
     # Get data (same run limit as Dashboard so Platform Overview / Company Activity / Generation Performance stay in sync)
@@ -2103,6 +2103,59 @@ elif page == "📈 Reporting":
                 "📥 Export Generation Time",
                 data=gen_time_csv,
                 file_name=f"generation_time_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+    
+    elif report_type == "Criteria Productivity":
+        st.subheader("Criteria Productivity Report")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Uses categories_count, regions_count, links_count from newsletter_runs.")
+        st.info("""
+        **Criteria Productivity** shows how categories, regions, and links (news items) are used across runs.
+        Each run stores the number of categories and regions from the spec, and the number of links (items) included in the report.
+        This report aggregates that usage so you can see scope per run and totals.
+        """)
+        st.markdown("---")
+        runs_with_scope = [
+            r for r in all_runs
+            if r.get("categories_count") is not None or r.get("regions_count") is not None or r.get("links_count") is not None
+        ]
+        if not runs_with_scope:
+            st.info("No runs with criteria data yet. New successful runs store categories_count, regions_count, and links_count.")
+        else:
+            cat_vals = [r["categories_count"] for r in runs_with_scope if r.get("categories_count") is not None]
+            reg_vals = [r["regions_count"] for r in runs_with_scope if r.get("regions_count") is not None]
+            link_vals = [r["links_count"] for r in runs_with_scope if r.get("links_count") is not None]
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Runs with scope data", len(runs_with_scope))
+            with col2:
+                st.metric("Avg categories/run", f"{sum(cat_vals) / len(cat_vals):.1f}" if cat_vals else "—")
+            with col3:
+                st.metric("Avg regions/run", f"{sum(reg_vals) / len(reg_vals):.1f}" if reg_vals else "—")
+            with col4:
+                st.metric("Avg links/run", f"{sum(link_vals) / len(link_vals):.1f}" if link_vals else "—")
+            st.markdown("---")
+            import pandas as pd
+            rows = [
+                {
+                    "Intelligence Source": r.get("newsletter_name", "Unknown"),
+                    "Created": (r.get("created_at") or "")[:19],
+                    "Categories": r.get("categories_count", ""),
+                    "Regions": r.get("regions_count", ""),
+                    "Links": r.get("links_count", ""),
+                }
+                for r in runs_with_scope
+            ]
+            df = pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            crit_csv = "Intelligence Source,Created,Categories,Regions,Links\n"
+            for r in runs_with_scope:
+                crit_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
+            st.download_button(
+                "📥 Export Criteria Productivity",
+                data=crit_csv,
+                file_name=f"criteria_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
     
