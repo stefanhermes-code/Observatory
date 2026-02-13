@@ -6,9 +6,14 @@ ALTER TABLE newsletter_runs
 
 COMMENT ON COLUMN newsletter_runs.generation_duration_seconds IS 'Total generation time in seconds. Filled from evidence_summary.timing_seconds.total for new runs, or from (completed_at - created_at) when backfilled. NULL for failed or incomplete runs.';
 
--- Backfill existing rows: set duration from completed_at - created_at where still NULL
+-- Backfill: compute duration from (completed_at - created_at) for any row that has both timestamps
+-- Cast to timestamptz so it works whether columns are timestamp or text
 UPDATE newsletter_runs
-SET generation_duration_seconds = ROUND(EXTRACT(EPOCH FROM (completed_at - created_at))::numeric, 1)
+SET generation_duration_seconds = ROUND(
+  EXTRACT(EPOCH FROM (
+    (completed_at::timestamptz) - (created_at::timestamptz)
+  ))::numeric,
+  1
+)
 WHERE completed_at IS NOT NULL
-  AND created_at IS NOT NULL
-  AND generation_duration_seconds IS NULL;
+  AND created_at IS NOT NULL;
