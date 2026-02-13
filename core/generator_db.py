@@ -172,28 +172,29 @@ def create_newsletter_run(spec_id: str, workspace_id: str, user_email: str, stat
     return result.data[0] if result.data else run_data
 
 
-def update_run_status(run_id: str, status: str, artifact_path: Optional[str] = None, error_message: Optional[str] = None, metadata: Optional[Dict] = None):
-    """Update newsletter run status."""
+def update_run_status(
+    run_id: str,
+    status: str,
+    artifact_path: Optional[str] = None,
+    error_message: Optional[str] = None,
+    metadata: Optional[Dict] = None,
+    generation_duration_seconds: Optional[float] = None,
+):
+    """Update newsletter run status. Optionally set generation_duration_seconds (total time to generate, in seconds)."""
     supabase = get_supabase_client()
-    
     update_data = {
         "status": status,
         "completed_at": datetime.utcnow().isoformat() if status in ["success", "failed"] else None
     }
-    
     if artifact_path:
         update_data["artifact_path"] = artifact_path
-    
     if error_message:
         update_data["error_message"] = error_message
-    
     if metadata:
         update_data["metadata"] = metadata
-    
-    supabase.table("newsletter_runs")\
-        .update(update_data)\
-        .eq("id", run_id)\
-        .execute()
+    if generation_duration_seconds is not None:
+        update_data["generation_duration_seconds"] = round(generation_duration_seconds, 1)
+    supabase.table("newsletter_runs").update(update_data).eq("id", run_id).execute()
 
 
 def get_specification_history(spec_id: str, limit: int = 50) -> List[Dict]:

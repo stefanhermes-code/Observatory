@@ -162,8 +162,15 @@ def execute_generator(
         "extraction_result": extraction_result,
         "coverage_low": coverage_low,
     }
-
-    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
+    duration = None
+    if isinstance(evidence_summary, dict):
+        timing = evidence_summary.get("timing_seconds") or {}
+        if isinstance(timing, dict) and timing.get("total") is not None:
+            try:
+                duration = float(timing["total"])
+            except (TypeError, ValueError):
+                pass
+    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html, generation_duration_seconds=duration)
 
     result_data = {
         "run_id": run_id,
@@ -317,7 +324,15 @@ def run_phase_render_and_save(
         "extraction_result": extraction_result,
         "coverage_low": coverage_low,
     }
-    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html)
+    duration = None
+    if isinstance(evidence_summary, dict):
+        timing = evidence_summary.get("timing_seconds") or {}
+        if isinstance(timing, dict) and timing.get("total") is not None:
+            try:
+                duration = float(timing["total"])
+            except (TypeError, ValueError):
+                pass
+    update_run_status(run_id, "success", artifact_path, metadata=metadata_with_html, generation_duration_seconds=duration)
 
     return {
         "run_id": run_id,

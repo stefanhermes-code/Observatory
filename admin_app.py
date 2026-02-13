@@ -1906,7 +1906,7 @@ elif page == "📈 Reporting":
     # Report type selection
     report_type = st.selectbox(
         "Select Report Type",
-        ["Platform Overview", "Company Activity", "Generation Performance", "Generation History", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
+        ["Platform Overview", "Company Activity", "Generation Performance", "Generation Time", "Generation History", "Source Usage Analytics", "Token Usage & Costs", "Revenue Analytics"]
     )
     
     # Get data (same run limit as Dashboard so Platform Overview / Company Activity / Generation Performance stay in sync)
@@ -2041,6 +2041,51 @@ elif page == "📈 Reporting":
             file_name=f"generation_performance_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+    
+    elif report_type == "Generation Time":
+        st.subheader("Generation Time Report")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Duration comes from the **generation_duration_seconds** column.")
+        st.info("""
+        **Generation Time** shows how long each report took to generate (in seconds). 
+        Only successful runs with a stored duration are included. Older or failed runs may have no duration.
+        """)
+        st.markdown("---")
+        runs_with_duration = [r for r in all_runs if r.get("status") == "success" and r.get("generation_duration_seconds") is not None]
+        if not runs_with_duration:
+            st.info("No runs with generation duration yet. New successful runs will have duration stored.")
+        else:
+            durations = [float(r["generation_duration_seconds"]) for r in runs_with_duration]
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Runs with duration", len(runs_with_duration))
+            with col2:
+                st.metric("Avg (seconds)", f"{sum(durations) / len(durations):.1f}")
+            with col3:
+                st.metric("Min (seconds)", f"{min(durations):.1f}")
+            with col4:
+                st.metric("Max (seconds)", f"{max(durations):.1f}")
+            st.markdown("---")
+            import pandas as pd
+            rows = [
+                {
+                    "Intelligence Source": r.get("newsletter_name", "Unknown"),
+                    "Created": (r.get("created_at") or "")[:19],
+                    "Duration (s)": round(float(r["generation_duration_seconds"]), 1),
+                }
+                for r in runs_with_duration
+            ]
+            df = pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.markdown("---")
+            gen_time_csv = "Intelligence Source,Created,Duration (seconds)\n"
+            for r in runs_with_duration:
+                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)}\n"
+            st.download_button(
+                "📥 Export Generation Time",
+                data=gen_time_csv,
+                file_name=f"generation_time_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
     
     elif report_type == "Generation History":
         st.subheader("Generation History Report")
