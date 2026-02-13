@@ -349,6 +349,40 @@ def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
         return ([], str(e))
 
 
+def get_recent_runs_with_metadata(limit: int = 25) -> Tuple[List[Dict], Optional[str]]:
+    """
+    Get recent runs including metadata (e.g. html_content) for report types that need it
+    (Source Usage Analytics). Small limit to avoid statement timeout.
+    """
+    supabase = get_supabase_client()
+    try:
+        runs_result = supabase.table("newsletter_runs")\
+            .select("*")\
+            .order("created_at", desc=True)\
+            .limit(limit)\
+            .execute()
+        runs = runs_result.data if runs_result.data else []
+        if not runs:
+            return ([], None)
+        spec_ids = list({run.get("specification_id") for run in runs if run.get("specification_id")})
+        if spec_ids:
+            specs_result = supabase.table("newsletter_specifications")\
+                .select("id, newsletter_name")\
+                .in_("id", spec_ids)\
+                .execute()
+            specs_dict = {spec["id"]: spec.get("newsletter_name", "Unknown") for spec in (specs_result.data or [])}
+            for run in runs:
+                run["newsletter_name"] = specs_dict.get(run.get("specification_id"), "Unknown")
+        else:
+            for run in runs:
+                run["newsletter_name"] = "Unknown"
+        return (runs, None)
+    except Exception as e:
+        import logging
+        logging.warning("get_recent_runs_with_metadata failed: %s", e)
+        return ([], str(e))
+
+
 def get_run_by_id(run_id: str) -> Optional[Dict]:
     """Fetch one run with full metadata (for Download HTML / timing in Generation History)."""
     if not run_id:

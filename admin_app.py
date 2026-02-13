@@ -31,6 +31,7 @@ from core.admin_db import (
     update_specification_status,
     override_frequency_limit,
     get_recent_runs,
+    get_recent_runs_with_metadata,
     get_run_by_id,
     get_audit_logs,
     log_audit_action,
@@ -2172,14 +2173,11 @@ elif page == "📈 Reporting":
         
         st.markdown("---")
         
-        # Get recent runs for selection
-        if not all_runs and runs_err:
-            available_runs, available_err = get_recent_runs(100)
-            if available_err:
-                st.error(f"Error loading runs: {available_err}")
-            available_runs = available_runs or []
-        else:
-            available_runs = all_runs[:100] if all_runs else []
+        # Load runs with metadata (HTML) for source extraction; small limit to avoid timeout
+        available_runs, available_err = get_recent_runs_with_metadata(limit=25)
+        if available_err:
+            st.error(f"Error loading runs: {available_err}")
+        available_runs = available_runs or []
         
         if not available_runs:
             st.info("No generation runs available for analysis")
@@ -2193,8 +2191,9 @@ elif page == "📈 Reporting":
                         runs_with_html.append(run)
             
             if not runs_with_html:
-                st.warning("No completed runs with HTML content available for analysis")
+                st.warning("No completed runs with HTML content available for analysis (last 25 runs checked).")
             else:
+                st.caption("Based on the last 25 runs with content (to avoid timeouts).")
                 st.write(f"**Available Reports:** {len(runs_with_html)} completed runs with HTML content")
                 
                 # Multi-select for choosing reports to analyze
