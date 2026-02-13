@@ -31,6 +31,7 @@ from core.admin_db import (
     update_specification_status,
     override_frequency_limit,
     get_recent_runs,
+    get_run_by_id,
     get_audit_logs,
     log_audit_action,
     get_all_sources,
@@ -2484,7 +2485,7 @@ elif page == "📚 Generation History":
     
     st.markdown("---")
     
-    # Get recent runs
+    # Get recent runs (list only, no metadata — avoids timeout)
     recent_runs, runs_err = get_recent_runs(50)
     
     if runs_err:
@@ -2492,8 +2493,11 @@ elif page == "📚 Generation History":
         st.caption("This is usually a Supabase permission issue (e.g. RLS on newsletter_runs blocking SELECT). Generator, Admin and Configurator use the same secrets.")
     elif recent_runs:
         st.write(f"**Total Runs:** {len(recent_runs)}")
+        # When user clicks "Download HTML" we fetch that run's full row (with metadata) on next run
+        download_run_id = st.session_state.get("gen_history_download_run_id")
         
         for run in recent_runs:
+            run_id = run.get("id")
             with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]}"):
                 col1, col2, col3 = st.columns(3)
                 
@@ -2503,57 +2507,58 @@ elif page == "📚 Generation History":
                     st.write("**Created:**", run.get('created_at', '')[:19])
                 
                 with col2:
-                    st.write("**Run ID:**", run.get('id'))
+                    st.write("**Run ID:**", run_id)
                     st.write("**HTML File:**", run.get('artifact_path', 'N/A'))
                     
-                    # Display vector store usage (admin-only info)
-                    metadata = run.get("metadata", {})
-                    if isinstance(metadata, dict):
-                        tool_usage = metadata.get("tool_usage", {})
-                        if tool_usage:
-                            st.markdown("---")
-                            st.write("**🔍 Vector Store Usage:**")
-                            if tool_usage.get("vector_store_used"):
-                                st.success(f"✅ Used ({tool_usage.get('file_search_count', 0)} file_search call(s))")
-                                if tool_usage.get("files_retrieved"):
-                                    st.write(f"Files retrieved: {len(tool_usage['files_retrieved'])}")
-                            else:
-                                st.warning("⚠️ No file_search detected")
-                        else:
-                            st.info("ℹ️ Tool usage data not available (older run)")
-                    
                     if run.get('artifact_path'):
-                        # Retrieve HTML from metadata (stored when run was created)
-                        html_content = None
-                        if isinstance(metadata, dict):
-                            html_content = metadata.get("html_content")
-                        
-                        if html_content:
-                            st.download_button(
-                                "📥 Download HTML",
-                                data=html_content,
-                                file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
-                                key=f"download_{run.get('id')}"
-                            )
+                        if download_run_id == run_id:
+                            full_run = get_run_by_id(run_id)
+                            if full_run and isinstance(full_run.get("metadata"), dict):
+                                metadata = full_run["metadata"]
+                                html_content = metadata.get("html_content")
+                                if html_content:
+                                    st.download_button(
+                                        "📥 Download HTML",
+                                        data=html_content,
+                                        file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
+                                        key=f"download_{run_id}"
+                                    )
+                                else:
+                                    st.warning("⚠️ HTML content not available for this run")
+                                tool_usage = metadata.get("tool_usage", {})
+                                if tool_usage:
+                                    st.markdown("---")
+                                    st.write("**🔍 Vector Store Usage:**")
+                                    if tool_usage.get("vector_store_used"):
+                                        st.success(f"✅ Used ({tool_usage.get('file_search_count', 0)} file_search call(s))")
+                                    else:
+                                        st.warning("⚠️ No file_search detected")
+                            else:
+                                st.warning("⚠️ Could not load run details")
                         else:
-                            st.warning("⚠️ HTML content not available for this run (older runs may not have stored HTML)")
+                            if st.button("📥 Download HTML", key=f"fetch_dl_{run_id}"):
+                                st.session_state["gen_history_download_run_id"] = run_id
+                                st.rerun()
                 
                 with col3:
-                    # Display additional metadata and timing (internal metrics — Admin only)
-                    metadata = run.get("metadata", {})
-                    if isinstance(metadata, dict):
-                        st.write("**Model:**", metadata.get("model", "N/A"))
-                        st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
-                        ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
-                        timing = ev.get("timing_seconds") or {}
-                        if timing:
-                            st.markdown("---")
-                            st.caption("**Timing (s):** ingestion {:.0f} · web search {:.0f} · validate/dedupe {:.0f} · persist {:.0f} · total {:.0f}".format(
-                                timing.get("source_ingestion", 0), timing.get("web_search", 0),
-                                timing.get("validate_dedupe", 0), timing.get("persist", 0), timing.get("total", 0),
-                            ))
-                        if metadata.get("thread_id"):
-                            st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
+                    if download_run_id == run_id:
+                        full_run = get_run_by_id(run_id)
+                        if full_run and isinstance(full_run.get("metadata"), dict):
+                            metadata = full_run["metadata"]
+                            st.write("**Model:**", metadata.get("model", "N/A"))
+                            st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
+                            ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
+                            timing = ev.get("timing_seconds") or {}
+                            if timing:
+                                st.markdown("---")
+                                st.caption("**Timing (s):** ingestion {:.0f} · web search {:.0f} · validate/dedupe {:.0f} · persist {:.0f} · total {:.0f}".format(
+                                    timing.get("source_ingestion", 0), timing.get("web_search", 0),
+                                    timing.get("validate_dedupe", 0), timing.get("persist", 0), timing.get("total", 0),
+                                ))
+                            if metadata.get("thread_id"):
+                                st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
+                    else:
+                        st.caption("Click «Download HTML» in the middle column to load timing and download.")
     elif not runs_err:
         st.info("No generation runs yet")
         st.caption("Run a report in the Generator app to see it here.")

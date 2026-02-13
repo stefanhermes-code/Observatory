@@ -310,16 +310,20 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
     return result.data[0] if result.data else override_data
 
 
+# Columns for run list only (exclude metadata JSONB to avoid timeout and huge payload)
+_RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at"
+
+
 def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
     """
     Get recent newsletter generation runs with specification names.
-    Uses two lightweight queries (runs then specs) to avoid statement timeout on the nested join.
-    Returns (runs, error_message). error_message is set only when a query fails.
+    Fetches list columns only (no metadata) to stay under statement timeout.
+    Use get_run_by_id(run_id) to load full run including metadata for download/timing.
     """
     supabase = get_supabase_client()
     try:
         runs_result = supabase.table("newsletter_runs")\
-            .select("*")\
+            .select(_RUN_LIST_COLUMNS)\
             .order("created_at", desc=True)\
             .limit(limit)\
             .execute()
@@ -343,6 +347,35 @@ def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
         import logging
         logging.warning("get_recent_runs failed: %s", e)
         return ([], str(e))
+
+
+def get_run_by_id(run_id: str) -> Optional[Dict]:
+    """Fetch one run with full metadata (for Download HTML / timing in Generation History)."""
+    if not run_id:
+        return None
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("newsletter_runs")\
+            .select("*")\
+            .eq("id", run_id)\
+            .limit(1)\
+            .execute()
+        if result.data and len(result.data) > 0:
+            run = result.data[0]
+            if run.get("specification_id"):
+                spec = supabase.table("newsletter_specifications")\
+                    .select("newsletter_name")\
+                    .eq("id", run["specification_id"])\
+                    .limit(1)\
+                    .execute()
+                if spec.data and len(spec.data) > 0:
+                    run["newsletter_name"] = spec.data[0].get("newsletter_name", "Unknown")
+            else:
+                run["newsletter_name"] = "Unknown"
+            return run
+    except Exception:
+        pass
+    return None
 
 
 def get_audit_logs(limit: int = 50) -> List[Dict]:
