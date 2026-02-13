@@ -310,11 +310,15 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
     return result.data[0] if result.data else override_data
 
 
-# Columns for run list only (exclude metadata JSONB to avoid timeout and huge payload)
+# Columns for run list only (exclude metadata JSONB)
 _RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at"
 
+# Single place for run-fetch limits (change here to affect Dashboard, Reporting, Generation History, Source Usage)
+RECENT_RUNS_LIMIT = 100
+RECENT_RUNS_WITH_METADATA_LIMIT = 50
 
-def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
+
+def get_recent_runs(limit: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], Optional[str]]:
     """
     Get recent newsletter generation runs with specification names.
     Fetches list columns only (no metadata) to stay under statement timeout.
@@ -349,10 +353,9 @@ def get_recent_runs(limit: int = 10) -> Tuple[List[Dict], Optional[str]]:
         return ([], str(e))
 
 
-def get_recent_runs_with_metadata(limit: int = 25) -> Tuple[List[Dict], Optional[str]]:
+def get_recent_runs_with_metadata(limit: int = RECENT_RUNS_WITH_METADATA_LIMIT) -> Tuple[List[Dict], Optional[str]]:
     """
-    Get recent runs including metadata (e.g. html_content) for report types that need it
-    (Source Usage Analytics). Small limit to avoid statement timeout.
+    Get recent runs including metadata (e.g. html_content) for report types that need it.
     """
     supabase = get_supabase_client()
     try:

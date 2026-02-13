@@ -30,6 +30,8 @@ from core.admin_db import (
     get_newsletter_specifications,
     update_specification_status,
     override_frequency_limit,
+    RECENT_RUNS_LIMIT,
+    RECENT_RUNS_WITH_METADATA_LIMIT,
     get_recent_runs,
     get_recent_runs_with_metadata,
     get_run_by_id,
@@ -198,7 +200,7 @@ if page == "📊 Dashboard":
     all_requests = get_all_specification_requests()
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    all_runs, runs_err = get_recent_runs(100)  # Get more for performance metrics
+    all_runs, runs_err = get_recent_runs(RECENT_RUNS_LIMIT)
     if runs_err:
         st.warning(f"Could not load run history: {runs_err}")
     recent_runs = all_runs[:5]
@@ -1910,7 +1912,7 @@ elif page == "📈 Reporting":
     # Get data (same run limit as Dashboard so Platform Overview / Company Activity / Generation Performance stay in sync)
     workspaces = get_all_workspaces()
     specifications = get_newsletter_specifications()
-    all_runs, runs_err = get_recent_runs(100)
+    all_runs, runs_err = get_recent_runs(RECENT_RUNS_LIMIT)
     if runs_err:
         st.warning(f"⚠️ Could not load run data: {runs_err}")
     all_runs = all_runs or []
@@ -1919,7 +1921,7 @@ elif page == "📈 Reporting":
     
     if report_type == "Platform Overview":
         st.subheader("Platform Overview Report")
-        st.caption("Same run data as Dashboard: last 100 runs.")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs).")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Companies", len(workspaces))
@@ -1962,7 +1964,7 @@ elif page == "📈 Reporting":
     
     elif report_type == "Company Activity":
         st.subheader("Company Activity Report")
-        st.caption("Same run data as Dashboard: last 100 runs.")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs).")
         if workspaces:
             for ws in workspaces:
                 specs = get_newsletter_specifications(ws.get('id'))
@@ -1997,7 +1999,7 @@ elif page == "📈 Reporting":
     
     elif report_type == "Generation Performance":
         st.subheader("Generation Performance Report")
-        st.caption("Same run data as Dashboard: last 100 runs.")
+        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs).")
         # Success rate
         success_runs = [r for r in all_runs if r.get('status') == 'success']
         failed_runs = [r for r in all_runs if r.get('status') == 'failed']
@@ -2046,20 +2048,20 @@ elif page == "📈 Reporting":
         st.info("""
         **Generation History** shows all intelligence source generation runs with detailed information including vector store usage.
         Each entry shows whether the company list was retrieved from the vector store during generation.
-        Uses the same data as the **📚 Generation History** page (last 50 runs with full metadata).
+        Uses the same data as the **📚 Generation History** page.
         """)
         
         st.markdown("---")
         
         # Use same data as Generation History page: runs with metadata (HTML, tool_usage, etc.)
-        recent_runs, recent_err = get_recent_runs_with_metadata(limit=50)
+        recent_runs, recent_err = get_recent_runs_with_metadata()
         if recent_err:
             st.error(f"Error loading generation history: {recent_err}")
         recent_runs = recent_runs or []
         
         if recent_runs:
-            st.caption("Same data as 📚 Generation History page: last 50 runs with full metadata (HTML, vector store, timing).")
-            st.write(f"**Total Runs:** {len(recent_runs)} (most recent 50)")
+            st.caption(f"Same data as 📚 Generation History page (limit: {RECENT_RUNS_WITH_METADATA_LIMIT} runs with metadata).")
+            st.write(f"**Total Runs:** {len(recent_runs)}")
             
             for run in recent_runs:
                 with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]} - {run.get('status', 'unknown').upper()}"):
@@ -2172,7 +2174,7 @@ elif page == "📈 Reporting":
         st.markdown("---")
         
         # Load runs with metadata (HTML) for source extraction; small limit to avoid timeout
-        available_runs, available_err = get_recent_runs_with_metadata(limit=25)
+        available_runs, available_err = get_recent_runs_with_metadata()
         if available_err:
             st.error(f"Error loading runs: {available_err}")
         available_runs = available_runs or []
@@ -2189,9 +2191,9 @@ elif page == "📈 Reporting":
                         runs_with_html.append(run)
             
             if not runs_with_html:
-                st.warning("No completed runs with HTML content available for analysis (last 25 runs checked).")
+                st.warning(f"No completed runs with HTML content (limit: {RECENT_RUNS_WITH_METADATA_LIMIT} runs).")
             else:
-                st.caption("Based on the last 25 runs with content (to avoid timeouts).")
+                st.caption(f"Runs with HTML content (limit: {RECENT_RUNS_WITH_METADATA_LIMIT}).")
                 st.write(f"**Available Reports:** {len(runs_with_html)} completed runs with HTML content")
                 
                 # Multi-select for choosing reports to analyze
@@ -2483,7 +2485,7 @@ elif page == "📚 Generation History":
     st.markdown("---")
     
     # Get recent runs (list only, no metadata — avoids timeout)
-    recent_runs, runs_err = get_recent_runs(50)
+    recent_runs, runs_err = get_recent_runs(RECENT_RUNS_LIMIT)
     
     if runs_err:
         st.error(f"Could not load run history: {runs_err}")

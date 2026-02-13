@@ -1,0 +1,11 @@
+---
+description: Never assume user intent; do not add constraints or behavior unless explicitly asked or already in the codebase.
+alwaysApply: true
+---
+
+# Never assume
+
+- **Do not assume** the user wants particular constraints (e.g. payload limits, retrieval limits, timeouts, caps).
+- **Do not add** limits, validations, or behavior "for safety" or "to avoid timeouts" unless the user explicitly asks for them or they already exist in the codebase.
+- If in doubt, **ask** what the user wants instead of implementing a guess.
+- When explaining past work, do not present assumptions as if they were user requirements.
