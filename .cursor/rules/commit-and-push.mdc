@@ -1,0 +1,17 @@
+---
+description: After making code changes in this project, always commit and push.
+globs: 
+alwaysApply: true
+---
+
+# Commit and push after code changes
+
+When you complete code changes in this repo:
+
+1. **Stage** only the files you changed (e.g. `git add path/to/file.py`), not unrelated or untracked files.
+2. **Commit** with a clear message that describes what was done (e.g. "Add X" / "Fix Y" / "Refactor Z").
+3. **Push** to the current branch (`git push`).
+
+Do this as part of the same task—do not wait for the user to ask. If the user has no remote or prefers not to push, the push step may fail; that is acceptable.
+
+Use PowerShell-compatible commands in this workspace (e.g. `Set-Location` and `;` instead of `&&` for chaining, or run commands separately).
