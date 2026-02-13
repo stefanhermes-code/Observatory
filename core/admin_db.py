@@ -503,29 +503,53 @@ def get_source_productivity() -> List[Dict]:
     return out
 
 
-def get_criteria_productivity() -> Tuple[List[Dict], List[Dict], List[Dict]]:
+def get_criteria_productivity(limit_runs: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], List[Dict], List[Dict], Dict]:
     """
-    Historical productivity by criteria: how many candidate_articles were found per category,
-    per region, and per value chain link across all runs (from query_id on candidate_articles).
-    Returns (by_category, by_region, by_value_chain_link), each a list of { name, count } sorted by count desc.
-    Only counts candidates that came from the query plan (query_id set); source-ingested items have no criterion.
+    Productivity by criteria: candidate_articles per category, per region, per value chain link.
+    Uses only candidate_articles from the most recent `limit_runs` runs (same as Dashboard/Reporting).
+    Returns (by_category, by_region, by_value_chain_link, stats) where stats has runs_considered, runs_with_candidates, candidate_articles_counted.
+    Only counts rows with query_id set (web-search); source-ingested items have no criterion.
     """
     supabase = get_supabase_client()
     try:
-        result = supabase.table("candidate_articles").select("query_id").execute()
+        # Get run IDs from the N most recent runs (same window as other reports)
+        runs_result = supabase.table("newsletter_runs")\
+            .select("id")\
+            .order("created_at", desc=True)\
+            .limit(limit_runs)\
+            .execute()
+        run_ids = [r["id"] for r in (runs_result.data or []) if r.get("id")]
+    except Exception as e:
+        if "does not exist" in str(e).lower():
+            return ([], [], [], {"runs_considered": 0, "runs_with_candidates": 0, "candidate_articles_counted": 0})
+        raise
+    if not run_ids:
+        return ([], [], [], {"runs_considered": 0, "runs_with_candidates": 0, "candidate_articles_counted": 0})
+    try:
+        # Fetch candidate_articles only for those runs (need run_id and query_id)
+        result = supabase.table("candidate_articles")\
+            .select("run_id, query_id")\
+            .in_("run_id", run_ids)\
+            .execute()
         rows = result.data or []
     except Exception as e:
         if "does not exist" in str(e).lower() or "candidate_articles" in str(e).lower():
-            return ([], [], [])
+            return ([], [], [], {"runs_considered": len(run_ids), "runs_with_candidates": 0, "candidate_articles_counted": 0})
         raise
     from collections import Counter
     cat_counter: Counter = Counter()
     reg_counter: Counter = Counter()
     vcl_counter: Counter = Counter()
+    runs_with_candidates: set = set()
+    counted = 0
     for r in rows:
         qid = (r.get("query_id") or "").strip()
         if not qid:
             continue
+        run_id = r.get("run_id")
+        if run_id:
+            runs_with_candidates.add(run_id)
+        counted += 1
         if qid.startswith("cat_"):
             cat_counter[qid[4:]] += 1
         elif qid.startswith("region_"):
@@ -535,7 +559,12 @@ def get_criteria_productivity() -> Tuple[List[Dict], List[Dict], List[Dict]]:
     by_category = [{"name": k, "count": v} for k, v in cat_counter.most_common()]
     by_region = [{"name": k, "count": v} for k, v in reg_counter.most_common()]
     by_value_chain_link = [{"name": k, "count": v} for k, v in vcl_counter.most_common()]
-    return (by_category, by_region, by_value_chain_link)
+    stats = {
+        "runs_considered": len(run_ids),
+        "runs_with_candidates": len(runs_with_candidates),
+        "candidate_articles_counted": counted,
+    }
+    return (by_category, by_region, by_value_chain_link, stats)
 
 
 def get_source_by_id(source_id: str) -> Optional[Dict]:

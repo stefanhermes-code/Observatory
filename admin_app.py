@@ -2121,7 +2121,12 @@ elif page == "📈 Reporting":
         if get_criteria_productivity is None:
             st.warning("Criteria productivity is not available in this deployment. Deploy the latest version of the app.")
         else:
-            by_category, by_region, by_value_chain_link = get_criteria_productivity()
+            by_category, by_region, by_value_chain_link, stats = get_criteria_productivity()
+            runs_considered = stats.get("runs_considered", 0)
+            runs_with_candidates = stats.get("runs_with_candidates", 0)
+            candidate_articles_counted = stats.get("candidate_articles_counted", 0)
+            st.markdown(f"**Based on the last {runs_considered} runs:** {runs_with_candidates} runs had web-search candidates → **{candidate_articles_counted}** candidate articles in the three tables below.")
+            st.markdown("---")
             import pandas as pd
             # Table 1: Productivity by category (criterion name -> count)
             st.markdown("#### Table 1 — Productivity by category")
