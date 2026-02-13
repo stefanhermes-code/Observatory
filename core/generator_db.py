@@ -300,6 +300,9 @@ def insert_candidate_articles(
             "published_at": c.get("published_at"),
             "validation_status": c.get("validation_status", "not_checked"),
             "http_status": c.get("http_status"),
+            "category": c.get("category"),
+            "region": c.get("region"),
+            "value_chain_link": c.get("value_chain_link"),
         }
         rows.append(row)
     if not rows:

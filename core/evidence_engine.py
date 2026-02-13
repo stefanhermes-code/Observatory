@@ -7,6 +7,7 @@ lookback window. Never relies on LLM/model date.
 
 import time
 from typing import List, Dict, Any, Optional
+from collections import defaultdict
 from datetime import datetime
 
 from core.admin_db import get_all_sources
@@ -191,62 +192,65 @@ def run_evidence_engine(
         existing = summary.get("by_source") or []
         summary["by_source"] = existing + [{"source_name": "web_search", "count": len(from_search)}]
 
-    # 3) Filter early: meta-snippet, URL, date, then canonicalize, validate (2xx-only when validate_urls), dedupe by (url, title)
-    # Dedupe by (canonical_url, title) so one URL (e.g. newsletter page) can have multiple candidates with different titles.
+    # 3) Filter early: meta-snippet, URL, date, canonicalize; group by (canonical, title) and merge query_ids into category/region/value_chain_link
+    # So each candidate can have one category AND one region (and optionally value_chain_link) for criteria productivity (sum of tables = same total).
     t_validate_start = time.perf_counter()
-    seen: set = set()  # (canonical_url, title_normalized)
-    to_insert: List[Dict[str, Any]] = []
+    grouped: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
     for c in all_candidates:
         url = (c.get("url") or "").strip()
         if not url or not url.startswith(("http://", "https://")):
             continue
-        # Meta-snippet filter: drop search-result preamble, not real news
         if is_meta_snippet((c.get("title") or "").strip()) or is_meta_snippet((c.get("snippet") or "").strip()):
             continue
-        # Date filter: only keep candidates within [lookback_date, reference_date]; keep if no date
         if not is_in_date_range(c.get("published_at"), lookback_date, ref_date):
             continue
         canonical = canonicalize_url(url)
         if not canonical:
             continue
         title_norm = (c.get("title") or "").strip()
-        dedupe_key = (canonical, title_norm)
-        if dedupe_key in seen:
-            continue
-        seen.add(dedupe_key)
+        grouped[(canonical, title_norm)].append(c)
 
-        # When validating URLs, only persist if link works (2xx) — so downstream does not need to re-check
+    to_insert: List[Dict[str, Any]] = []
+    for (canonical, title_norm), list_c in grouped.items():
+        c = list_c[0]
+        url = (c.get("url") or "").strip()
         if validate_urls:
             status, code = validate_url(url)
             if status != VALID_2XX:
-                continue  # dismiss non-working links early
-            rec = {
-                "url": url,
-                "canonical_url": canonical,
-                "title": c.get("title"),
-                "snippet": c.get("snippet"),
-                "published_at": c.get("published_at"),
-                "source_id": c.get("source_id"),
-                "source_name": c.get("source_name") or "unknown",
-                "query_id": c.get("query_id"),
-                "query_text": c.get("query_text"),
-                "validation_status": status,
-                "http_status": code,
-            }
+                continue
+            validation_status, http_status = status, code
         else:
-            rec = {
-                "url": url,
-                "canonical_url": canonical,
-                "title": c.get("title"),
-                "snippet": c.get("snippet"),
-                "published_at": c.get("published_at"),
-                "source_id": c.get("source_id"),
-                "source_name": c.get("source_name") or "unknown",
-                "query_id": c.get("query_id"),
-                "query_text": c.get("query_text"),
-                "validation_status": NOT_CHECKED,
-                "http_status": None,
-            }
+            validation_status, http_status = NOT_CHECKED, None
+
+        # Merge criteria from all query_ids that returned this (canonical, title): each candidate gets one category, one region, optional value_chain_link
+        category_val, region_val, vcl_val = None, None, None
+        for x in list_c:
+            qid = (x.get("query_id") or "").strip()
+            if not qid:
+                continue
+            if qid.startswith("cat_") and category_val is None:
+                category_val = qid[4:]
+            elif qid.startswith("region_") and region_val is None:
+                region_val = qid[7:].replace("_", " ")
+            elif qid.startswith("vcl_") and vcl_val is None:
+                vcl_val = qid[4:].replace("_", " ")
+
+        rec = {
+            "url": url,
+            "canonical_url": canonical,
+            "title": c.get("title"),
+            "snippet": c.get("snippet"),
+            "published_at": c.get("published_at"),
+            "source_id": c.get("source_id"),
+            "source_name": c.get("source_name") or "unknown",
+            "query_id": c.get("query_id"),
+            "query_text": c.get("query_text"),
+            "validation_status": validation_status,
+            "http_status": http_status,
+            "category": category_val,
+            "region": region_val,
+            "value_chain_link": vcl_val,
+        }
         to_insert.append(rec)
     summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
 
