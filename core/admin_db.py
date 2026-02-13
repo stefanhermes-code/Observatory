@@ -503,6 +503,41 @@ def get_source_productivity() -> List[Dict]:
     return out
 
 
+def get_criteria_productivity() -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    """
+    Historical productivity by criteria: how many candidate_articles were found per category,
+    per region, and per value chain link across all runs (from query_id on candidate_articles).
+    Returns (by_category, by_region, by_value_chain_link), each a list of { name, count } sorted by count desc.
+    Only counts candidates that came from the query plan (query_id set); source-ingested items have no criterion.
+    """
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("candidate_articles").select("query_id").execute()
+        rows = result.data or []
+    except Exception as e:
+        if "does not exist" in str(e).lower() or "candidate_articles" in str(e).lower():
+            return ([], [], [])
+        raise
+    from collections import Counter
+    cat_counter: Counter = Counter()
+    reg_counter: Counter = Counter()
+    vcl_counter: Counter = Counter()
+    for r in rows:
+        qid = (r.get("query_id") or "").strip()
+        if not qid:
+            continue
+        if qid.startswith("cat_"):
+            cat_counter[qid[4:]] += 1
+        elif qid.startswith("region_"):
+            reg_counter[qid[7:].replace("_", " ")] += 1
+        elif qid.startswith("vcl_"):
+            vcl_counter[qid[4:].replace("_", " ")] += 1
+    by_category = [{"name": k, "count": v} for k, v in cat_counter.most_common()]
+    by_region = [{"name": k, "count": v} for k, v in reg_counter.most_common()]
+    by_value_chain_link = [{"name": k, "count": v} for k, v in vcl_counter.most_common()]
+    return (by_category, by_region, by_value_chain_link)
+
+
 def get_source_by_id(source_id: str) -> Optional[Dict]:
     """Get a single source by id."""
     supabase = get_supabase_client()

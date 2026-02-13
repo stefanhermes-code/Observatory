@@ -39,6 +39,7 @@ from core.admin_db import (
     log_audit_action,
     get_all_sources,
     get_source_productivity,
+    get_criteria_productivity,
     get_source_by_id,
     create_source,
     update_source,
@@ -2108,56 +2109,56 @@ elif page == "📈 Reporting":
     
     elif report_type == "Criteria Productivity":
         st.subheader("Criteria Productivity Report")
-        st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Uses categories_count, regions_count, links_count from newsletter_runs.")
+        st.caption("Complete run history: how many candidate articles were found per category, per region, and per value chain link.")
         st.info("""
-        **Criteria Productivity** shows how categories, regions, and links (news items) are used across runs.
-        Each run stores the number of categories and regions from the spec, and the number of links (items) included in the report.
-        This report aggregates that usage so you can see scope per run and totals.
+        **Criteria Productivity** shows how productive each criterion has been: total candidate articles found for each **category**,
+        each **region**, and each **value chain link** across all runs. Counts come from the candidate_articles table (query_id).
+        Only web-search–sourced candidates are attributed to a criterion; source-ingested items are not included in these tables.
         """)
         st.markdown("---")
-        runs_with_scope = [
-            r for r in all_runs
-            if r.get("categories_count") is not None or r.get("regions_count") is not None or r.get("links_count") is not None
-        ]
-        if not runs_with_scope:
-            st.info("No runs with criteria data yet. New successful runs store categories_count, regions_count, and links_count.")
+        by_category, by_region, by_value_chain_link = get_criteria_productivity()
+        import pandas as pd
+        # Table 1: By category
+        st.markdown("#### By category")
+        if not by_category:
+            st.info("No candidate articles attributed to categories yet (only web-search candidates with category query_id are counted).")
         else:
-            cat_vals = [r["categories_count"] for r in runs_with_scope if r.get("categories_count") is not None]
-            reg_vals = [r["regions_count"] for r in runs_with_scope if r.get("regions_count") is not None]
-            link_vals = [r["links_count"] for r in runs_with_scope if r.get("links_count") is not None]
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Runs with scope data", len(runs_with_scope))
-            with col2:
-                st.metric("Avg categories/run", f"{sum(cat_vals) / len(cat_vals):.1f}" if cat_vals else "—")
-            with col3:
-                st.metric("Avg regions/run", f"{sum(reg_vals) / len(reg_vals):.1f}" if reg_vals else "—")
-            with col4:
-                st.metric("Avg links/run", f"{sum(link_vals) / len(link_vals):.1f}" if link_vals else "—")
-            st.markdown("---")
-            import pandas as pd
-            rows = [
-                {
-                    "Intelligence Source": r.get("newsletter_name", "Unknown"),
-                    "Created": (r.get("created_at") or "")[:19],
-                    "Categories": r.get("categories_count", ""),
-                    "Regions": r.get("regions_count", ""),
-                    "Links": r.get("links_count", ""),
-                }
-                for r in runs_with_scope
-            ]
-            df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            st.markdown("---")
-            crit_csv = "Intelligence Source,Created,Categories,Regions,Links\n"
-            for r in runs_with_scope:
-                crit_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
-            st.download_button(
-                "📥 Export Criteria Productivity",
-                data=crit_csv,
-                file_name=f"criteria_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
+            df_cat = pd.DataFrame(by_category)
+            df_cat.columns = ["Category", "Candidates"]
+            st.dataframe(df_cat, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        # Table 2: By region
+        st.markdown("#### By region")
+        if not by_region:
+            st.info("No candidate articles attributed to regions yet.")
+        else:
+            df_reg = pd.DataFrame(by_region)
+            df_reg.columns = ["Region", "Candidates"]
+            st.dataframe(df_reg, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        # Table 3: By value chain link
+        st.markdown("#### By value chain link")
+        if not by_value_chain_link:
+            st.info("No candidate articles attributed to value chain links yet.")
+        else:
+            df_vcl = pd.DataFrame(by_value_chain_link)
+            df_vcl.columns = ["Value chain link", "Candidates"]
+            st.dataframe(df_vcl, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        # Combined CSV: Section, Name, Count
+        crit_csv = "Section,Name,Candidates\n"
+        for r in by_category:
+            crit_csv += f"Category,{r['name']},{r['count']}\n"
+        for r in by_region:
+            crit_csv += f"Region,{r['name']},{r['count']}\n"
+        for r in by_value_chain_link:
+            crit_csv += f"Value chain link,{r['name']},{r['count']}\n"
+        st.download_button(
+            "📥 Export Criteria Productivity",
+            data=crit_csv,
+            file_name=f"criteria_productivity_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
     
     elif report_type == "Generation History":
         st.subheader("Generation History Report")
