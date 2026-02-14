@@ -99,8 +99,6 @@ def generate_executive_summary(
             return None
         return resp.choices[0].message.content.strip()
     except Exception as e:
-        if os.getenv("DEBUG"):
-            print(f"[WARNING] generate_executive_summary failed: {e}")
         return None
 
 

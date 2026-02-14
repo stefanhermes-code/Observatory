@@ -2057,7 +2057,7 @@ elif page == "📈 Reporting":
         st.caption(f"Same run data as Dashboard (limit: {RECENT_RUNS_LIMIT} runs). Duration and scope (categories, regions, links) from run columns.")
         st.info("""
         **Generation Time** shows duration and scope per run: how many categories, regions, and links (news items) were used.
-        Only successful runs with a stored duration are included. New runs also store categories_count, regions_count, links_count.
+        **Frequency** is the specification cadence (daily/weekly/monthly) — the lookback period for that run. Only successful runs with a stored duration are included.
         """)
         st.markdown("---")
         runs_with_duration = [r for r in all_runs if r.get("status") == "success" and r.get("generation_duration_seconds") is not None]
@@ -2095,8 +2095,10 @@ elif page == "📈 Reporting":
                 dur = float(r["generation_duration_seconds"])
                 links = r.get("links_count")
                 duration_per_link = (round(dur / links, 2) if links and int(links) > 0 else None)
+                freq = (r.get("frequency") or "").strip()
                 row = {
                     "Intelligence Source": r.get("newsletter_name", "Unknown"),
+                    "Frequency": freq.title() if freq else "—",
                     "Created": (r.get("created_at") or "")[:19],
                     "Duration (s)": round(dur, 1),
                     "Duration/Links": duration_per_link if duration_per_link is not None else "NA",
@@ -2111,11 +2113,13 @@ elif page == "📈 Reporting":
             df = pd.DataFrame(rows)
             st.dataframe(df, use_container_width=True, hide_index=True)
             st.markdown("---")
-            gen_time_csv = "Intelligence Source,Created,Duration (seconds),Duration/Links,Categories,Regions,Links\n"
+            gen_time_csv = "Intelligence Source,Frequency,Created,Duration (seconds),Duration/Links,Categories,Regions,Links\n"
             for r in runs_with_duration:
                 links = r.get("links_count")
                 dpl = round(float(r["generation_duration_seconds"]) / int(links), 2) if links and int(links) > 0 else "NA"
-                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{dpl},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
+                freq = (r.get("frequency") or "").strip()
+                freq_csv = freq.title() if freq else ""
+                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{freq_csv},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{dpl},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
             st.download_button(
                 "📥 Export Generation Time",
                 data=gen_time_csv,

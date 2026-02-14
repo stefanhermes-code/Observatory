@@ -320,7 +320,7 @@ RECENT_RUNS_WITH_METADATA_LIMIT = 50
 
 def get_recent_runs(limit: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], Optional[str]]:
     """
-    Get recent newsletter generation runs with specification names.
+    Get recent newsletter generation runs with specification names and frequency (cadence).
     Fetches list columns only (no metadata) to stay under statement timeout.
     Use get_run_by_id(run_id) to load full run including metadata for download/timing.
     """
@@ -337,15 +337,18 @@ def get_recent_runs(limit: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], Optiona
         spec_ids = list({run.get("specification_id") for run in runs if run.get("specification_id")})
         if spec_ids:
             specs_result = supabase.table("newsletter_specifications")\
-                .select("id, newsletter_name")\
+                .select("id, newsletter_name, frequency")\
                 .in_("id", spec_ids)\
                 .execute()
-            specs_dict = {spec["id"]: spec.get("newsletter_name", "Unknown") for spec in (specs_result.data or [])}
+            specs_by_id = {spec["id"]: spec for spec in (specs_result.data or [])}
             for run in runs:
-                run["newsletter_name"] = specs_dict.get(run.get("specification_id"), "Unknown")
+                spec = specs_by_id.get(run.get("specification_id"), {})
+                run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
+                run["frequency"] = spec.get("frequency") or ""
         else:
             for run in runs:
                 run["newsletter_name"] = "Unknown"
+                run["frequency"] = ""
         return (runs, None)
     except Exception as e:
         import logging
