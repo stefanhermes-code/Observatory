@@ -311,7 +311,7 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
 
 
 # Columns for run list only (exclude metadata JSONB)
-_RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at, generation_duration_seconds, categories_count, regions_count, links_count"
+_RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at, generation_duration_seconds, categories_count, regions_count, links_count, frequency"
 
 # Single place for run-fetch limits (change here to affect Dashboard, Reporting, Generation History, Source Usage)
 RECENT_RUNS_LIMIT = 100
@@ -344,11 +344,12 @@ def get_recent_runs(limit: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], Optiona
             for run in runs:
                 spec = specs_by_id.get(run.get("specification_id"), {})
                 run["newsletter_name"] = spec.get("newsletter_name", "Unknown")
-                run["frequency"] = spec.get("frequency") or ""
+                # Prefer cadence stored on the run (set at creation); fallback to spec for older runs
+                run["frequency"] = (run.get("frequency") or "").strip() or (spec.get("frequency") or "").strip() or ""
         else:
             for run in runs:
                 run["newsletter_name"] = "Unknown"
-                run["frequency"] = ""
+                run["frequency"] = (run.get("frequency") or "").strip() or ""
         return (runs, None)
     except Exception as e:
         import logging

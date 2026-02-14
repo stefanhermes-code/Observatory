@@ -157,8 +157,14 @@ def check_frequency_enforcement(spec_id: str, frequency: str, user_email: Option
     return True, None, None
 
 
-def create_newsletter_run(spec_id: str, workspace_id: str, user_email: str, status: str = "running") -> Dict:
-    """Create a new newsletter run record."""
+def create_newsletter_run(
+    spec_id: str,
+    workspace_id: str,
+    user_email: str,
+    status: str = "running",
+    frequency: Optional[str] = None,
+) -> Dict:
+    """Create a new newsletter run record. frequency = cadence used for this run (daily/weekly/monthly)."""
     supabase = get_supabase_client()
     
     run_data = {
@@ -167,6 +173,8 @@ def create_newsletter_run(spec_id: str, workspace_id: str, user_email: str, stat
         "user_email": user_email,
         "status": status
     }
+    if frequency:
+        run_data["frequency"] = frequency.strip().lower()
     
     result = supabase.table("newsletter_runs").insert(run_data).execute()
     return result.data[0] if result.data else run_data

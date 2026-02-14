@@ -80,7 +80,7 @@ def execute_generator(
         run_specification["value_chain_links"] = value_chain_links_override
     
     # Step 4: Create run record (run_id must exist before evidence ingestion — V2-DB-02)
-    run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
+    run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
 
     # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 days; else spec)
@@ -222,7 +222,7 @@ def run_phase_evidence(
     if not is_allowed:
         return None, None, None, None, reason or "Cadence limit reached"
 
-    run = create_newsletter_run(spec_id, workspace_id, user_email, "running")
+    run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
 
     ref_date = datetime.utcnow()
