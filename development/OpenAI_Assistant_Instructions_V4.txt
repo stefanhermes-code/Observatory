@@ -1,9 +1,15 @@
-Instruction Notice – V4 (Repo-compatible)
-The following describes the instructions with which the PU Observatory repo works. Full text is built and sent by core/openai_assistant.py (build_system_instruction + build_run_package) at each run. This document is the canonical reference for V4; the Dashboard uses only the minimal text from OpenAI_Assistant_Dashboard_Minimal.txt.
+*** LEGACY – NOT USED FOR REPORT GENERATION (V2) ***
+The PU Observatory V2 Generator does NOT use the OpenAI Assistant or core/openai_assistant.py.
+Reports are evidence-based (sources + search → candidate_articles → intelligence_writer).
+No vector store. See development/OPENAI_ASSISTANT_V2_STATUS.md.
+*** END LEGACY NOTICE ***
 
-VERSION: 4.0
+Instruction Notice – V4 (Repo-compatible, LEGACY)
+The following described the instructions when the repo used the Assistant. The Generator no longer calls the Assistant. Full text was built by core/openai_assistant.py (build_system_instruction + build_run_package). This file is kept for reference only.
+
+VERSION: 4.0 (LEGACY)
 LAST UPDATED: 2025-01-30
-SOURCE OF TRUTH: core/openai_assistant.py in the repo. This file is kept in sync with the repo.
+STATUS: Not used by V2 Generator. core/openai_assistant.py is not called for report generation.
 CHANGES IN V4:
 - V4 aligns with repo behaviour: company list retrieved FIRST (before news search), then used to drive targeted search.
 - Comprehensive source list: PU-specific, chemical/plastics/coatings, financial, trade bodies, company sources.

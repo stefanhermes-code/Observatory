@@ -1,23 +1,35 @@
 """
 V2 Query planner: builds search query plan from spec (code-only, no LLM).
 Stable for same spec options. Outputs list of {query_id, query_text, intent}.
+Every query anchors on PU materials so results are about the actual industry scope.
+Uses base knowledge from taxonomy (PU materials, chemicals, value chain ecosystem).
 """
 
 from typing import List, Dict, Any
 
-# Category id -> search keywords for web search
+from core.taxonomy import PU_MATERIALS, PU_CHEMICALS
+
+# Value chain link id -> ecosystem role (who does what). Queries use this so results reflect the PU industry ecosystem.
+VALUE_CHAIN_ECOSYSTEM = {
+    "raw_materials": f"chemical manufacturers produce chemicals for polyurethane materials {PU_CHEMICALS}",
+    "system_houses": "system houses formulators mix chemicals produce polyurethane materials systems",
+    "foam_converters": "foam manufacturers converters produce polyurethane foam flexible rigid moulded",
+    "end_use": "end use polyurethane materials automotive mattresses construction appliances components",
+}
+
+# Category id -> search angle (prepended with PU_MATERIALS in the query)
 CATEGORY_QUERY_TOKENS = {
-    "company_news": "polyurethane company news",
-    "regional_monitoring": "polyurethane market region",
-    "industry_context": "polyurethane industry supply demand",
-    "value_chain": "MDI TDI polyols polyurethane",
-    "value_chain_link": "polyurethane value chain",
-    "competitive": "polyurethane producers competitive",
-    "sustainability": "polyurethane sustainability REACH decarbonization",
-    "capacity": "polyurethane capacity expansion plant",
-    "m_and_a": "polyurethane acquisition partnership M&A",
-    "early_warning": "polyurethane price demand utilization",
-    "executive_briefings": "polyurethane market briefing",
+    "company_news": "company news",
+    "regional_monitoring": "market region",
+    "industry_context": "industry supply demand margins",
+    "value_chain": "value chain MDI TDI polyols",
+    "value_chain_link": "value chain",
+    "competitive": "producers competitive",
+    "sustainability": "sustainability REACH decarbonization diisocyanates",
+    "capacity": "capacity expansion plant",
+    "m_and_a": "acquisition partnership M&A",
+    "early_warning": "price demand utilization",
+    "executive_briefings": "market briefing",
 }
 
 
@@ -42,27 +54,28 @@ def build_query_plan(
         seen.add(key)
         queries.append({"query_id": qid, "query_text": text.strip(), "intent": intent})
 
-    # 1) Region-based queries (if any region selected)
+    # 1) Region-based: PU materials + region + news
     for r in (regions or [])[:8]:
-        add(f"region_{r.replace(' ', '_')}", f"polyurethane {r} news", f"region:{r}")
+        add(f"region_{r.replace(' ', '_')}", f"{PU_MATERIALS} {r} news", f"region:{r}")
 
-    # 2) Category-based queries
+    # 2) Category-based: PU materials + category angle
     for cat in (categories or [])[:10]:
-        tokens = CATEGORY_QUERY_TOKENS.get(cat, "polyurethane")
-        add(f"cat_{cat}", tokens, f"category:{cat}")
+        angle = CATEGORY_QUERY_TOKENS.get(cat, "industry")
+        add(f"cat_{cat}", f"{PU_MATERIALS} {angle}", f"category:{cat}")
 
-    # 3) Value chain (optional)
+    # 3) Value chain: PU materials + ecosystem role (who does what in the PU industry)
     for vcl in (value_chain_links or [])[:4]:
-        add(f"vcl_{vcl}", f"polyurethane {vcl.replace('_', ' ')}", f"value_chain:{vcl}")
+        ecosystem = VALUE_CHAIN_ECOSYSTEM.get(vcl, vcl.replace("_", " "))
+        add(f"vcl_{vcl}", f"{PU_MATERIALS} {ecosystem}", f"value_chain:{vcl}")
 
-    # 4) Company-specific (aliases from company list)
+    # 4) Company-specific: company + PU materials + news
     for alias in (company_aliases or [])[:15]:
         alias = (alias or "").strip()
         if not alias or len(alias) < 2:
             continue
-        add(f"company_{hash(alias) % 10**6}", f"{alias} polyurethane news", "company")
+        add(f"company_{hash(alias) % 10**6}", f"{alias} {PU_MATERIALS} news", "company")
 
-    # 5) One generic fallback if we have room
-    add("generic", "polyurethane industry news", "generic")
+    # No generic fallback: only run queries that match the user's selection (regions, categories, value chain links, company).
+    # Reporting links that were not part of the chosen scope would be wrong.
 
     return queries

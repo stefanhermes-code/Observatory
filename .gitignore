@@ -50,6 +50,6 @@ workspace_users.json
 merged_companies.txt
 test_company_list.json
 
-# Development docs (local only, not for GitHub)
+# Local-only: not needed to run app on Streamlit Cloud
 development/*.md
 

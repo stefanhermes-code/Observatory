@@ -1,7 +1,12 @@
 # OpenAI Assistant Instructions Version History
 
-## Version 2.0 - 2025-01-20
-**Status:** Current version in codebase
+## V2 Platform (evidence-based Generator) – 2025
+**Status:** The PU Observatory V2 Generator does **not** use the OpenAI Assistant. Report generation is evidence-based: sources + search → candidate_articles → intelligence_writer. No vector store, no file_search. The instruction files below are **legacy** and kept for reference only. See `development/OPENAI_ASSISTANT_V2_STATUS.md`.
+
+---
+
+## Version 2.0 - 2025-01-20 (Legacy)
+**Status:** Legacy; not used by current Generator
 
 **Key Changes:**
 - Made company list retrieval MANDATORY (not optional)

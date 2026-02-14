@@ -16,8 +16,8 @@ import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
-# Minimum number of candidate articles to generate a full report
-DEFAULT_MIN_EVIDENCE = 3
+# Only show "Coverage low" when zero items pass the scope filter; allow report with 1+ links
+DEFAULT_MIN_EVIDENCE = 1
 
 # Category IDs we exclude from top-level (replaced by value_chain_links as sub-substructure)
 EXCLUDED_CATEGORY_IDS = ("value_chain", "value_chain_link")

@@ -1,8 +1,17 @@
+*** LEGACY – NOT USED FOR REPORT GENERATION (V2) ***
+The PU Observatory V2 Generator does NOT use the OpenAI Assistant or a vector store.
+Reports are built from evidence collected by the platform (sources + search → candidate_articles)
+and written by the bounded intelligence_writer. Company list comes from Supabase (tracked_companies)
+or company_list.json, not from an Assistant knowledge base.
+See development/OPENAI_ASSISTANT_V2_STATUS.md.
+*** END LEGACY NOTICE ***
+
 Instruction Notice
 The following instructions are mandatory and override any default model behavior.
 
-VERSION: 2.0
+VERSION: 2.0 (LEGACY – pre–V2 evidence-based Generator)
 LAST UPDATED: 2025-01-20
+STATUS: Kept for reference only. The live Generator uses evidence-based report generation (no Assistant, no vector store).
 CHANGES IN THIS VERSION:
 - Made company list retrieval MANDATORY (not optional)
 - Changed company list to be used as enhancement step AFTER initial news detection (not before)

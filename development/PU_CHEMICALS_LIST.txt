@@ -1,0 +1,30 @@
+Chemicals needed and/or used in all types of PU materials
+(flexible foam, rigid foam, moulded foam, TPU, CASE: coatings, adhesives, sealants, elastomers)
+
+Primary reactants
+
+  Isocyanates: MDI, TDI, HDI, H12MDI, IPDI (aromatic and aliphatic isocyanates).
+
+  Polyols: polyether polyols, polyester polyols, acrylic polyols.
+
+
+Processing and performance
+
+  Catalysts: amine catalysts, tin catalysts (drive isocyanate-polyol reaction).
+
+  Blowing agents: used to create foam structure (flexible, rigid, moulded foam).
+
+  Surfactants: silicones and others for foam structure and processing.
+
+  Chain extenders: modify polymer properties and structure.
+
+
+Additives and modifiers
+
+  Flame retardants.
+
+  Fillers, pigments.
+
+  Mold release agents.
+
+  Solvents (where used in formulations).
