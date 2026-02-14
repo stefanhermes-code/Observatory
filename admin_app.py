@@ -2128,7 +2128,7 @@ elif page == "📈 Reporting":
                 runs_with_candidates = stats.get("runs_with_candidates", 0)
                 candidate_articles_counted = stats.get("candidate_articles_counted", 0)
                 st.markdown(f"**Based on the last {runs_considered} runs:** {runs_with_candidates} runs had candidates → **{candidate_articles_counted}** candidate articles.")
-            st.caption("Each candidate has one category and one region (value chain link optional). So sum of Table 1 (Categories) = sum of Table 2 (Regions) = total above; sum of Table 3 can be lower.")
+                st.caption("Each candidate has one category and one region (value chain link optional). So sum of Table 1 (Categories) = sum of Table 2 (Regions) = total above; sum of Table 3 can be lower.")
             else:
                 by_category, by_region, by_value_chain_link = result
                 st.markdown("**Based on:** all candidate_articles in the database (run limit not available in this version).")
