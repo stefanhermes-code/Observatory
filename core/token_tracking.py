@@ -104,12 +104,12 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
         limit: Maximum number of runs to process (default 10000 to prevent timeout)
     
     Returns:
-        Dictionary with workspace_id as key and token stats as value
+        Dictionary with workspace_id as key and token stats as value.
+        Special key "_diagnostic" (if present): {"runs_checked": int, "runs_with_tokens": int}.
     """
     supabase = get_supabase_client()
     
     try:
-        # Build query with limit to prevent timeout
         query = supabase.table("newsletter_runs").select("workspace_id, metadata, created_at")
         
         if workspace_id:
@@ -121,22 +121,19 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
         if end_date:
             query = query.lte("created_at", end_date.isoformat())
         
-        # Only get successful runs (they have token data)
         query = query.eq("status", "success")
-        
-        # Order by created_at desc and limit to prevent timeout
         query = query.order("created_at", desc=True).limit(limit)
         
         result = query.execute()
         runs = result.data if result.data else []
     except Exception as e:
-        # If query fails (e.g., timeout), return empty dict
         print(f"Warning: Could not fetch token usage data: {e}")
         return {}
-    
-    # Aggregate by workspace
+
+    runs_checked = len(runs)
+    runs_with_tokens = 0
     workspace_stats = {}
-    
+
     for run in runs:
         ws_id = run.get("workspace_id")
         if not ws_id:
@@ -154,6 +151,7 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
         if total_tokens <= 0:
             continue
 
+        runs_with_tokens += 1
         model_key = _normalize_model_for_pricing(model)
         if ws_id not in workspace_stats:
             workspace_stats[ws_id] = {
@@ -184,6 +182,8 @@ def get_token_usage_by_workspace(workspace_id: Optional[str] = None, start_date:
                 cost = (inp_est / 1_000_000 * pricing["input"]) + (out_est / 1_000_000 * pricing["output"])
             workspace_stats[ws_id]["estimated_cost"] += cost
 
+    if runs_checked > 0:
+        workspace_stats["_diagnostic"] = {"runs_checked": runs_checked, "runs_with_tokens": runs_with_tokens}
     return workspace_stats
 
 
@@ -191,18 +191,13 @@ def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Opt
     """
     Get overall token usage summary across all workspaces.
     
-    Args:
-        start_date: Optional start date to filter runs
-        end_date: Optional end date to filter runs
-        limit: Maximum number of runs to process (default 10000 to prevent timeout)
-    
     Returns:
-        Dictionary with total tokens, total runs, total cost, etc.
+        Dictionary with total_tokens, total_runs, total_cost, workspace_count, model_breakdown,
+        workspace_details, and optionally runs_checked / runs_with_tokens for diagnostics.
     """
     try:
         workspace_stats = get_token_usage_by_workspace(start_date=start_date, end_date=end_date, limit=limit)
     except Exception as e:
-        # Return empty summary if query fails
         return {
             "total_tokens": 0,
             "total_runs": 0,
@@ -213,12 +208,12 @@ def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Opt
             "error": str(e),
             "limit_reached": True
         }
-    
+
+    diagnostic = workspace_stats.pop("_diagnostic", None)
     total_tokens = sum(ws["total_tokens"] for ws in workspace_stats.values())
     total_runs = sum(ws["run_count"] for ws in workspace_stats.values())
     total_cost = sum(ws["estimated_cost"] for ws in workspace_stats.values())
-    
-    # Aggregate by model
+
     model_stats = {}
     for ws_stats in workspace_stats.values():
         for model, stats in ws_stats["models"].items():
@@ -226,8 +221,8 @@ def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Opt
                 model_stats[model] = {"tokens": 0, "runs": 0}
             model_stats[model]["tokens"] += stats["tokens"]
             model_stats[model]["runs"] += stats["runs"]
-    
-    return {
+
+    out = {
         "total_tokens": total_tokens,
         "total_runs": total_runs,
         "total_cost": total_cost,
@@ -235,6 +230,10 @@ def get_token_usage_summary(start_date: Optional[datetime] = None, end_date: Opt
         "model_breakdown": model_stats,
         "workspace_details": workspace_stats
     }
+    if diagnostic:
+        out["runs_checked"] = diagnostic["runs_checked"]
+        out["runs_with_tokens"] = diagnostic["runs_with_tokens"]
+    return out
 
 
 def format_token_cost(tokens: int, model: str = "gpt-4o") -> Dict:

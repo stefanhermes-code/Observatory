@@ -180,17 +180,25 @@ def write_report_from_evidence(
             lines.append(_format_item(c))
         lines.append("")
 
-    # Executive summary at the end: reviews all information from the foregoing sections
-    lines.extend([
-        "## Executive Summary",
-        "",
-        "The following summarizes the key developments and themes from the sections above.",
-        "",
-        "This report is based on evidence collected from registered sources and search for the selected categories, regions, and value chain links. All items cite only verified candidate articles for this run.",
-        "",
-        "For questions or broader coverage, adjust the specification and run again.",
-        "",
-    ])
-
+    # Dedicated LLM step: Executive Summary (core element of market intelligence; the other is signals).
+    try:
+        from core.openai_assistant import generate_executive_summary
+    except ImportError:
+        generate_executive_summary = None
+    report_body = "\n".join(lines)
+    scope_categories = [category_map.get(cid, cid) for cid in selected_category_ids]
+    scope_regions = list(selected_regions) if selected_regions else []
+    scope_vcl = [value_chain_link_map.get(vid, vid) for vid in selected_value_chain_links]
+    exec_summary = None
+    if generate_executive_summary:
+        exec_summary = generate_executive_summary(
+            report_body,
+            newsletter_name,
+            scope_categories=scope_categories,
+            scope_regions=scope_regions,
+            scope_value_chain_links=scope_vcl if selected_value_chain_links else None,
+        )
+    if exec_summary:
+        lines.extend(["", "## Executive Summary", "", exec_summary, ""])
     content = "\n".join(lines)
     return {"content": content, "coverage_low": False}

@@ -34,6 +34,76 @@ def get_openai_client() -> Optional[object]:
     return OpenAI(api_key=api_key)
 
 
+# Max characters of report body to send to Executive Summary LLM (avoid token overflow)
+_EXEC_SUMMARY_MAX_BODY_CHARS = 24_000
+
+
+def generate_executive_summary(
+    report_body: str,
+    newsletter_name: str = "Report",
+    scope_categories: Optional[List[str]] = None,
+    scope_regions: Optional[List[str]] = None,
+    scope_value_chain_links: Optional[List[str]] = None,
+) -> Optional[str]:
+    """
+    Call OpenAI Chat Completions to generate a 3–5 paragraph Executive Summary from the report body.
+    Used by the evidence-based report writer (signals only); core element of market intelligence.
+    
+    Args:
+        report_body: Full report markdown (sections and bullet points).
+        newsletter_name: Report title for context.
+        scope_categories: Selected content categories (report is limited to these).
+        scope_regions: Selected regions (report is limited to these).
+        scope_value_chain_links: Selected value chain links (report is limited to these).
+    
+    Returns:
+        Markdown string of paragraphs for the Executive Summary (heading is added by the writer).
+    """
+    client = get_openai_client()
+    if not client:
+        return None
+    body = (report_body or "").strip()
+    if len(body) > _EXEC_SUMMARY_MAX_BODY_CHARS:
+        body = body[: _EXEC_SUMMARY_MAX_BODY_CHARS] + "\n\n[... report truncated for summary ...]"
+    system = (
+        "You are an expert editor for polyurethane industry market intelligence reports. "
+        "Your output will be placed under the '## Executive Summary' heading. "
+        "The report—and therefore this summary—is created within strict scope: only the selected categories, regions, and value chain links. "
+        "Do not imply broader coverage; frame insights explicitly within this scope. "
+        "Given the body of a report (sections with bullet points of news items), write a concise Executive Summary. "
+        "Output exactly 3 to 5 paragraphs. Each paragraph 3–5 sentences. Separate each paragraph with a blank line. "
+        "Cover: (1) most significant developments, (2) key market trends, (3) critical implications for decision-makers, (4) risks or opportunities, (5) brief outlook. "
+        "Write only the paragraphs—no heading, no 'Executive Summary' title, no prefix. "
+        "Use clear, professional language for executives. Be factual and specific to the content provided and to the stated scope."
+    )
+    scope_parts = []
+    if scope_categories:
+        scope_parts.append(f"Categories: {', '.join(scope_categories)}")
+    if scope_regions:
+        scope_parts.append(f"Regions: {', '.join(scope_regions)}")
+    if scope_value_chain_links:
+        scope_parts.append(f"Value chain links: {', '.join(scope_value_chain_links)}")
+    scope_line = "Scope (report and summary are limited to this): " + "; ".join(scope_parts) if scope_parts else "Scope: not specified"
+    user = f"Report: {newsletter_name}\n\n{scope_line}\n\nReport body:\n{body}"
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=1024,
+            temperature=0.3,
+        )
+        if not resp.choices or not resp.choices[0].message or not resp.choices[0].message.content:
+            return None
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        if os.getenv("DEBUG"):
+            print(f"[WARNING] generate_executive_summary failed: {e}")
+        return None
+
+
 def build_system_instruction() -> str:
     """
     Build the system instruction for the PU Industry News Analyst.

@@ -2562,7 +2562,12 @@ elif page == "📈 Reporting":
                     mime="text/csv"
                 )
             else:
-                st.info("No token usage data available yet. Token tracking starts with new report generations.")
+                runs_checked = summary.get("runs_checked", 0)
+                runs_with_tokens = summary.get("runs_with_tokens", 0)
+                if runs_checked > 0 and runs_with_tokens == 0:
+                    st.warning(f"No token usage in run metadata. **{runs_checked}** successful runs in range; none have token data. The report generator must write token usage to each run's **metadata** when it completes: `tokens_used` and `model` (Assistant API) or `input_tokens`, `output_tokens`, and `model` (Response API) or nested `usage.input_tokens` / `usage.output_tokens`.")
+                else:
+                    st.info("No token usage data available yet. Token tracking starts when runs include token data in metadata.")
             
             # Show warning if limit was reached
             if summary.get("limit_reached"):
