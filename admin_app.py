@@ -2019,7 +2019,7 @@ elif page == "📈 Reporting":
         
         st.markdown("---")
         
-        # Runs by date (last 30 days)
+        # Runs by date (last 100 runs) as line chart
         from collections import defaultdict
         runs_by_date = defaultdict(int)
         for run in all_runs:
@@ -2027,13 +2027,19 @@ elif page == "📈 Reporting":
                 date = run.get('created_at')[:10]
                 runs_by_date[date] += 1
         
-        st.subheader("Runs by Date (Last 30 Days)")
-        for date, count in sorted(runs_by_date.items(), reverse=True)[:30]:
-            st.write(f"**{date}:** {count} runs")
+        st.subheader("Runs by Date (Last 100 Runs)")
+        dates_sorted = sorted(runs_by_date.keys())
+        if dates_sorted:
+            import pandas as pd
+            chart_df = pd.DataFrame({"date": dates_sorted, "runs": [runs_by_date[d] for d in dates_sorted]})
+            chart_df["date"] = pd.to_datetime(chart_df["date"])
+            st.line_chart(chart_df.set_index("date")["runs"])
+        else:
+            st.caption("No run dates to display.")
         
         # Export performance data
         performance_csv = "Date,Runs,Success,Failed\n"
-        for date in sorted(runs_by_date.keys(), reverse=True)[:30]:
+        for date in sorted(runs_by_date.keys(), reverse=True)[:100]:
             date_runs = [r for r in all_runs if r.get('created_at', '')[:10] == date]
             date_success = len([r for r in date_runs if r.get('status') == 'success'])
             date_failed = len([r for r in date_runs if r.get('status') == 'failed'])
@@ -2058,6 +2064,7 @@ elif page == "📈 Reporting":
         if not runs_with_duration:
             st.info("No runs with generation duration yet. New successful runs will have duration and scope stored.")
         else:
+            runs_with_duration = sorted(runs_with_duration, key=lambda r: float(r["generation_duration_seconds"]), reverse=True)
             durations = [float(r["generation_duration_seconds"]) for r in runs_with_duration]
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -2085,10 +2092,14 @@ elif page == "📈 Reporting":
             import pandas as pd
             rows = []
             for r in runs_with_duration:
+                dur = float(r["generation_duration_seconds"])
+                links = r.get("links_count")
+                duration_per_link = (round(dur / links, 2) if links and int(links) > 0 else None)
                 row = {
                     "Intelligence Source": r.get("newsletter_name", "Unknown"),
                     "Created": (r.get("created_at") or "")[:19],
-                    "Duration (s)": round(float(r["generation_duration_seconds"]), 1),
+                    "Duration (s)": round(dur, 1),
+                    "Duration/Links": duration_per_link if duration_per_link is not None else "NA",
                 }
                 if r.get("categories_count") is not None:
                     row["Categories"] = r["categories_count"]
@@ -2100,9 +2111,11 @@ elif page == "📈 Reporting":
             df = pd.DataFrame(rows)
             st.dataframe(df, use_container_width=True, hide_index=True)
             st.markdown("---")
-            gen_time_csv = "Intelligence Source,Created,Duration (seconds),Categories,Regions,Links\n"
+            gen_time_csv = "Intelligence Source,Created,Duration (seconds),Duration/Links,Categories,Regions,Links\n"
             for r in runs_with_duration:
-                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
+                links = r.get("links_count")
+                dpl = round(float(r["generation_duration_seconds"]) / int(links), 2) if links and int(links) > 0 else "NA"
+                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{dpl},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
             st.download_button(
                 "📥 Export Generation Time",
                 data=gen_time_csv,
@@ -2114,8 +2127,8 @@ elif page == "📈 Reporting":
         st.subheader("Criteria Productivity Report")
         st.caption("Three tables only: productivity by category, by region, and by value chain link. No run listing.")
         st.info("""
-        **Criteria Productivity** = three tables showing how many candidate articles were found (all time) **per category**, **per region**, and **per value chain link**.
-        Each table has two columns: the criterion name and the number of candidates. Data comes from candidate_articles (query_id). No runs are listed here.
+        **Criteria Productivity** = three tables showing how many links (candidate articles) were found (all time) **per category**, **per region**, and **per value chain link**.
+        Each table has two columns: the criterion name and the number of links. Data comes from candidate_articles (category, region, value_chain_link). No runs are listed here.
         """)
         st.markdown("---")
         if get_criteria_productivity is None:
@@ -2127,8 +2140,8 @@ elif page == "📈 Reporting":
                 runs_considered = stats.get("runs_considered", 0)
                 runs_with_candidates = stats.get("runs_with_candidates", 0)
                 candidate_articles_counted = stats.get("candidate_articles_counted", 0)
-                st.markdown(f"**Based on the last {runs_considered} runs:** {runs_with_candidates} runs had candidates → **{candidate_articles_counted}** candidate articles.")
-                st.caption("Each candidate has one category and one region (value chain link optional). So sum of Table 1 (Categories) = sum of Table 2 (Regions) = total above; sum of Table 3 can be lower.")
+                st.markdown(f"**Based on the last {runs_considered} runs:** {runs_with_candidates} runs had links → **{candidate_articles_counted}** links.")
+                st.caption("Each link has one category and one region (value chain link optional). So sum of Table 1 (Categories) = sum of Table 2 (Regions) = total above; sum of Table 3 can be lower.")
             else:
                 by_category, by_region, by_value_chain_link = result
                 st.markdown("**Based on:** all candidate_articles in the database (run limit not available in this version).")
@@ -2137,29 +2150,29 @@ elif page == "📈 Reporting":
             # Table 1: Productivity by category (criterion name -> count)
             st.markdown("#### Table 1 — Productivity by category")
             df_cat = pd.DataFrame(by_category if by_category else [{"name": "(none yet)", "count": 0}])
-            df_cat.columns = ["Category", "Candidates"]
+            df_cat.columns = ["Category", "Links"]
             if not by_category:
-                st.caption("No candidate articles attributed to categories yet (web-search candidates with category query_id only).")
+                st.caption("No links attributed to categories yet (ensure candidate_articles.category is populated).")
             st.dataframe(df_cat, use_container_width=True, hide_index=True)
             st.markdown("---")
             # Table 2: Productivity by region (criterion name -> count)
             st.markdown("#### Table 2 — Productivity by region")
             df_reg = pd.DataFrame(by_region if by_region else [{"name": "(none yet)", "count": 0}])
-            df_reg.columns = ["Region", "Candidates"]
+            df_reg.columns = ["Region", "Links"]
             if not by_region:
-                st.caption("No candidate articles attributed to regions yet.")
+                st.caption("No links attributed to regions yet (ensure candidate_articles.region is populated).")
             st.dataframe(df_reg, use_container_width=True, hide_index=True)
             st.markdown("---")
             # Table 3: Productivity by value chain link (criterion name -> count)
             st.markdown("#### Table 3 — Productivity by value chain link")
             df_vcl = pd.DataFrame(by_value_chain_link if by_value_chain_link else [{"name": "(none yet)", "count": 0}])
-            df_vcl.columns = ["Value chain link", "Candidates"]
+            df_vcl.columns = ["Value chain link", "Links"]
             if not by_value_chain_link:
-                st.caption("No candidate articles attributed to value chain links yet.")
+                st.caption("No links attributed to value chain links yet (ensure candidate_articles.value_chain_link is populated).")
             st.dataframe(df_vcl, use_container_width=True, hide_index=True)
             st.markdown("---")
-            # Combined CSV: Section, Name, Count (no runs)
-            crit_csv = "Section,Name,Candidates\n"
+            # Combined CSV: Section, Name, Links (no runs)
+            crit_csv = "Section,Name,Links\n"
             for r in by_category:
                 crit_csv += f"Category,{r['name']},{r['count']}\n"
             for r in by_region:
@@ -2304,8 +2317,9 @@ elif page == "📈 Reporting":
         
         st.markdown("---")
         
-        # Load runs with metadata (HTML) for source extraction; small limit to avoid timeout
-        available_runs, available_err = get_recent_runs_with_metadata()
+        # Load runs with metadata (HTML) for source extraction; use small limit to avoid statement timeout
+        SOURCE_USAGE_RUNS_LIMIT = 15
+        available_runs, available_err = get_recent_runs_with_metadata(limit=SOURCE_USAGE_RUNS_LIMIT)
         if available_err:
             st.error(f"Error loading runs: {available_err}")
         available_runs = available_runs or []
@@ -2322,9 +2336,9 @@ elif page == "📈 Reporting":
                         runs_with_html.append(run)
             
             if not runs_with_html:
-                st.warning(f"No completed runs with HTML content (limit: {RECENT_RUNS_WITH_METADATA_LIMIT} runs).")
+                st.warning(f"No completed runs with HTML content (limit: {SOURCE_USAGE_RUNS_LIMIT} runs).")
             else:
-                st.caption(f"Runs with HTML content (limit: {RECENT_RUNS_WITH_METADATA_LIMIT}).")
+                st.caption(f"Runs with HTML content (limit: {SOURCE_USAGE_RUNS_LIMIT}).")
                 st.write(f"**Available Reports:** {len(runs_with_html)} completed runs with HTML content")
                 
                 # Multi-select for choosing reports to analyze
@@ -2448,6 +2462,7 @@ elif page == "📈 Reporting":
         Tokens are tracked for each successful report generation and aggregated by company.
         Costs are estimated based on OpenAI's published pricing (check OpenAI pricing page for current rates).
         """)
+        st.caption("Data comes from run metadata (e.g. tokens_used, model). If you use the **Response API** instead of the Assistant API, ensure your generator writes token and cost data into run metadata so this report stays accurate.")
         
         st.markdown("---")
         
