@@ -233,7 +233,7 @@ def run_evidence_engine(
             elif qid.startswith("region_") and region_val is None:
                 region_val = qid[7:].replace("_", " ")
             elif qid.startswith("vcl_") and vcl_val is None:
-                vcl_val = qid[4:].replace("_", " ")
+                vcl_val = qid[4:]  # store id (raw_materials) same as spec, like category
 
         rec = {
             "url": url,

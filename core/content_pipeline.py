@@ -35,6 +35,28 @@ def _sanitize_link_text(text: str) -> str:
     return text
 
 
+def _report_meta_categories(spec: Dict) -> str:
+    """Return comma-separated category names for report header from spec (ids)."""
+    try:
+        from core.taxonomy import PU_CATEGORIES
+        ids = spec.get("categories") or []
+        name_map = {c["id"]: c["name"] for c in PU_CATEGORIES}
+        return ", ".join(name_map.get(cid, cid) for cid in ids if cid)
+    except Exception:
+        return ", ".join(spec.get("categories", []) or [])
+
+
+def _report_meta_value_chain_links(spec: Dict) -> str:
+    """Return comma-separated value chain link names for report header from spec (ids)."""
+    try:
+        from core.taxonomy import VALUE_CHAIN_LINKS
+        ids = spec.get("value_chain_links") or []
+        name_map = {vc["id"]: vc["name"] for vc in VALUE_CHAIN_LINKS}
+        return ", ".join(name_map.get(vid, vid) for vid in ids if vid)
+    except Exception:
+        return ", ".join(spec.get("value_chain_links", []) or [])
+
+
 def _url_returns_ok(url: str, timeout: int = 4) -> bool:
     """Return True if URL returns 2xx (HEAD then GET fallback). Used to avoid showing 404 links."""
     if not url or not url.startswith(("http://", "https://")):
@@ -848,7 +870,9 @@ def render_html_from_content(
             <div class="report-meta">
                 <p><strong>Generated:</strong> {datetime.utcnow().strftime('%B %d, %Y at %H:%M UTC')}</p>
                 <p><strong>Frequency:</strong> {cadence_override.title() if cadence_override else ("Infinite" if user_email and user_email.lower() == "stefan.hermes@htcglobal.asia" else spec.get('frequency', '').title())}</p>
-                <p><strong>Regions:</strong> {', '.join(spec.get('regions', []))}</p>
+                <p><strong>Categories:</strong> {_report_meta_categories(spec)}</p>
+                <p><strong>Regions:</strong> {', '.join(spec.get('regions', []) or [])}</p>
+                <p><strong>Value chain links:</strong> {_report_meta_value_chain_links(spec)}</p>
             </div>
     
     {html_content}

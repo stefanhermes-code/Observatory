@@ -74,7 +74,8 @@ def generate_executive_summary(
         "Output exactly 3 to 5 paragraphs. Each paragraph 3–5 sentences. Separate each paragraph with a blank line. "
         "Cover: (1) most significant developments, (2) key market trends, (3) critical implications for decision-makers, (4) risks or opportunities, (5) brief outlook. "
         "Write only the paragraphs—no heading, no 'Executive Summary' title, no prefix. "
-        "Use clear, professional language for executives. Be factual and specific to the content provided and to the stated scope."
+        "Use clear, professional language for executives. Be factual and specific to the content provided and to the stated scope. "
+        "STRICT: Base every sentence on the report body. Do not add claims, adjectives, or interpretations that are not explicitly supported by the report (e.g. do not label chemicals, products, or materials as 'eco-friendly', 'sustainable', or similar unless the report explicitly states it)."
     )
     scope_parts = []
     if scope_categories:

@@ -123,8 +123,21 @@ def write_report_from_evidence(
     category_map = {cat["id"]: cat["name"] for cat in PU_CATEGORIES}
     value_chain_link_map = {vc["id"]: vc["name"] for vc in VALUE_CHAIN_LINKS}
 
-    # No filtering here: Evidence Engine already filtered (meta-snippet, date, working URL). Only min_evidence check.
-    filtered_candidates = list(candidates)
+    # Filter candidates to those matching the spec (category, region, value_chain_link).
+    # All three are stored in the same format as the spec: category id, region name, value_chain_link id.
+    filtered_candidates = []
+    selected_vcl_set = set(selected_value_chain_links or [])
+    for c in candidates:
+        cat = (c.get("category") or "").strip()
+        reg = (c.get("region") or "").strip()
+        vcl = (c.get("value_chain_link") or "").strip()
+        if cat not in selected_category_ids:
+            continue
+        if selected_regions and reg not in selected_regions:
+            continue
+        if selected_vcl_set and vcl not in selected_vcl_set:
+            continue
+        filtered_candidates.append(c)
 
     if len(filtered_candidates) < min_evidence:
         content = (
@@ -148,11 +161,17 @@ def write_report_from_evidence(
         selected_regions,
         value_chain_link_map,
     )
-    # Distribute candidates round-robin across slots
+    # Assign each candidate to the slot matching its (category, region, value_chain_link)
     slot_items: Dict[str, List[Dict]] = {s[5]: [] for s in slots}
-    for j, c in enumerate(filtered_candidates):
-        slot_key = slots[j % len(slots)][5]
-        slot_items[slot_key].append(c)
+    for c in filtered_candidates:
+        cat = (c.get("category") or "").strip()
+        reg = (c.get("region") or "").strip()
+        vcl = (c.get("value_chain_link") or "").strip() if selected_value_chain_links else ""
+        slot_key = f"{cat}|{reg}|{vcl}"
+        if slot_key not in slot_items:
+            slot_key = f"{cat}|{reg}|"
+        if slot_key in slot_items:
+            slot_items[slot_key].append(c)
 
     # Flatten slots per category: for each category, gather all items across regions/value-chain links.
     category_items: Dict[str, List[Dict]] = {cid: [] for cid in selected_category_ids}
