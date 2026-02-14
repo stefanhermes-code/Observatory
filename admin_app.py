@@ -2101,7 +2101,7 @@ elif page == "📈 Reporting":
                     "Frequency": freq.title() if freq else "—",
                     "Created": (r.get("created_at") or "")[:19],
                     "Duration (s)": round(dur, 1),
-                    "Duration/Links": duration_per_link if duration_per_link is not None else "NA",
+                    "Duration/Links": str(duration_per_link) if duration_per_link is not None else "—",
                 }
                 if r.get("categories_count") is not None:
                     row["Categories"] = r["categories_count"]
@@ -2111,7 +2111,7 @@ elif page == "📈 Reporting":
                     row["Links"] = r["links_count"]
                 rows.append(row)
             df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True)
             st.markdown("---")
             gen_time_csv = "Intelligence Source,Frequency,Created,Duration (seconds),Duration/Links,Categories,Regions,Links\n"
             for r in runs_with_duration:
@@ -2157,7 +2157,7 @@ elif page == "📈 Reporting":
             df_cat.columns = ["Category", "Links"]
             if not by_category:
                 st.caption("No links attributed to categories yet (ensure candidate_articles.category is populated).")
-            st.dataframe(df_cat, use_container_width=True, hide_index=True)
+            st.dataframe(df_cat, width="stretch", hide_index=True)
             st.markdown("---")
             # Table 2: Productivity by region (criterion name -> count)
             st.markdown("#### Table 2 — Productivity by region")
@@ -2165,7 +2165,7 @@ elif page == "📈 Reporting":
             df_reg.columns = ["Region", "Links"]
             if not by_region:
                 st.caption("No links attributed to regions yet (ensure candidate_articles.region is populated).")
-            st.dataframe(df_reg, use_container_width=True, hide_index=True)
+            st.dataframe(df_reg, width="stretch", hide_index=True)
             st.markdown("---")
             # Table 3: Productivity by value chain link (criterion name -> count)
             st.markdown("#### Table 3 — Productivity by value chain link")
@@ -2173,7 +2173,7 @@ elif page == "📈 Reporting":
             df_vcl.columns = ["Value chain link", "Links"]
             if not by_value_chain_link:
                 st.caption("No links attributed to value chain links yet (ensure candidate_articles.value_chain_link is populated).")
-            st.dataframe(df_vcl, use_container_width=True, hide_index=True)
+            st.dataframe(df_vcl, width="stretch", hide_index=True)
             st.markdown("---")
             # Combined CSV: Section, Name, Links (no runs)
             crit_csv = "Section,Name,Links\n"
@@ -2446,7 +2446,7 @@ elif page == "📈 Reporting":
             import pandas as pd
             df_prod = pd.DataFrame(productivity)[["source_name", "count"]]
             df_prod = df_prod.rename(columns={"source_name": "Source", "count": "Items (all time)"})
-            st.dataframe(df_prod, use_container_width=True, hide_index=True)
+            st.dataframe(df_prod, width="stretch", hide_index=True)
             st.markdown("---")
             prod_csv = "Source,Items (all time)\n"
             for row in productivity:
