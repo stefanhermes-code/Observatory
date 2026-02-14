@@ -2462,7 +2462,7 @@ elif page == "📈 Reporting":
         Tokens are tracked for each successful report generation and aggregated by company.
         Costs are estimated based on OpenAI's published pricing (check OpenAI pricing page for current rates).
         """)
-        st.caption("Data comes from run metadata (e.g. tokens_used, model). If you use the **Response API** instead of the Assistant API, ensure your generator writes token and cost data into run metadata so this report stays accurate.")
+        st.caption("Data from run metadata. Supports **Assistant API** (tokens_used, model) and **Response API** (input_tokens, output_tokens, usage.*, or total_tokens). Cost uses actual input/output when present, else estimated 80/20; stored metadata.estimated_cost is used when set by the generator.")
         
         st.markdown("---")
         
