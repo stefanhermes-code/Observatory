@@ -175,7 +175,7 @@ def assemble_sections(items: List[Dict], categories: List[str]) -> Dict[str, Lis
 
 def render_html_from_content(
     newsletter_name: str,
-    assistant_content: str,
+    report_content: str,
     spec: Dict,
     metadata: Optional[Dict] = None,
     user_email: Optional[str] = None,
@@ -184,8 +184,8 @@ def render_html_from_content(
     reference_date: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """
-    Render OpenAI Assistant content as professional HTML report.
-    Converts markdown/text content from Assistant into formatted HTML similar to invoice styling.
+    Render report content (markdown) as professional HTML report.
+    Converts markdown from the evidence writer into formatted HTML similar to invoice styling.
     When lookback_date and reference_date are provided (e.g. from run), use them for display filtering;
     else compute from spec frequency.
     """
@@ -217,11 +217,11 @@ def render_html_from_content(
         except:
             pass
     
-    # Parse assistant content - extract news items with sources
+    # Parse report content - extract news items with sources
     # Look for patterns like: "Title" - Source (URL) or similar formats
-    html_content = assistant_content
-    
-    # Remove all meta-communication and process explanations from the Assistant's output
+    html_content = report_content
+
+    # Remove all meta-communication and process explanations from the report output
     # These are redundant with the HTML header and should not appear in the content
     
     # 1. Remove duplicate title headers (e.g., "HTC Global Market Intelligence" appearing at the start)

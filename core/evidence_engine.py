@@ -15,7 +15,7 @@ from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_d
 from core.generator_db import insert_candidate_articles
 from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED, source_from_url
 from core.query_planner import build_query_plan
-from core.report_filters import is_meta_snippet
+from core.report_filters import is_meta_snippet, passes_region_relevance
 from core.search_providers.openai_web_search import OpenAIWebSearchProvider
 
 
@@ -234,6 +234,21 @@ def run_evidence_engine(
                 region_val = qid[7:].replace("_", " ")
             elif qid.startswith("vcl_") and vcl_val is None:
                 vcl_val = qid[4:]  # store id (raw_materials) same as spec, like category
+            elif qid.startswith("company_") and category_val is None:
+                category_val = "company_news"
+
+        # Company-only (and any other unscoped) results: fill missing region/vcl from spec so they match writer filter
+        if region_val is None and regions:
+            region_val = regions[0]
+        if vcl_val is None and value_chain_links:
+            vcl_val = value_chain_links[0]
+        if category_val is None and categories:
+            category_val = categories[0]
+
+        # Content-based region relevance: if report is region-scoped, drop candidates whose title/snippet
+        # do not mention the assigned region (avoids e.g. China links in a SEA-only report).
+        if region_val and regions and not passes_region_relevance(c.get("title"), c.get("snippet"), region_val):
+            continue
 
         rec = {
             "url": url,

@@ -5,6 +5,8 @@ Used by Evidence Engine (filter before persist) so Writer and Pipeline do minima
 
 import re
 
+from core.taxonomy import REGION_KEYWORDS
+
 # Patterns that indicate title/snippet is search-result preamble, not actual news
 META_SNIPPET_PATTERNS = [
     r"^Here are (several |the most )?(relevant and )?factual",
@@ -27,3 +29,20 @@ def is_meta_snippet(text: str) -> bool:
         if re.search(pat, t, re.IGNORECASE):
             return True
     return False
+
+
+def passes_region_relevance(title: str, snippet: str, region: str) -> bool:
+    """
+    True if title or snippet contains at least one keyword for the given region.
+    Used to drop candidates that were returned by a region query but are about other regions
+    (e.g. China article in a SEA-only report). When region has no mapping, we require the
+    region label itself to appear (case-insensitive).
+    """
+    if not region:
+        return True
+    keywords = REGION_KEYWORDS.get(region, [region])
+    text = ((title or "") + " " + (snippet or "")).strip()
+    if not text:
+        return False
+    text_lower = text.lower()
+    return any(kw.lower() in text_lower for kw in keywords)

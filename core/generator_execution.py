@@ -138,7 +138,7 @@ def execute_generator(
     display_cadence = cadence_override if cadence_override else None
     html_content, diagnostics = _render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
-        assistant_content=report_content,
+        report_content=report_content,
         spec=run_specification,
         metadata={
             "model": "v2_evidence_writer",
@@ -184,7 +184,7 @@ def execute_generator(
     result_data = {
         "run_id": run_id,
         "html_content": html_content,
-        "assistant_output": report_content,
+        "report_content": report_content,
         "metadata": metadata_with_html,
         "artifact_path": artifact_path
     }
@@ -307,7 +307,7 @@ def run_phase_render_and_save(
     run_reference = evidence_summary.get("reference_date") if evidence_summary else None
     html_content, diagnostics = _render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
-        assistant_content=report_content,
+        report_content=report_content,
         spec=run_specification,
         metadata={
             "model": "v2_evidence_writer",
@@ -355,7 +355,7 @@ def run_phase_render_and_save(
     return {
         "run_id": run_id,
         "html_content": html_content,
-        "assistant_output": report_content,
+        "report_content": report_content,
         "metadata": metadata_with_html,
         "artifact_path": artifact_path,
     }

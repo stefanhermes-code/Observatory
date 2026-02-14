@@ -1,6 +1,11 @@
 """
-OpenAI Assistant integration for PU Observatory Generator.
-Implements stateless execution pattern - Assistant receives only the run package.
+OpenAI integration for PU Observatory Generator.
+
+Report generation uses the evidence writer (intelligence_writer), not the Assistants API.
+This module provides:
+  - generate_executive_summary(): Chat Completions for Executive Summary (used).
+  - get_openai_client(), build_run_package(): used by tests and company-list upload.
+  - execute_assistant(): legacy; not called by the generator. Kept for optional/debug use only.
 """
 
 import os
@@ -67,6 +72,7 @@ def generate_executive_summary(
         body = body[: _EXEC_SUMMARY_MAX_BODY_CHARS] + "\n\n[... report truncated for summary ...]"
     system = (
         "You are an expert editor for polyurethane industry market intelligence reports. "
+        "PU industry scope: materials (flexible/rigid/moulded foam, TPU, CASE); chemicals for PU (MDI, TDI, polyols, silicones, amines, catalysts, additives); value chain (chemical manufacturers, system houses, foam manufacturers & converters, end users). "
         "Your output will be placed under the '## Executive Summary' heading. "
         "The report—and therefore this summary—is created within strict scope: only the selected categories, regions, and value chain links. "
         "Do not imply broader coverage; frame insights explicitly within this scope. "
@@ -115,7 +121,7 @@ Agent Persona: PU Industry News Analyst
 Core Directive: Provide accurate and timely news updates on companies in the polyurethane industry.
 
 ## INPUT DATA & CONTEXT:
-- Define the PU Industry: The polyurethane industry is the integrated value chain from diisocyanates and polyols production to finished product conversion and reverse logistics.
+- **PU industry definition:** The polyurethane industry is defined by (1) PU materials: flexible foam, rigid foam, moulded foam, TPU, CASE (coatings, adhesives, sealants, elastomers); (2) chemicals for PU materials: MDI, TDI, polyols, isocyanates, silicones, amines, catalysts, additives, blowing agents, surfactants (chemical manufacturers produce these); (3) value chain: chemical manufacturers → system houses (mix chemicals, produce systems) → foam manufacturers & converters → end users (automotive, mattresses, construction, appliances). Use this base knowledge for accurate answers.
 - **Company List**: A comprehensive list of 152+ PU industry companies is available in the attached vector store/knowledge base. You MUST retrieve and use this list when searching for company news. The list includes company names, aliases, value chain positions, regions, and status. Filter companies by value chain position (matching selected deliverables) and regions (matching selected regions), then search for news about ALL matching companies.
 - **News Sources**: Identify preferred sources for news aggregation (e.g., industry publications, financial news platforms).
 
@@ -237,8 +243,8 @@ def build_run_package(
     Returns:
         Run package dictionary with system instruction and user message
     """
-    from core.taxonomy import PU_CATEGORIES, VALUE_CHAIN_LINKS
-    
+    from core.taxonomy import PU_CATEGORIES, VALUE_CHAIN_LINKS, PU_INDUSTRY_BASE_KNOWLEDGE
+
     # Get category names and descriptions for the selected categories
     category_map = {cat["id"]: cat["name"] for cat in PU_CATEGORIES}
     category_desc = {cat["id"]: cat.get("description", "") for cat in PU_CATEGORIES}
@@ -278,8 +284,12 @@ def build_run_package(
         for vcl in selected_vcl_names:
             user_message_parts.append(f"- {vcl}")
     
-    # Glossary: what the selected content types and value chain links mean (so the Assistant can interpret them)
+    # Base knowledge: PU materials, chemicals, value chain ecosystem (so the Assistant has accurate industry context)
     user_message_parts.extend([
+        "",
+        "## PU industry base knowledge (use this for accurate answers):",
+        "",
+        PU_INDUSTRY_BASE_KNOWLEDGE.strip(),
         "",
         "## Glossary (definitions for the selections above):",
         "",
@@ -435,10 +445,14 @@ def execute_assistant(run_package: Dict) -> Dict:
     """
     Execute the OpenAI Assistant with the run package using Assistants API.
     Returns the Assistant's response.
-    
+
+    NOT USED by the canonical generator: report body is produced by the evidence writer
+    (intelligence_writer.write_report_from_evidence). This function is kept for optional
+    or debug use only (e.g. test_openai_connection, manual runs).
+
     Args:
         run_package: Complete run package from build_run_package()
-    
+
     Returns:
         Dictionary with 'content' (generated text) and 'metadata'
     """
