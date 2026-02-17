@@ -9,7 +9,7 @@ This module provides:
 """
 
 import os
-from typing import Dict, Optional, List
+from typing import Any, Dict, List, Optional, Tuple
 import json
 from datetime import datetime
 
@@ -49,24 +49,18 @@ def generate_executive_summary(
     scope_categories: Optional[List[str]] = None,
     scope_regions: Optional[List[str]] = None,
     scope_value_chain_links: Optional[List[str]] = None,
-) -> Optional[str]:
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """
     Call OpenAI Chat Completions to generate a 3–5 paragraph Executive Summary from the report body.
     Used by the evidence-based report writer (signals only); core element of market intelligence.
-    
-    Args:
-        report_body: Full report markdown (sections and bullet points).
-        newsletter_name: Report title for context.
-        scope_categories: Selected content categories (report is limited to these).
-        scope_regions: Selected regions (report is limited to these).
-        scope_value_chain_links: Selected value chain links (report is limited to these).
-    
+
     Returns:
-        Markdown string of paragraphs for the Executive Summary (heading is added by the writer).
+        (summary_text, usage_dict). usage_dict: input_tokens, output_tokens, total_tokens, model.
+        On failure returns (None, None).
     """
     client = get_openai_client()
     if not client:
-        return None
+        return None, None
     body = (report_body or "").strip()
     if len(body) > _EXEC_SUMMARY_MAX_BODY_CHARS:
         body = body[: _EXEC_SUMMARY_MAX_BODY_CHARS] + "\n\n[... report truncated for summary ...]"
@@ -103,10 +97,22 @@ def generate_executive_summary(
             temperature=0.3,
         )
         if not resp.choices or not resp.choices[0].message or not resp.choices[0].message.content:
-            return None
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        return None
+            return None, None
+        text = resp.choices[0].message.content.strip()
+        usage_dict = None
+        if getattr(resp, "usage", None) is not None:
+            u = resp.usage
+            usage_dict = {
+                "input_tokens": getattr(u, "prompt_tokens", None) or getattr(u, "input_tokens", 0),
+                "output_tokens": getattr(u, "completion_tokens", None) or getattr(u, "output_tokens", 0),
+                "total_tokens": getattr(u, "total_tokens", 0),
+                "model": getattr(resp, "model", None) or "gpt-4o-mini",
+            }
+            if usage_dict["total_tokens"] == 0 and usage_dict["input_tokens"] is not None and usage_dict["output_tokens"] is not None:
+                usage_dict["total_tokens"] = usage_dict["input_tokens"] + usage_dict["output_tokens"]
+        return text, usage_dict
+    except Exception:
+        return None, None
 
 
 def build_system_instruction() -> str:

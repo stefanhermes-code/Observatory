@@ -161,15 +161,25 @@ def run_evidence_engine(
     t_search_start = time.perf_counter()
     provider = search_provider or OpenAIWebSearchProvider()
     from_search: List[Dict[str, Any]] = []
+    web_search_usage_accum: Dict[str, int] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     for q in plan:
         qid = q.get("query_id")
         qtext = q.get("query_text")
-        for item in provider.search(
+        result = provider.search(
             qtext or "",
             max_results=10,
             reference_date=ref_date,
             lookback_days=lookback_days,
-        ):
+        )
+        if isinstance(result, tuple) and len(result) == 2:
+            items_batch, usage = result[0], result[1]
+            if usage:
+                web_search_usage_accum["input_tokens"] += int(usage.get("input_tokens") or 0)
+                web_search_usage_accum["output_tokens"] += int(usage.get("output_tokens") or 0)
+                web_search_usage_accum["total_tokens"] += int(usage.get("total_tokens") or 0)
+        else:
+            items_batch = result
+        for item in items_batch:
             item["query_id"] = qid
             item["query_text"] = qtext
             item["source_id"] = None
@@ -184,6 +194,8 @@ def run_evidence_engine(
                 source_name = inferred or "web_search"
             item["source_name"] = source_name
             from_search.append(item)
+    if web_search_usage_accum.get("total_tokens") or web_search_usage_accum.get("input_tokens") or web_search_usage_accum.get("output_tokens"):
+        summary["token_usage"] = {"web_search": {**web_search_usage_accum, "model": "gpt-4o"}}
     summary["timing_seconds"]["web_search"] = round(time.perf_counter() - t_search_start, 1)
     all_candidates.extend(from_search)
     summary["candidates_from_search"] = len(from_search)

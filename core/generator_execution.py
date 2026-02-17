@@ -15,9 +15,45 @@ from core.generator_db import (
     update_run_status,
     get_candidate_articles_for_run,
 )
+from core.token_tracking import compute_cost_for_usage
 
 # Builder-only: can set lookback to 1/7/30 days and run without frequency limit
 BUILDER_EMAIL = "stefan.hermes@htcglobal.asia"
+
+
+def _build_run_usage_metadata(evidence_summary: Optional[Dict], writer_output: Optional[Dict]) -> Dict:
+    """
+    Aggregate token usage from Executive Summary (Chat Completions) and web search (Responses API).
+    Returns dict with input_tokens, output_tokens, total_tokens, estimated_cost, model for run metadata.
+    Empty dict if no usage (so we don't overwrite with zeros).
+    """
+    out = {}
+    total_in, total_out = 0, 0
+    cost = 0.0
+    exec_usage = (writer_output or {}).get("exec_summary_usage")
+    if exec_usage and isinstance(exec_usage, dict):
+        inp = int(exec_usage.get("input_tokens") or 0)
+        out_tok = int(exec_usage.get("output_tokens") or 0)
+        total_in += inp
+        total_out += out_tok
+        cost += compute_cost_for_usage(inp, out_tok, exec_usage.get("model") or "gpt-4o-mini")
+    web_usage = None
+    if isinstance(evidence_summary, dict):
+        web_usage = (evidence_summary.get("token_usage") or {}).get("web_search")
+    if web_usage and isinstance(web_usage, dict):
+        inp = int(web_usage.get("input_tokens") or 0)
+        out_tok = int(web_usage.get("output_tokens") or 0)
+        total_in += inp
+        total_out += out_tok
+        cost += compute_cost_for_usage(inp, out_tok, web_usage.get("model") or "gpt-4o")
+    if total_in + total_out == 0:
+        return out
+    out["input_tokens"] = total_in
+    out["output_tokens"] = total_out
+    out["total_tokens"] = total_in + total_out
+    out["estimated_cost"] = round(cost, 6)
+    out["model"] = "gpt-4o" if web_usage else "gpt-4o-mini"
+    return out
 
 
 def _render_html_from_content(*args, **kwargs):
@@ -144,7 +180,6 @@ def execute_generator(
         spec=run_specification,
         metadata={
             "model": "v2_evidence_writer",
-            "tokens_used": 0,
             "timestamp": datetime.utcnow().isoformat(),
             "extraction": extraction_result,
             "coverage_low": coverage_low,
@@ -159,13 +194,17 @@ def execute_generator(
     metadata_with_html = {
         "html_content": html_content,
         "model": "v2_evidence_writer",
-        "tokens_used": 0,
         "timestamp": datetime.utcnow().isoformat(),
         "content_diagnostics": diagnostics,
         "evidence_summary": evidence_summary,
         "extraction_result": extraction_result,
         "coverage_low": coverage_low,
     }
+    usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
+    if usage_meta:
+        metadata_with_html.update(usage_meta)
+    else:
+        metadata_with_html["tokens_used"] = 0
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -330,13 +369,17 @@ def run_phase_render_and_save(
     metadata_with_html = {
         "html_content": html_content,
         "model": "v2_evidence_writer",
-        "tokens_used": 0,
         "timestamp": datetime.utcnow().isoformat(),
         "content_diagnostics": diagnostics,
         "evidence_summary": evidence_summary,
         "extraction_result": extraction_result,
         "coverage_low": coverage_low,
     }
+    usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
+    if usage_meta:
+        metadata_with_html.update(usage_meta)
+    else:
+        metadata_with_html["tokens_used"] = 0
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}

@@ -209,15 +209,23 @@ def write_report_from_evidence(
     scope_regions = list(selected_regions) if selected_regions else []
     scope_vcl = [value_chain_link_map.get(vid, vid) for vid in selected_value_chain_links]
     exec_summary = None
+    exec_summary_usage = None
     if generate_executive_summary:
-        exec_summary = generate_executive_summary(
+        result = generate_executive_summary(
             report_body,
             newsletter_name,
             scope_categories=scope_categories,
             scope_regions=scope_regions,
             scope_value_chain_links=scope_vcl if selected_value_chain_links else None,
         )
+        if isinstance(result, tuple):
+            exec_summary, exec_summary_usage = result[0], result[1]
+        else:
+            exec_summary = result
     if exec_summary:
         lines.extend(["", "## Executive Summary", "", exec_summary, ""])
     content = "\n".join(lines)
-    return {"content": content, "coverage_low": False}
+    out = {"content": content, "coverage_low": False}
+    if exec_summary_usage is not None:
+        out["exec_summary_usage"] = exec_summary_usage
+    return out

@@ -4,7 +4,7 @@ Uses OpenAI Responses API / web search tool to run queries and return candidates
 Injects app date and recency into the prompt so the model uses correct "today" (not its own wrong date).
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any, List, Dict, Optional
 from datetime import datetime
 import os
 
@@ -33,14 +33,15 @@ def _run_web_search(
     max_results: int = 10,
     reference_date: Optional[datetime] = None,
     lookback_days: Optional[int] = None,
-) -> List[Dict[str, Any]]:
+) -> tuple:
     """
-    Use OpenAI with web search to get results. Returns list of {url, title, snippet, published_at?, source_name}.
-    Injects today's date and recency so the model does not use its own (possibly wrong) date.
+    Use OpenAI with web search to get results.
+    Returns (list of {url, title, snippet, published_at?, source_name}, usage_dict or None).
+    usage_dict: input_tokens, output_tokens, total_tokens, model for Admin cost tracking.
     """
     client = _get_client()
     if not client:
-        return []
+        return [], None
     ref = reference_date or datetime.utcnow()
     today_str = ref.strftime("%Y-%m-%d")
     recency = (
@@ -79,7 +80,7 @@ def _run_web_search(
                                         "source_name": "web_search",
                                     })
                                     if len(out) >= max_results:
-                                        return out
+                                        return _out_with_usage(out[:max_results], response)
         # If no citations, try to parse URLs from output text
         for item in getattr(response, "output", []) or []:
             if getattr(item, "type", None) == "message" and getattr(item, "content", None):
@@ -97,9 +98,28 @@ def _run_web_search(
                                     "published_at": None,
                                     "source_name": "web_search",
                                 })
-        return out[:max_results]
+        return _out_with_usage(out[:max_results], response)
     except Exception:
-        return []
+        return [], None
+
+
+def _out_with_usage(out: List[Dict[str, Any]], response: Any) -> tuple:
+    """Build (results, usage_dict) from Responses API response."""
+    usage_dict = None
+    u = getattr(response, "usage", None)
+    if u is not None:
+        inp = getattr(u, "input_tokens", None) or getattr(u, "prompt_tokens", 0)
+        out_tok = getattr(u, "output_tokens", None) or getattr(u, "completion_tokens", 0)
+        total = getattr(u, "total_tokens", None)
+        if total is None and (inp is not None or out_tok is not None):
+            total = (inp or 0) + (out_tok or 0)
+        usage_dict = {
+            "input_tokens": inp or 0,
+            "output_tokens": out_tok or 0,
+            "total_tokens": total or 0,
+            "model": getattr(response, "model", None) or "gpt-4o",
+        }
+    return (out, usage_dict)
 
 
 class OpenAIWebSearchProvider(SearchProvider):

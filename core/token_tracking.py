@@ -46,6 +46,16 @@ def _normalize_model_for_pricing(model: str) -> str:
     return "gpt-4o"
 
 
+def compute_cost_for_usage(input_tokens: int, output_tokens: int, model: str) -> float:
+    """
+    Compute estimated cost in USD for a single API call.
+    Used by the generator to persist estimated_cost in run metadata for Admin.
+    """
+    key = _normalize_model_for_pricing(model)
+    pricing = PRICING_PER_1M_TOKENS.get(key, DEFAULT_PRICING)
+    return (input_tokens / 1_000_000 * pricing["input"]) + (output_tokens / 1_000_000 * pricing["output"])
+
+
 def _extract_token_usage_from_metadata(metadata: Dict) -> Tuple[int, Optional[int], Optional[int], str, Optional[float]]:
     """
     Extract token usage from run metadata. Supports:
