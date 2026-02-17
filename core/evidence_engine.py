@@ -15,7 +15,7 @@ from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_d
 from core.generator_db import insert_candidate_articles
 from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED, source_from_url
 from core.query_planner import build_query_plan
-from core.report_filters import is_meta_snippet, passes_region_relevance
+from core.report_filters import is_meta_snippet, passes_region_relevance, passes_pu_relevance
 from core.search_providers.openai_web_search import OpenAIWebSearchProvider
 
 
@@ -248,6 +248,10 @@ def run_evidence_engine(
         # Content-based region relevance: if report is region-scoped, drop candidates whose title/snippet
         # do not mention the assigned region (avoids e.g. China links in a SEA-only report).
         if region_val and regions and not passes_region_relevance(c.get("title"), c.get("snippet"), region_val):
+            continue
+        # PU relevance: drop candidates with no PU-specific keyword in title/snippet (avoids generic
+        # plastics/fibres articles e.g. PP, PA, PE, PLA that are not about polyurethane).
+        if not passes_pu_relevance(c.get("title"), c.get("snippet")):
             continue
 
         rec = {

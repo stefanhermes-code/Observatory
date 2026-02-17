@@ -199,9 +199,12 @@ def render_html_from_content(
             reference_date = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))
         except Exception:
             lookback_date = reference_date = None
+    ref_date_for_cadence = datetime.utcnow()
     if lookback_date is None or reference_date is None:
         cadence = spec.get('frequency', 'monthly')
-        lookback_date, _ = get_lookback_from_cadence(cadence, datetime.utcnow())
+        lookback_date, ref_date_for_cadence = get_lookback_from_cadence(cadence, ref_date_for_cadence)
+        if reference_date is None:
+            reference_date = ref_date_for_cadence
     # Effective lookback in days for header (Monitor Period)
     try:
         ref = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))
@@ -671,15 +674,19 @@ def render_html_from_content(
         html_lines.append('</ul>')
     html_content = '\n'.join(html_lines)
 
-    # Remove empty category headers: <h2>...</h2> when immediately followed by another <h2> (no list in between)
+    # Remove empty category headers: <h2>...</h2> when the content until the next <h2> has no list items (<li>)
+    def _drop_empty_h2_section(match):
+        between = match.group(2)
+        if re.search(r'<\s*li\s', between):
+            return match.group(0)
+        return ''
     html_content = re.sub(
-        r'<h2>[^<]*</h2>\s*(?:<p>\s*</p>\s*)*(?=<h2>)',
-        '',
+        r'(<h2>[^<]*</h2>)(.*?)(?=<h2>|$)',
+        _drop_empty_h2_section,
         html_content,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE | re.DOTALL
     )
-    # Drop trailing empty h2 at end (no list after it)
-    html_content = re.sub(r'\n*<h2>[^<]*</h2>\s*(?:<p>\s*</p>\s*)*(?=</p>\s*<div|</body|$)', '\n', html_content, flags=re.IGNORECASE | re.DOTALL)
+    # (Empty sections at end are already removed by the regex above via (?=<h2>|$).)
 
     # Debug logging for content filtering
     print(f"[DEBUG] Content filtering summary: Found {items_found} news items, included {items_included} items")
@@ -886,7 +893,7 @@ def render_html_from_content(
     
             <div class="report-meta">
                 <p><strong>Generated:</strong> {datetime.utcnow().strftime('%B %d, %Y at %H:%M UTC')}</p>
-                <p><strong>Monitor Period:</strong> {f"{lookback_days} day" if lookback_days == 1 else f"{lookback_days} days" if lookback_days is not None else (cadence_override.title() if cadence_override else spec.get('frequency', '').title())}</p>
+                <p><strong>Monitor Period:</strong> {f"{lookback_days} day" if lookback_days == 1 else f"{lookback_days} days" if lookback_days is not None else "—"}</p>
                 <p><strong>Categories:</strong> {_report_meta_categories(spec)}</p>
                 <p><strong>Regions:</strong> {', '.join(spec.get('regions', []) or [])}</p>
                 <p><strong>Value chain links:</strong> {_report_meta_value_chain_links(spec)}</p>

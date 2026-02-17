@@ -5,7 +5,7 @@ Used by Evidence Engine (filter before persist) so Writer and Pipeline do minima
 
 import re
 
-from core.taxonomy import REGION_KEYWORDS
+from core.taxonomy import REGION_KEYWORDS, PU_RELEVANCE_KEYWORDS
 
 # Patterns that indicate title/snippet is search-result preamble, not actual news
 # (Often the first "result" from search is meta-wording; we filter these in evidence engine.)
@@ -57,3 +57,27 @@ def passes_region_relevance(title: str, snippet: str, region: str) -> bool:
         return False
     text_lower = text.lower()
     return any(kw.lower() in text_lower for kw in keywords)
+
+
+def passes_pu_relevance(title: str, snippet: str) -> bool:
+    """
+    True if title or snippet contains at least one PU-specific keyword (polyurethane, MDI, TDI,
+    polyol, foam, TPU, etc.). Used to drop generic plastics/fibres articles (e.g. PP, PA, PE, PLA)
+    that are not about the PU industry.
+    """
+    text = ((title or "") + " " + (snippet or "")).strip()
+    if not text:
+        return False
+    text_lower = text.lower()
+    text_padded = " " + text_lower + " "
+    for kw in PU_RELEVANCE_KEYWORDS:
+        k = kw.strip().lower()
+        if not k:
+            continue
+        if kw.startswith(" ") or kw.endswith(" "):
+            if (" " + k + " ") in text_padded:
+                return True
+        else:
+            if k in text_lower:
+                return True
+    return False

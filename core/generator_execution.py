@@ -136,6 +136,8 @@ def execute_generator(
 
     # Step 7: Persist Results — render writer output to HTML (same pipeline as before)
     display_cadence = cadence_override if cadence_override else None
+    run_lookback = evidence_summary.get("lookback_date") if isinstance(evidence_summary, dict) else None
+    run_reference = evidence_summary.get("reference_date") if isinstance(evidence_summary, dict) else None
     html_content, diagnostics = _render_html_from_content(
         newsletter_name=spec.get("newsletter_name", "Newsletter"),
         report_content=report_content,
@@ -148,7 +150,9 @@ def execute_generator(
             "coverage_low": coverage_low,
         },
         user_email=user_email,
-        cadence_override=display_cadence
+        cadence_override=display_cadence,
+        lookback_date=run_lookback,
+        reference_date=run_reference,
     )
 
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"

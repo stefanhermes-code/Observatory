@@ -146,6 +146,35 @@ REGION_KEYWORDS = {
     "South America": ["South America", "Brazil", "Brazilian", "Argentina", "Chile", "Colombia", "Latin America"],
 }
 
+# PU relevance: at least one of these must appear in title or snippet to keep the candidate.
+# Used to drop generic plastics/fibres articles (e.g. PP, PA, PE, PLA) that are not about polyurethane.
+PU_RELEVANCE_KEYWORDS = [
+    "polyurethane",
+    "polyurethanes",
+    " MDI ",
+    " TDI ",
+    "polyol",
+    "polyols",
+    "isocyanate",
+    "isocyanates",
+    "diisocyanate",
+    " TPU ",
+    "thermoplastic polyurethane",
+    "polyether polyol",
+    "polyester polyol",
+    "PU foam",
+    "flexible foam",
+    "rigid foam",
+    "moulded foam",
+    "molded foam",
+    "PU coating",
+    "PU adhesive",
+    "PU sealant",
+    "PU elastomer",
+    "CASE (coatings",
+    "blowing agent",
+]
+
 # Frequency options
 FREQUENCIES = [
     {
