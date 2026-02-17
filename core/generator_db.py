@@ -321,3 +321,41 @@ def insert_candidate_articles(
     except Exception:
         return 0
 
+
+def insert_extracted_signals(run_id: str, signals: List[Dict]) -> int:
+    """
+    V2 Build Spec Phase 1: insert rows into extracted_signals.
+    Each dict: article_id, company_name?, segment, region?, signal_type, numeric_value?, numeric_unit?, currency?,
+    time_horizon, confidence_score, raw_json?
+    segment/signal_type/time_horizon must be valid enum values (see migration 010).
+    Returns count inserted.
+    """
+    if not signals:
+        return 0
+    supabase = get_supabase_client()
+    rows = []
+    for s in signals:
+        row = {
+            "run_id": run_id,
+            "article_id": s.get("article_id"),
+            "company_name": s.get("company_name"),
+            "segment": s.get("segment", "unknown"),
+            "region": s.get("region"),
+            "signal_type": s.get("signal_type", "other"),
+            "numeric_value": s.get("numeric_value"),
+            "numeric_unit": s.get("numeric_unit"),
+            "currency": s.get("currency"),
+            "time_horizon": s.get("time_horizon", "unknown"),
+            "confidence_score": float(s.get("confidence_score", 0)),
+            "raw_json": s.get("raw_json"),
+        }
+        if row["article_id"]:
+            rows.append(row)
+    if not rows:
+        return 0
+    try:
+        supabase.table("extracted_signals").insert(rows).execute()
+        return len(rows)
+    except Exception:
+        return 0
+
