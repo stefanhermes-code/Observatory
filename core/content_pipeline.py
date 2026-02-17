@@ -202,6 +202,13 @@ def render_html_from_content(
     if lookback_date is None or reference_date is None:
         cadence = spec.get('frequency', 'monthly')
         lookback_date, _ = get_lookback_from_cadence(cadence, datetime.utcnow())
+    # Effective lookback in days for header (Monitor Period)
+    try:
+        ref = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))
+        lb = lookback_date if isinstance(lookback_date, datetime) else datetime.fromisoformat(str(lookback_date).replace("Z", "+00:00"))
+        lookback_days = (ref - lb).days
+    except Exception:
+        lookback_days = None
     from pathlib import Path
     import re
     
@@ -663,7 +670,17 @@ def render_html_from_content(
     if in_list:
         html_lines.append('</ul>')
     html_content = '\n'.join(html_lines)
-    
+
+    # Remove empty category headers: <h2>...</h2> when immediately followed by another <h2> (no list in between)
+    html_content = re.sub(
+        r'<h2>[^<]*</h2>\s*(?:<p>\s*</p>\s*)*(?=<h2>)',
+        '',
+        html_content,
+        flags=re.IGNORECASE
+    )
+    # Drop trailing empty h2 at end (no list after it)
+    html_content = re.sub(r'\n*<h2>[^<]*</h2>\s*(?:<p>\s*</p>\s*)*(?=</p>\s*<div|</body|$)', '\n', html_content, flags=re.IGNORECASE | re.DOTALL)
+
     # Debug logging for content filtering
     print(f"[DEBUG] Content filtering summary: Found {items_found} news items, included {items_included} items")
     if items_found > 0 and items_included == 0:
@@ -869,7 +886,7 @@ def render_html_from_content(
     
             <div class="report-meta">
                 <p><strong>Generated:</strong> {datetime.utcnow().strftime('%B %d, %Y at %H:%M UTC')}</p>
-                <p><strong>Frequency:</strong> {cadence_override.title() if cadence_override else ("Infinite" if user_email and user_email.lower() == "stefan.hermes@htcglobal.asia" else spec.get('frequency', '').title())}</p>
+                <p><strong>Monitor Period:</strong> {f"{lookback_days} day" if lookback_days == 1 else f"{lookback_days} days" if lookback_days is not None else (cadence_override.title() if cadence_override else spec.get('frequency', '').title())}</p>
                 <p><strong>Categories:</strong> {_report_meta_categories(spec)}</p>
                 <p><strong>Regions:</strong> {', '.join(spec.get('regions', []) or [])}</p>
                 <p><strong>Value chain links:</strong> {_report_meta_value_chain_links(spec)}</p>

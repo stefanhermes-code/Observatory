@@ -8,15 +8,26 @@ import re
 from core.taxonomy import REGION_KEYWORDS
 
 # Patterns that indicate title/snippet is search-result preamble, not actual news
+# (Often the first "result" from search is meta-wording; we filter these in evidence engine.)
 META_SNIPPET_PATTERNS = [
     r"^Here are (several |the most )?(relevant and )?factual",
     r"^Here are the most relevant",
+    r"^Here are (some |a few )?(relevant )?(search )?results",
+    r"^Based on (your |the )?query",
+    r"^The following (articles?|links?|results?)",
+    r"^Search results (for |related to )",
+    r"^Below are (the )?(relevant )?",
+    r"^These are (the )?relevant",
+    r"^Summary of (the )?search",
+    r"^Results from (your )?search",
     r"search results (for the query |related to )",
     r"presented as titles?",
     r"including (article|titles?)",
     r"each with the title and a brief snippet",
     r"short snippets?,? and (their )?source URLs",
     r"in other words,.*?used in",
+    r"^I (found|retrieved) (the following|these)",
+    r"^Below (is|are) (the )?(search )?result",
 ]
 
 

@@ -546,26 +546,29 @@ elif page == "📰 Generate Report":
 
             st.markdown("### Preview")
             st.components.v1.html(html_content, height=600, scrolling=True)
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.download_button(
                     "📥 Download HTML",
                     data=html_content,
                     file_name=f"{spec.get('newsletter_name', 'report')}_{datetime.utcnow().strftime('%Y%m%d')}.html",
                     mime="text/html",
-                    width="stretch"
+                    key=f"dl_report_{result_data.get('run_id', '')}",
+                    use_container_width=True
                 )
             with col2:
-                print_clicked = st.button("🖨️ Print Report", width="stretch", type="primary")
+                print_clicked = st.button("🖨️ Print Report", type="primary", key="print_report", use_container_width=True)
                 if print_clicked:
                     st.markdown("""
                         <script>
                         setTimeout(function() { window.print(); }, 100);
                         </script>
                     """, unsafe_allow_html=True)
-
-        st.session_state.gen_phase = 0
-        st.session_state.gen_result_data = None
+            with col3:
+                if st.button("🔄 Generate Next", key="generate_next", use_container_width=True):
+                    st.session_state.gen_phase = 0
+                    st.session_state.gen_result_data = None
+                    st.rerun()
 
 elif page == "📚 History":
     st.subheader("📚 History")
