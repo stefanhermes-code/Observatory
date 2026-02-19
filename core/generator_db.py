@@ -416,12 +416,37 @@ def get_signal_clusters_for_run(run_id: str) -> List[Dict]:
 
 
 def update_signal_cluster_classification(cluster_id: str, classification: str) -> bool:
-    """V2 Build Spec Phase 3: set classification on one signal_clusters row."""
+    """V2 Build Spec Phase 3: set classification on one signal_clusters row (llm_classification)."""
     if not cluster_id or not classification:
         return False
     supabase = get_supabase_client()
     try:
         supabase.table("signal_clusters").update({"classification": classification}).eq("id", cluster_id).execute()
+        return True
+    except Exception:
+        return False
+
+
+def update_signal_cluster_doctrine(
+    cluster_id: str,
+    final_classification: str,
+    override_source: str,
+    materiality_flag: bool,
+    override_reason: Optional[str] = None,
+) -> bool:
+    """V2 Build Spec Phase 4: set doctrine resolver output. Does not overwrite classification (llm)."""
+    if not cluster_id or not final_classification or override_source not in ("llm", "doctrine"):
+        return False
+    supabase = get_supabase_client()
+    try:
+        row = {
+            "final_classification": final_classification,
+            "override_source": override_source,
+            "materiality_flag": materiality_flag,
+        }
+        if override_reason is not None:
+            row["override_reason"] = override_reason
+        supabase.table("signal_clusters").update(row).eq("id", cluster_id).execute()
         return True
     except Exception:
         return False

@@ -173,6 +173,12 @@ def execute_generator(
         signal_classification_result = {"classified": 0, "clusters_processed": 0, "failed": 0}
 
     try:
+        from core.doctrine_resolver import run_doctrine_resolver_v2
+        doctrine_result = run_doctrine_resolver_v2(run_id=run_id)
+    except Exception:
+        doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
+
+    try:
         from core.intelligence_writer import write_report_from_evidence
         writer_output = write_report_from_evidence(
             spec=run_specification,
@@ -219,6 +225,7 @@ def execute_generator(
         "signal_extraction_v2": signal_extraction_result,
         "signal_clustering_v2": signal_clustering_result,
         "signal_classification_v2": signal_classification_result,
+        "doctrine_v2": doctrine_result,
         "coverage_low": coverage_low,
     }
     usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
@@ -357,6 +364,12 @@ def run_phase_extract_and_write(
     except Exception:
         signal_classification_result = {"classified": 0, "clusters_processed": 0, "failed": 0}
 
+    try:
+        from core.doctrine_resolver import run_doctrine_resolver_v2
+        doctrine_result = run_doctrine_resolver_v2(run_id=run_id)
+    except Exception:
+        doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
+
     from core.intelligence_writer import write_report_from_evidence
     writer_output = write_report_from_evidence(
         spec=run_specification,
@@ -364,7 +377,7 @@ def run_phase_extract_and_write(
         lookback_date=lookback_date,
         reference_date=reference_date,
     )
-    return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result
+    return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result
 
 
 def run_phase_render_and_save(
@@ -380,6 +393,7 @@ def run_phase_render_and_save(
     signal_extraction_result: Optional[Dict] = None,
     signal_clustering_result: Optional[Dict] = None,
     signal_classification_result: Optional[Dict] = None,
+    doctrine_result: Optional[Dict] = None,
     cadence_override: Optional[str] = None,
 ) -> Dict:
     """
@@ -423,6 +437,8 @@ def run_phase_render_and_save(
         metadata_with_html["signal_clustering_v2"] = signal_clustering_result
     if signal_classification_result is not None:
         metadata_with_html["signal_classification_v2"] = signal_classification_result
+    if doctrine_result is not None:
+        metadata_with_html["doctrine_v2"] = doctrine_result
     usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
     if usage_meta:
         metadata_with_html.update(usage_meta)

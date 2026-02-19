@@ -38,12 +38,22 @@ def run(run_id, out_dir):
     try:
         class_result = run_signal_classification_v2(run_id=run_id)
         lines.append("classification_result=" + str(class_result))
-        clusters = get_signal_clusters_for_run(run_id)
-        dist = Counter(c.get("classification") for c in clusters if c.get("classification"))
-        lines.append("classification_distribution=" + str(dict(dist)))
     except Exception as e:
         errors.append("classification: " + str(e))
         lines.append("classification_error=" + str(e))
+    try:
+        from core.doctrine_resolver import run_doctrine_resolver_v2
+        doctrine_result = run_doctrine_resolver_v2(run_id=run_id)
+        lines.append("doctrine_result=" + str(doctrine_result))
+    except Exception as e:
+        errors.append("doctrine: " + str(e))
+        lines.append("doctrine_error=" + str(e))
+    try:
+        clusters = get_signal_clusters_for_run(run_id)
+        dist = Counter(c.get("final_classification") or c.get("classification") for c in clusters if c.get("final_classification") or c.get("classification"))
+        lines.append("final_classification_distribution=" + str(dict(dist)))
+    except Exception:
+        pass
     lines.append("errors_or_warnings_logged=" + ("; ".join(errors) if errors else "none"))
     path = os.path.join(out_dir, "06_run_trace.txt")
     with open(path, "w", encoding="utf-8") as f:

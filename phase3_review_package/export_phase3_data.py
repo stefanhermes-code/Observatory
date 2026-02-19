@@ -114,14 +114,15 @@ def run(run_id: str, out_dir: str):
                 w.writerow([key, sid])
     print(f"Wrote {path03_members}")
 
-    # 04 – phase3_classification_snapshot
+    # 04 – phase3_classification_snapshot (Phase 4: final_classification, override_source, materiality_flag)
     cols04 = ["cluster_key", "cluster_size", "signal_type", "segment", "region", "llm_classification",
-              "doctrine_classification", "final_classification", "override_applied", "doctrine_reason", "materiality_flag", "repeat_flag"]
+              "doctrine_classification", "final_classification", "override_source", "override_reason", "materiality_flag", "repeat_flag"]
     path04 = os.path.join(out_dir, "04_phase3_classification_snapshot.csv")
     with open(path04, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cols04)
+        w = csv.DictWriter(f, fieldnames=cols04, extrasaction="ignore")
         w.writeheader()
         for c in clusters:
+            final = c.get("final_classification") or c.get("classification")
             row = {
                 "cluster_key": c.get("cluster_key"),
                 "cluster_size": c.get("cluster_size"),
@@ -129,11 +130,11 @@ def run(run_id: str, out_dir: str):
                 "segment": c.get("segment"),
                 "region": c.get("region"),
                 "llm_classification": c.get("classification"),
-                "doctrine_classification": None,
-                "final_classification": c.get("classification"),
-                "override_applied": None,
-                "doctrine_reason": None,
-                "materiality_flag": None,
+                "doctrine_classification": c.get("final_classification") if c.get("override_source") == "doctrine" else None,
+                "final_classification": final,
+                "override_source": c.get("override_source"),
+                "override_reason": c.get("override_reason"),
+                "materiality_flag": c.get("materiality_flag"),
                 "repeat_flag": None,
             }
             w.writerow(row)

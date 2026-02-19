@@ -132,14 +132,21 @@ def run_signal_classification_v2(run_id: str) -> Dict[str, Any]:
         if not cluster_id:
             continue
         time_horizons = time_horizons_by_key.get(cluster_key, [])
-        label = _call_classification(
-            signal_type=c.get("signal_type"),
-            segment=c.get("segment"),
-            region=c.get("region"),
-            cluster_size=int(c.get("cluster_size") or 0),
-            aggregated_numeric_value=c.get("aggregated_numeric_value"),
-            time_horizons=time_horizons,
-        )
+        signal_type = c.get("signal_type") or "other"
+        # Hard rule: operational + short_term -> tactical (no LLM upgrade to structural)
+        time_horizons_normalized = [t.strip().lower() for t in time_horizons if t]
+        all_short_term = time_horizons_normalized and all(th == "short_term" for th in time_horizons_normalized)
+        if signal_type == "operational" and all_short_term:
+            label = "tactical"
+        else:
+            label = _call_classification(
+                signal_type=signal_type,
+                segment=c.get("segment"),
+                region=c.get("region"),
+                cluster_size=int(c.get("cluster_size") or 0),
+                aggregated_numeric_value=c.get("aggregated_numeric_value"),
+                time_horizons=time_horizons,
+            )
         if label and update_signal_cluster_classification(cluster_id, label):
             classified += 1
         else:

@@ -119,6 +119,8 @@ Demand:
 Regulation:
 - If snippet contains "mandatory", "requirement", "restriction", "limit", "emission limits", "classification change", "labeling requirement", "effective [date]", "compliance deadline" -> signal_type = regulation, time_horizon = structural, numeric_value = null.
 
+Operational and tactical: Do not classify as capacity or investment. If snippet contains: planned maintenance, maintenance shutdown, temporary halt, temporary outage, restart expected, utility failure, port congestion, shipping delay, logistics disruption, transport delay, new grade launched, new product introduction, commercial launch -> signal_type = operational, time_horizon = short_term, numeric_value = null, confidence_score >= 0.7.
+
 Return only the JSON array, no other text."""
 
 
