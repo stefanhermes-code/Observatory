@@ -404,3 +404,25 @@ def insert_signal_clusters(run_id: str, clusters: List[Dict]) -> int:
     except Exception:
         return 0
 
+
+def get_signal_clusters_for_run(run_id: str) -> List[Dict]:
+    """V2 Build Spec Phase 3: fetch all signal_clusters for a run (for classification)."""
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("signal_clusters").select("*").eq("run_id", run_id).execute()
+        return result.data if result.data else []
+    except Exception:
+        return []
+
+
+def update_signal_cluster_classification(cluster_id: str, classification: str) -> bool:
+    """V2 Build Spec Phase 3: set classification on one signal_clusters row."""
+    if not cluster_id or not classification:
+        return False
+    supabase = get_supabase_client()
+    try:
+        supabase.table("signal_clusters").update({"classification": classification}).eq("id", cluster_id).execute()
+        return True
+    except Exception:
+        return False
+
