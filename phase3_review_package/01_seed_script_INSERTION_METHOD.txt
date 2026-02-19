@@ -1,0 +1,2 @@
+Insertion method: Python seed script 01_seed_script.py.
+Creates one newsletter run (create_newsletter_run) and 20 rows in candidate_articles via core.generator_db.insert_candidate_articles. Requires Supabase; optional WORKSPACE_ID, SPEC_ID (or first active spec used). Run from repo root: python phase3_review_package/01_seed_script.py

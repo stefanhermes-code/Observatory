@@ -40,31 +40,6 @@ def _coerce_time_horizon(v: Any) -> str:
     return s if s in TIME_HORIZONS else "unknown"
 
 
-def _hint_capacity_decrease(snippet: str, signal_type: str, time_horizon: str, numeric_value: Optional[float], numeric_unit: Optional[str]) -> tuple:
-    """
-    If snippet clearly describes a capacity decrease but signal was extracted as operational/short_term,
-    coerce to capacity, structural, and ensure negative value for closure/reduction.
-    Returns (signal_type, time_horizon, numeric_value, numeric_unit).
-    """
-    if not snippet:
-        return signal_type, time_horizon, numeric_value, numeric_unit
-    lower = snippet.lower()
-    decrease_phrases = ("closure", "permanent shutdown", "unit closure", "capacity reduced", "phase-out", "permanent closure", "capacity reduced by")
-    if not any(p in lower for p in decrease_phrases):
-        return signal_type, time_horizon, numeric_value, numeric_unit
-    # Override to capacity + structural
-    new_type = "capacity"
-    new_horizon = "structural"
-    val, unit = numeric_value, numeric_unit
-    if "reduced by" in lower and "%" in lower and val is not None and val > 0:
-        val = -abs(val)
-        unit = unit or "percent"
-    if ("closure" in lower or "shutdown" in lower) and "tpa" in lower and val is not None and val > 0:
-        val = -abs(val)
-        unit = unit or "TPA"
-    return new_type, new_horizon, val, unit
-
-
 def _extract_json_array(text: str) -> List[Dict]:
     """Parse JSON array from model output; strip markdown code block if present."""
     if not text or not text.strip():
@@ -106,19 +81,6 @@ Rules:
 - signal_type: one of capacity, investment, mna, regulation, feedstock, demand, sustainability, price, operational, other.
 - time_horizon: short_term = operational or tactical; cyclical = demand or price cycle; structural = capacity, regulation, strategic investment; unknown if unclear.
 - confidence_score: 0.0 to 1.0.
-
-Capacity (including decreases):
-- If snippet contains "closure", "permanent shutdown", "unit closure", "capacity reduced by X%", "phase-out", "permanent closure" -> signal_type = capacity, time_horizon = structural.
-- Capacity decrease: use negative numeric_value. E.g. "capacity reduced by 7%" -> numeric_value = -7, numeric_unit = "percent". "closure of 30,000 TPA" -> numeric_value = -30000, numeric_unit = "TPA".
-- Do not classify closures or capacity reductions as operational or short_term.
-
-Demand:
-- If snippet contains "down X%", "up X%", "YoY", "year-on-year", "month-on-month", "decline", "increase", "rebound", "forecast" in a demand context -> signal_type = demand.
-- Use numeric_value = +/- percent, numeric_unit = "percent". time_horizon = cyclical unless explicitly multi-year structural.
-
-Regulation:
-- If snippet contains "mandatory", "requirement", "restriction", "limit", "emission limits", "classification change", "labeling requirement", "effective [date]", "compliance deadline" -> signal_type = regulation, time_horizon = structural, numeric_value = null.
-
 Return only the JSON array, no other text."""
 
 
@@ -208,9 +170,6 @@ def run_signal_extraction_v2(
                     num_val = float(num_val)
                 except (TypeError, ValueError):
                     num_val = None
-            numeric_unit = (sig.get("numeric_unit") or "").strip() or None
-            # Correction: capacity decrease / closure -> capacity, structural, negative value
-            signal_type, time_horizon, num_val, numeric_unit = _hint_capacity_decrease(snippet, signal_type, time_horizon, num_val, numeric_unit)
             rows.append({
                 "article_id": article_id,
                 "company_name": sig.get("company_name") or None,
@@ -218,7 +177,7 @@ def run_signal_extraction_v2(
                 "region": (sig.get("region") or "").strip() or None,
                 "signal_type": signal_type,
                 "numeric_value": num_val,
-                "numeric_unit": numeric_unit,
+                "numeric_unit": (sig.get("numeric_unit") or "").strip() or None,
                 "currency": (sig.get("currency") or "").strip() or None,
                 "time_horizon": time_horizon,
                 "confidence_score": conf,

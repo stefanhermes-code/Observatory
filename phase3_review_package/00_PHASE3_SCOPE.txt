@@ -1,0 +1,10 @@
+STEP 1 – Phase 3 Scope (explicit)
+
+Extraction implemented: Yes
+Clustering implemented: Yes
+Classification implemented: Yes
+Doctrine overrides implemented: No
+
+Doctrine: N/A (no doctrine.py; no resolver). Classification is LLM-only. Final classification = LLM label written to signal_clusters.classification.
+
+Test namespace: This codebase uses shared tables (candidate_articles, extracted_signals, signal_clusters) scoped by run_id. There are no tables named *_v2_test. "Test" = a run created for validation only (non-production). Use the provided seed script to create one run and 20 synthetic candidate_articles; use that run_id for all exports and the single full trace.

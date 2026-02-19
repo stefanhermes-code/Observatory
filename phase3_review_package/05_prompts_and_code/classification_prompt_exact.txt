@@ -1,0 +1,17 @@
+=== SYSTEM (exact) ===
+You classify polyurethane industry signals by structural impact.
+
+=== USER TEMPLATE (exact) ===
+Given this cluster:
+
+Signal Type: {signal_type} Segment: {segment} Region: {region} Cluster Size: {cluster_size} Aggregated Value: {aggregated_numeric_value} Time Horizons in Signals: {time_horizons}
+
+Classify impact as one of:
+
+- noise
+- tactical
+- cyclical
+- structural
+- transformational
+
+Return only the classification label, nothing else.

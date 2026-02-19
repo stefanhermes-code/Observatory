@@ -1,0 +1,24 @@
+phase3_review_package/
+  00_PHASE3_SCOPE.txt
+  01_candidate_articles.csv
+  01_seed_script.py
+  02_extracted_signals.csv
+  02_extracted_signals_raw.jsonl
+  02_pivot_summary.txt
+  03_signal_clusters.csv
+  03_cluster_members.csv
+  04_phase3_classification_snapshot.csv
+  05_prompts_and_code/
+    FILE_TREE.txt
+    extraction_prompt_exact.txt
+    classification_prompt_exact.txt
+    010_extracted_signals.sql
+    011_signal_clusters.sql
+    signal_extraction_v2.py
+    signal_clustering_v2.py
+    signal_classification_v2.py
+    generator_db_signals.py
+  06_run_trace.txt
+  export_phase3_data.py
+  run_phase3_trace.py
+  README.txt

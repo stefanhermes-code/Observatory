@@ -53,3 +53,14 @@ test_company_list.json
 # Local-only: not needed to run app on Streamlit Cloud
 development/*.md
 
+# Phase 3 review: do not commit exported result artifacts
+phase3_stress_test_for_charlie/
+phase3_review_package/01_candidate_articles.csv
+phase3_review_package/02_extracted_signals.csv
+phase3_review_package/02_extracted_signals_raw.jsonl
+phase3_review_package/02_pivot_summary.txt
+phase3_review_package/03_signal_clusters.csv
+phase3_review_package/03_cluster_members.csv
+phase3_review_package/04_phase3_classification_snapshot.csv
+phase3_review_package/06_run_trace.txt
+
