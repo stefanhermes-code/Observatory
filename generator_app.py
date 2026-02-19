@@ -467,7 +467,7 @@ elif page == "📰 Generate Report":
             st.write(f"Found **{(st.session_state.get('gen_evidence_summary') or {}).get('inserted', 0)}** items.")
             st.write("Extracting signals and writing report…")
             try:
-                writer_output, extraction_result, signal_extraction_result = run_phase_extract_and_write(
+                writer_output, extraction_result, signal_extraction_result, signal_clustering_result = run_phase_extract_and_write(
                     run_id=run_id,
                     workspace_id=params.get("workspace_id"),
                     spec_id=params.get("spec_id"),
@@ -487,6 +487,7 @@ elif page == "📰 Generate Report":
         st.session_state.gen_writer_output = writer_output
         st.session_state.gen_extraction_result = extraction_result
         st.session_state.gen_signal_extraction_result = signal_extraction_result
+        st.session_state.gen_signal_clustering_result = signal_clustering_result
         st.session_state.gen_phase = 2
         st.rerun()
 
@@ -506,6 +507,7 @@ elif page == "📰 Generate Report":
                 extraction_result=st.session_state.get("gen_extraction_result"),
                 evidence_summary=st.session_state.get("gen_evidence_summary"),
                 signal_extraction_result=st.session_state.get("gen_signal_extraction_result"),
+                signal_clustering_result=st.session_state.get("gen_signal_clustering_result"),
                 cadence_override=params.get("cadence_override"),
             )
             status.update(label="Done", state="complete")

@@ -359,3 +359,48 @@ def insert_extracted_signals(run_id: str, signals: List[Dict]) -> int:
     except Exception:
         return 0
 
+
+def get_extracted_signals_for_run(run_id: str) -> List[Dict]:
+    """V2 Build Spec: fetch all extracted_signals for a run (for clustering)."""
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("extracted_signals").select("*").eq("run_id", run_id).execute()
+        return result.data if result.data else []
+    except Exception:
+        return []
+
+
+def insert_signal_clusters(run_id: str, clusters: List[Dict]) -> int:
+    """
+    V2 Build Spec Phase 2: insert rows into signal_clusters.
+    Each dict: cluster_key, signal_type, region?, segment, aggregated_numeric_value?, aggregated_numeric_unit?,
+    cluster_size, structural_weight, classification? (optional; Phase 3).
+    Returns count inserted.
+    """
+    if not clusters:
+        return 0
+    supabase = get_supabase_client()
+    rows = []
+    for c in clusters:
+        row = {
+            "run_id": run_id,
+            "cluster_key": c.get("cluster_key", ""),
+            "signal_type": c.get("signal_type", "other"),
+            "region": c.get("region"),
+            "segment": c.get("segment", "unknown"),
+            "aggregated_numeric_value": c.get("aggregated_numeric_value"),
+            "aggregated_numeric_unit": c.get("aggregated_numeric_unit"),
+            "cluster_size": int(c.get("cluster_size", 0)),
+            "structural_weight": float(c.get("structural_weight", 0)),
+            "classification": c.get("classification"),
+        }
+        if row["cluster_key"]:
+            rows.append(row)
+    if not rows:
+        return 0
+    try:
+        supabase.table("signal_clusters").insert(rows).execute()
+        return len(rows)
+    except Exception:
+        return 0
+

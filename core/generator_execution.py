@@ -161,6 +161,12 @@ def execute_generator(
         signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
 
     try:
+        from core.signal_clustering_v2 import run_signal_clustering_v2
+        signal_clustering_result = run_signal_clustering_v2(run_id=run_id)
+    except Exception:
+        signal_clustering_result = {"clusters_created": 0, "signals_grouped": 0}
+
+    try:
         from core.intelligence_writer import write_report_from_evidence
         writer_output = write_report_from_evidence(
             spec=run_specification,
@@ -205,6 +211,7 @@ def execute_generator(
         "evidence_summary": evidence_summary,
         "extraction_result": extraction_result,
         "signal_extraction_v2": signal_extraction_result,
+        "signal_clustering_v2": signal_clustering_result,
         "coverage_low": coverage_low,
     }
     usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
@@ -331,6 +338,12 @@ def run_phase_extract_and_write(
     except Exception:
         signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
 
+    try:
+        from core.signal_clustering_v2 import run_signal_clustering_v2
+        signal_clustering_result = run_signal_clustering_v2(run_id=run_id)
+    except Exception:
+        signal_clustering_result = {"clusters_created": 0, "signals_grouped": 0}
+
     from core.intelligence_writer import write_report_from_evidence
     writer_output = write_report_from_evidence(
         spec=run_specification,
@@ -338,7 +351,7 @@ def run_phase_extract_and_write(
         lookback_date=lookback_date,
         reference_date=reference_date,
     )
-    return writer_output, extraction_result, signal_extraction_result
+    return writer_output, extraction_result, signal_extraction_result, signal_clustering_result
 
 
 def run_phase_render_and_save(
@@ -352,6 +365,7 @@ def run_phase_render_and_save(
     extraction_result: Dict,
     evidence_summary: Dict,
     signal_extraction_result: Optional[Dict] = None,
+    signal_clustering_result: Optional[Dict] = None,
     cadence_override: Optional[str] = None,
 ) -> Dict:
     """
@@ -391,6 +405,8 @@ def run_phase_render_and_save(
     }
     if signal_extraction_result is not None:
         metadata_with_html["signal_extraction_v2"] = signal_extraction_result
+    if signal_clustering_result is not None:
+        metadata_with_html["signal_clustering_v2"] = signal_clustering_result
     usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
     if usage_meta:
         metadata_with_html.update(usage_meta)
