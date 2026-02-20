@@ -185,6 +185,7 @@ def execute_generator(
             candidates=candidates,
             lookback_date=lookback_date,
             reference_date=reference_date,
+            run_id=run_id,
         )
     except Exception as e:
         update_run_status(run_id, "failed", error_message=str(e))
@@ -233,6 +234,11 @@ def execute_generator(
         metadata_with_html.update(usage_meta)
     else:
         metadata_with_html["tokens_used"] = 0
+    if writer_output.get("final_quality_score") is not None:
+        metadata_with_html["final_quality_score"] = writer_output["final_quality_score"]
+    if writer_output.get("critique_issues") is not None:
+        metadata_with_html["critique_issues"] = writer_output["critique_issues"]
+    metadata_with_html["regeneration_flag"] = writer_output.get("regeneration_flag", False)
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -376,6 +382,7 @@ def run_phase_extract_and_write(
         candidates=candidates,
         lookback_date=lookback_date,
         reference_date=reference_date,
+        run_id=run_id,
     )
     return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result
 
@@ -444,6 +451,11 @@ def run_phase_render_and_save(
         metadata_with_html.update(usage_meta)
     else:
         metadata_with_html["tokens_used"] = 0
+    if writer_output.get("final_quality_score") is not None:
+        metadata_with_html["final_quality_score"] = writer_output["final_quality_score"]
+    if writer_output.get("critique_issues") is not None:
+        metadata_with_html["critique_issues"] = writer_output["critique_issues"]
+    metadata_with_html["regeneration_flag"] = writer_output.get("regeneration_flag", False)
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}

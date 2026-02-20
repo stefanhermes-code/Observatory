@@ -22,6 +22,16 @@ DEFAULT_MIN_EVIDENCE = 1
 # Category IDs we exclude from top-level (replaced by value_chain_links as sub-substructure)
 EXCLUDED_CATEGORY_IDS = ("value_chain", "value_chain_link")
 
+
+def _merge_usage(a: Dict, b: Dict) -> Dict:
+    """Merge two usage dicts (input_tokens, output_tokens, total_tokens); model from second."""
+    out = {}
+    for key in ("input_tokens", "output_tokens", "total_tokens"):
+        out[key] = int((a.get(key) or 0)) + int((b.get(key) or 0))
+    out["model"] = b.get("model") or a.get("model") or "gpt-4o"
+    return out
+
+
 def _sanitize_link_text(text: str) -> str:
     """Remove markdown artefacts (** etc.) from text used as link labels."""
     if not text or not isinstance(text, str):
@@ -96,20 +106,29 @@ def write_report_from_evidence(
     min_evidence: int = DEFAULT_MIN_EVIDENCE,
     lookback_date: Optional[datetime] = None,
     reference_date: Optional[datetime] = None,
+    run_id: Optional[str] = None,
+    synthesis_scope: str = "GLOBAL",
+    synthesis_region_macro: Optional[str] = None,
+    synthesis_segment: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Build report content from candidate_articles only. Every URL is from the candidates list.
     Structure: Categories (##) → Regions (###) → Value chain links (####) → items.
     The "value_chain" category is dropped from top-level; value_chain_links are used as sub-substructure only.
+    Phase 5: Market Intelligence Report (5-section synthesis from structured signals + baseline) replaces Executive Summary.
 
     Args:
         spec: newsletter specification (newsletter_name, categories, regions, value_chain_links)
         candidates: list of candidate_articles rows (url, title, snippet, source_name, published_at)
         min_evidence: minimum candidates to produce a full report
         lookback_date, reference_date: app-defined date range; if both set, filter by published_at
+        run_id: required for Phase 5 synthesis (clusters + baseline). If None, no synthesis is run.
+        synthesis_scope: GLOBAL | REGION | REGION_SEGMENT
+        synthesis_region_macro: for REGION / REGION_SEGMENT
+        synthesis_segment: for REGION_SEGMENT
 
     Returns:
-        {"content": str, "coverage_low": bool}
+        {"content": str, "coverage_low": bool, "exec_summary_usage": dict?}
     """
     from core.taxonomy import PU_CATEGORIES, REGIONS, VALUE_CHAIN_LINKS
 
@@ -199,33 +218,66 @@ def write_report_from_evidence(
             lines.append(_format_item(c))
         lines.append("")
 
-    # Dedicated LLM step: Executive Summary (core element of market intelligence; the other is signals).
-    try:
-        from core.openai_assistant import generate_executive_summary
-    except ImportError:
-        generate_executive_summary = None
-    report_body = "\n".join(lines)
-    scope_categories = [category_map.get(cid, cid) for cid in selected_category_ids]
-    scope_regions = list(selected_regions) if selected_regions else []
-    scope_vcl = [value_chain_link_map.get(vid, vid) for vid in selected_value_chain_links]
-    exec_summary = None
+    # Phase 5: Market Intelligence Synthesis (structured signals + baseline). Replaces Executive Summary.
+    # Phase 6: Adversarial critique after synthesis; optional one-time regeneration if requires_revision.
     exec_summary_usage = None
-    if generate_executive_summary:
-        result = generate_executive_summary(
-            report_body,
-            newsletter_name,
-            scope_categories=scope_categories,
-            scope_regions=scope_regions,
-            scope_value_chain_links=scope_vcl if selected_value_chain_links else None,
-        )
-        if isinstance(result, tuple):
-            exec_summary, exec_summary_usage = result[0], result[1]
-        else:
-            exec_summary = result
-    if exec_summary:
-        lines.extend(["", "## Executive Summary", "", exec_summary, ""])
+    synthesis_text = None
+    final_quality_score = None
+    critique_issues_stored = None
+    regeneration_flag = False
+    if run_id:
+        try:
+            from core.market_intelligence_synthesis import run_market_intelligence_synthesis, SCOPE_GLOBAL, SCOPE_REGION, SCOPE_REGION_SEGMENT
+            from core.adversarial_critique import run_critique
+            scope = synthesis_scope if synthesis_scope in (SCOPE_GLOBAL, SCOPE_REGION, SCOPE_REGION_SEGMENT) else SCOPE_GLOBAL
+            synthesis_text, exec_summary_usage = run_market_intelligence_synthesis(
+                run_id=run_id,
+                scope=scope,
+                region_macro=synthesis_region_macro,
+                segment=synthesis_segment,
+            )
+            if synthesis_text:
+                critique_result, critique_usage = run_critique(synthesis_text)
+                if critique_usage and exec_summary_usage:
+                    exec_summary_usage = _merge_usage(exec_summary_usage, critique_usage)
+                if critique_result:
+                    if critique_result.get("requires_revision"):
+                        issues = critique_result.get("issues") or []
+                        synthesis_text_2, usage_2 = run_market_intelligence_synthesis(
+                            run_id=run_id,
+                            scope=scope,
+                            region_macro=synthesis_region_macro,
+                            segment=synthesis_segment,
+                            critique_issues=issues,
+                        )
+                        if usage_2 and exec_summary_usage:
+                            exec_summary_usage = _merge_usage(exec_summary_usage, usage_2)
+                        if synthesis_text_2:
+                            synthesis_text = synthesis_text_2
+                            regeneration_flag = True
+                            critique_result_2, critique_usage_2 = run_critique(synthesis_text_2)
+                            if critique_usage_2 and exec_summary_usage:
+                                exec_summary_usage = _merge_usage(exec_summary_usage, critique_usage_2)
+                            if critique_result_2:
+                                final_quality_score = critique_result_2.get("quality_score")
+                                critique_issues_stored = critique_result_2.get("issues")
+                        else:
+                            final_quality_score = critique_result.get("quality_score")
+                            critique_issues_stored = critique_result.get("issues")
+                    else:
+                        final_quality_score = critique_result.get("quality_score")
+                        critique_issues_stored = critique_result.get("issues")
+        except Exception:
+            pass
+    if synthesis_text:
+        lines.extend(["", "## Market Intelligence Report", "", synthesis_text, ""])
     content = "\n".join(lines)
     out = {"content": content, "coverage_low": False}
     if exec_summary_usage is not None:
         out["exec_summary_usage"] = exec_summary_usage
+    if final_quality_score is not None:
+        out["final_quality_score"] = final_quality_score
+    if critique_issues_stored is not None:
+        out["critique_issues"] = critique_issues_stored
+    out["regeneration_flag"] = regeneration_flag
     return out
