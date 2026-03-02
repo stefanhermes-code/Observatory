@@ -6,6 +6,8 @@ Implements the 7-step execution flow as defined in the Generator Execution Patte
 from typing import Dict, Optional, Tuple, List
 from datetime import datetime
 import json
+import os
+from pathlib import Path
 
 from core.run_dates import get_lookback_from_cadence, get_lookback_from_days
 from core.generator_db import (
@@ -119,10 +121,31 @@ def execute_generator(
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
 
-    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 days; else spec)
+    try:
+        from core.performance_logger import start_run, end_run, start_stage, end_stage, log_error
+        start_run(run_id)
+    except Exception:
+        pass
+
+    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
     ref_date = datetime.utcnow()
     is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30) else None)
+    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
+    try:
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("ingestion")
+    except Exception:
+        pass
+    if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
+        try:
+            from core.performance_logger import end_stage, log_error, end_run
+            end_stage("ingestion", "fail", error_type="Phase8Validation", error_message="Phase 8 forced failure: ingestion")
+            log_error("ingestion", "Phase 8 forced failure: ingestion")
+            end_run("fail")
+        except Exception:
+            pass
+        update_run_status(run_id, "failed", error_message="Phase 8 forced failure: ingestion")
+        return False, "Phase 8 forced failure: ingestion", None, None
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -135,7 +158,17 @@ def execute_generator(
             reference_date=ref_date,
             lookback_days_override=lookback_days_override,
         )
+        try:
+            end_stage("ingestion", "success")
+        except Exception:
+            pass
     except Exception as ev_err:
+        try:
+            from core.performance_logger import end_stage, log_error
+            end_stage("ingestion", "fail", error_type=type(ev_err).__name__, error_message=str(ev_err)[:500])
+            log_error("ingestion", str(ev_err)[:500])
+        except Exception:
+            pass
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
 
     candidates = get_candidate_articles_for_run(run_id)
@@ -143,6 +176,14 @@ def execute_generator(
         lookback_date, reference_date = get_lookback_from_days(lookback_days_override, ref_date)
     else:
         lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
+
+    try:
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("extraction")
+    except Exception:
+        pass
+    extraction_result = {"signals_created": 0, "occurrences_created": 0}
+    signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
     try:
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
@@ -151,45 +192,163 @@ def execute_generator(
             specification_id=spec_id,
             candidates=candidates,
         )
-    except Exception as ext_err:
-        extraction_result = {"signals_created": 0, "occurrences_created": 0}
-
-    try:
         from core.signal_extraction_v2 import run_signal_extraction_v2
         signal_extraction_result = run_signal_extraction_v2(run_id=run_id, candidates=candidates)
-    except Exception:
+        try:
+            from core.performance_logger import end_stage
+            end_stage("extraction", "success")
+        except Exception:
+            pass
+    except Exception as ext_err:
+        try:
+            from core.performance_logger import end_stage, log_error
+            end_stage("extraction", "fail", error_type=type(ext_err).__name__, error_message=str(ext_err)[:500])
+            log_error("extraction", str(ext_err)[:500])
+        except Exception:
+            pass
+        extraction_result = {"signals_created": 0, "occurrences_created": 0}
         signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
 
     try:
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("clustering")
+    except Exception:
+        pass
+    try:
         from core.signal_clustering_v2 import run_signal_clustering_v2
         signal_clustering_result = run_signal_clustering_v2(run_id=run_id)
-    except Exception:
+        try:
+            from core.performance_logger import end_stage
+            end_stage("clustering", "success")
+        except Exception:
+            pass
+    except Exception as cl_err:
+        try:
+            from core.performance_logger import end_stage, log_error
+            end_stage("clustering", "fail", error_type=type(cl_err).__name__, error_message=str(cl_err)[:500])
+            log_error("clustering", str(cl_err)[:500])
+        except Exception:
+            pass
         signal_clustering_result = {"clusters_created": 0, "signals_grouped": 0}
 
     try:
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("llm_classification")
+    except Exception:
+        pass
+    try:
         from core.signal_classification_v2 import run_signal_classification_v2
         signal_classification_result = run_signal_classification_v2(run_id=run_id)
+        try:
+            from core.performance_logger import end_stage
+            end_stage("llm_classification", "success")
+        except Exception:
+            pass
     except Exception:
+        try:
+            from core.performance_logger import end_stage
+            end_stage("llm_classification", "fail")
+        except Exception:
+            pass
         signal_classification_result = {"classified": 0, "clusters_processed": 0, "failed": 0}
 
     try:
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("doctrine_resolution")
+    except Exception:
+        pass
+    try:
         from core.doctrine_resolver import run_doctrine_resolver_v2
         doctrine_result = run_doctrine_resolver_v2(run_id=run_id)
+        try:
+            from core.performance_logger import end_stage
+            end_stage("doctrine_resolution", "success")
+        except Exception:
+            pass
     except Exception:
+        try:
+            from core.performance_logger import end_stage
+            end_stage("doctrine_resolution", "fail")
+        except Exception:
+            pass
         doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
 
     try:
-        from core.intelligence_writer import write_report_from_evidence
-        writer_output = write_report_from_evidence(
-            spec=run_specification,
-            candidates=candidates,
-            lookback_date=lookback_date,
-            reference_date=reference_date,
-            run_id=run_id,
-        )
-    except Exception as e:
-        update_run_status(run_id, "failed", error_message=str(e))
-        return False, f"Report generation failed: {str(e)}", None, None
+        from core.performance_logger import start_stage, end_stage
+        start_stage("baseline_update")
+        end_stage("baseline_update", "skipped")
+        start_stage("momentum_update")
+        end_stage("momentum_update", "skipped")
+    except Exception:
+        pass
+
+    use_structural_pipeline = bool(
+        os.getenv("USE_STRUCTURAL_PIPELINE", "").strip().lower() == "true"
+        or run_specification.get("use_structural_pipeline") is True
+    )
+
+    if use_structural_pipeline:
+        try:
+            from core.structural_pipeline import run_structural_pipeline
+
+            structural_output = run_structural_pipeline(
+                run_id=run_id,
+                spec=run_specification,
+                candidates=candidates,
+                lookback_date=lookback_date,
+                reference_date=reference_date,
+            )
+            writer_output = {
+                "content": structural_output.get("report_content", ""),
+                "coverage_low": False,
+                "structural_diagnostics": structural_output.get("diagnostics") or {},
+            }
+        except Exception as e:
+            try:
+                from core.performance_logger import end_run, log_error
+                log_error("synthesis", str(e)[:500])
+                end_run("fail")
+            except Exception:
+                pass
+            # E: Write diagnostics for every run, including failed (so zero-output runs are visible).
+            try:
+                diag_dir = Path("development/outputs")
+                diag_dir.mkdir(parents=True, exist_ok=True)
+                diag_path = diag_dir / f"run_{run_id}_diagnostics.json"
+                funnel = evidence_summary.get("funnel") if isinstance(evidence_summary, dict) else None
+                diag_payload = {
+                    "run_id": run_id,
+                    "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+                    "success": False,
+                    "error": str(e)[:500],
+                    "evidence_summary": evidence_summary if isinstance(evidence_summary, dict) else None,
+                    "funnel": funnel,
+                    "candidates_total": funnel.get("combined") if isinstance(funnel, dict) else (len(candidates) if candidates else None),
+                }
+                diag_path.write_text(json.dumps(diag_payload, indent=2, default=str), encoding="utf-8")
+            except Exception:
+                pass
+            update_run_status(run_id, "failed", error_message=str(e))
+            return False, f"Structural pipeline failed: {str(e)}", None, None
+    else:
+        try:
+            from core.intelligence_writer import write_report_from_evidence
+            writer_output = write_report_from_evidence(
+                spec=run_specification,
+                candidates=candidates,
+                lookback_date=lookback_date,
+                reference_date=reference_date,
+                run_id=run_id,
+            )
+        except Exception as e:
+            try:
+                from core.performance_logger import end_run, log_error
+                log_error("synthesis", str(e)[:500])
+                end_run("fail")
+            except Exception:
+                pass
+            update_run_status(run_id, "failed", error_message=str(e))
+            return False, f"Report generation failed: {str(e)}", None, None
 
     # Use writer content as report body (evidence-only; no Assistant)
     report_content = writer_output["content"]
@@ -238,7 +397,31 @@ def execute_generator(
         metadata_with_html["final_quality_score"] = writer_output["final_quality_score"]
     if writer_output.get("critique_issues") is not None:
         metadata_with_html["critique_issues"] = writer_output["critique_issues"]
+    if writer_output.get("structural_diagnostics") is not None:
+        metadata_with_html["structural_diagnostics"] = writer_output["structural_diagnostics"]
+        # One diagnostic file per run (observability for testing; B1: include funnel and post-score fields)
+        try:
+            diag_dir = Path("development/outputs")
+            diag_dir.mkdir(parents=True, exist_ok=True)
+            diag_path = diag_dir / f"run_{run_id}_diagnostics.json"
+            funnel = evidence_summary.get("funnel") if isinstance(evidence_summary, dict) else None
+            structural_diag = writer_output.get("structural_diagnostics") or {}
+            diag_payload = {
+                "run_id": run_id,
+                "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+                "evidence_summary": evidence_summary if isinstance(evidence_summary, dict) else None,
+                "funnel": funnel,
+                "candidates_total": funnel.get("combined") if isinstance(funnel, dict) else len(candidates),
+                "structural_diagnostics": structural_diag,
+                "kept_after_scoring": structural_diag.get("kept_after_scoring"),
+                "kept_final": structural_diag.get("kept_final"),
+            }
+            diag_path.write_text(json.dumps(diag_payload, indent=2, default=str), encoding="utf-8")
+        except Exception:
+            pass
     metadata_with_html["regeneration_flag"] = writer_output.get("regeneration_flag", False)
+    if report_content:
+        metadata_with_html["report_content"] = report_content
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -257,6 +440,27 @@ def execute_generator(
         generation_duration_seconds=duration,
         categories_count=categories_count, regions_count=regions_count, links_count=links_count,
     )
+
+    try:
+        from core.performance_logger import end_run
+        ext_count = signal_extraction_result.get("signals_inserted")
+        if ext_count is None and isinstance(extraction_result, dict):
+            ext_count = extraction_result.get("signals_created")
+        end_run(
+            "success",
+            candidate_articles_count=len(candidates),
+            extracted_signals_count=ext_count if ext_count is not None else None,
+            clusters_count_total=signal_clustering_result.get("clusters_created") if isinstance(signal_clustering_result, dict) else None,
+            clusters_count_structural=None,
+            doctrine_overrides_count=doctrine_result.get("resolved") if isinstance(doctrine_result, dict) else None,
+            baseline_rows_updated_count=None,
+            momentum_rows_updated_count=None,
+            synthesis_reports_generated_count=1 if writer_output.get("content") else 0,
+            critique_items_generated_count=len(writer_output.get("critique_issues") or []),
+            regeneration_count=1 if writer_output.get("regeneration_flag") else 0,
+        )
+    except Exception:
+        pass
 
     result_data = {
         "run_id": run_id,
@@ -376,14 +580,37 @@ def run_phase_extract_and_write(
     except Exception:
         doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
 
-    from core.intelligence_writer import write_report_from_evidence
-    writer_output = write_report_from_evidence(
-        spec=run_specification,
-        candidates=candidates,
-        lookback_date=lookback_date,
-        reference_date=reference_date,
-        run_id=run_id,
+    use_structural_pipeline = bool(
+        os.getenv("USE_STRUCTURAL_PIPELINE", "").strip().lower() == "true"
+        or run_specification.get("use_structural_pipeline") is True
     )
+
+    if use_structural_pipeline:
+        from core.structural_pipeline import run_structural_pipeline
+
+        structural_output = run_structural_pipeline(
+            run_id=run_id,
+            spec=run_specification,
+            candidates=candidates,
+            lookback_date=lookback_date,
+            reference_date=reference_date,
+        )
+        writer_output = {
+            "content": structural_output.get("report_content", ""),
+            "coverage_low": False,
+            "structural_diagnostics": structural_output.get("diagnostics") or {},
+        }
+    else:
+        from core.intelligence_writer import write_report_from_evidence
+
+        writer_output = write_report_from_evidence(
+            spec=run_specification,
+            candidates=candidates,
+            lookback_date=lookback_date,
+            reference_date=reference_date,
+            run_id=run_id,
+        )
+
     return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result
 
 
@@ -456,6 +683,8 @@ def run_phase_render_and_save(
     if writer_output.get("critique_issues") is not None:
         metadata_with_html["critique_issues"] = writer_output["critique_issues"]
     metadata_with_html["regeneration_flag"] = writer_output.get("regeneration_flag", False)
+    if report_content:
+        metadata_with_html["report_content"] = report_content
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
