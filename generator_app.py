@@ -5,6 +5,7 @@ A Streamlit application for workspace users to manually generate intelligence re
 
 import streamlit as st
 from datetime import datetime
+import os
 import sys
 from pathlib import Path
 
@@ -399,7 +400,13 @@ elif page == "📰 Generate Report":
         st.caption("Lookback: {} · Runs: {}.".format(lookback_label, "unlimited" if override_cadence else "per specification"))
     
     st.markdown("---")
-    
+    # Report path indicator (plan §17: verify which path is active)
+    use_phase5 = (os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true" or spec.get("use_phase5_report") is True)
+    if use_phase5:
+        st.info("**Report path:** Phase 5 (development-style report: developments, Signal Map, Appendix A)")
+    else:
+        st.caption("**Report path:** Legacy (structural pipeline or evidence writer). Set env `USE_PHASE5_REPORT=true` or spec `use_phase5_report` for Phase 5.")
+    st.markdown("---")
     # Session state for phased generation (progress feedback)
     if "gen_phase" not in st.session_state:
         st.session_state.gen_phase = 0

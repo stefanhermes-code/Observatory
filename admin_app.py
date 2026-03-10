@@ -74,6 +74,7 @@ from core.workspace_members import (
 )
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
+from core.report_spec import DEFAULT_REPORT_SPEC, REPORT_SECTIONS_OPTIONS
 
 def extract_sources_from_html(html_content: str) -> Counter:
     """
@@ -1267,7 +1268,40 @@ elif page == "📰 Intelligence Specifications":
                         default=valid_current_regions,
                         key=f"spec_regions_{spec.get('id')}"
                     )
-                    
+                    # Report options (plan §14; same defaults as report_spec)
+                    st.write("**Report options:**")
+                    ro = spec.get("report_options") or {}
+                    report_title_ro = st.text_input(
+                        "Report title",
+                        value=ro.get("report_title") or spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
+                        key=f"spec_report_title_{spec.get('id')}"
+                    )
+                    current_sections = ro.get("included_sections") or spec.get("included_sections") or DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)
+                    selected_sections = st.multiselect(
+                        "Included sections",
+                        options=REPORT_SECTIONS_OPTIONS,
+                        default=[s for s in current_sections if s in REPORT_SECTIONS_OPTIONS] or list(REPORT_SECTIONS_OPTIONS),
+                        key=f"spec_sections_{spec.get('id')}"
+                    )
+                    signal_map_enabled = st.checkbox("Signal map enabled", value=ro.get("signal_map_enabled", spec.get("signal_map_enabled", True)), key=f"spec_signal_map_{spec.get('id')}")
+                    evidence_appendix_enabled = st.checkbox("Evidence appendix enabled", value=ro.get("evidence_appendix_enabled", spec.get("evidence_appendix_enabled", True)), key=f"spec_evidence_app_{spec.get('id')}")
+                    min_strength = ro.get("minimum_signal_strength_in_report") or spec.get("minimum_signal_strength_in_report")
+                    min_strength_index = ["None", "Weak", "Moderate", "Strong"].index("None" if min_strength is None else min_strength) if min_strength in [None, "Weak", "Moderate", "Strong"] else 0
+                    min_strength_choice = st.selectbox(
+                        "Minimum signal strength",
+                        options=["None", "Weak", "Moderate", "Strong"],
+                        index=min_strength_index,
+                        key=f"spec_min_strength_{spec.get('id')}"
+                    )
+                    company_tracking = st.checkbox("Company signal tracking (future)", value=ro.get("company_signal_tracking_enabled", spec.get("company_signal_tracking_enabled", False)), key=f"spec_company_track_{spec.get('id')}")
+                    report_options = {
+                        "report_title": report_title_ro or DEFAULT_REPORT_SPEC.get("report_title"),
+                        "included_sections": selected_sections or list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
+                        "signal_map_enabled": signal_map_enabled,
+                        "evidence_appendix_enabled": evidence_appendix_enabled,
+                        "minimum_signal_strength_in_report": None if min_strength_choice == "None" else min_strength_choice,
+                        "company_signal_tracking_enabled": company_tracking,
+                    }
                     if st.form_submit_button("Save Changes", type="primary"):
                         if new_name and selected_cats and selected_regions:
                             try:
@@ -1277,7 +1311,8 @@ elif page == "📰 Intelligence Specifications":
                                     categories=selected_cats,
                                     regions=selected_regions,
                                     frequency=new_frequency,
-                                    value_chain_links=selected_value_chain_links
+                                    value_chain_links=selected_value_chain_links,
+                                    report_options=report_options,
                                 )
                                 log_audit_action(
                                     "update_specification",

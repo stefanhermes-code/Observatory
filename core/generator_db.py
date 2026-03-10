@@ -5,7 +5,7 @@ Handles newsletter generation, frequency enforcement, and history.
 
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import json
 from dotenv import load_dotenv
 
@@ -74,14 +74,28 @@ def get_workspace_specifications(workspace_id: str) -> List[Dict]:
 
 
 def get_specification_detail(spec_id: str) -> Optional[Dict]:
-    """Get detailed specification information."""
+    """
+    Get detailed specification information. Merges DB row with report-option defaults
+    from core.report_spec.DEFAULT_REPORT_SPEC (single source of truth per plan §15).
+    DB values override; missing report options get defaults.
+    """
+    from core.report_spec import DEFAULT_REPORT_SPEC
+
     supabase = get_supabase_client()
     result = supabase.table("newsletter_specifications")\
         .select("*")\
         .eq("id", spec_id)\
         .single()\
         .execute()
-    return result.data if result.data else None
+    if not result.data:
+        return None
+    spec = dict(DEFAULT_REPORT_SPEC)
+    spec.update(result.data)
+    # Flatten report_options JSON into top-level keys so report layer gets full spec
+    ro = spec.pop("report_options", None)
+    if isinstance(ro, dict):
+        spec.update(ro)
+    return spec
 
 
 def check_frequency_enforcement(spec_id: str, frequency: str, user_email: Optional[str] = None) -> tuple[bool, Optional[str], Optional[datetime]]:
@@ -266,6 +280,47 @@ def get_candidate_articles_for_run(run_id: str) -> List[Dict]:
     return result.data if result.data else []
 
 
+def get_master_signals_for_run(run_id: str) -> List[Dict[str, Any]]:
+    """
+    Live master signal view for a run.
+
+    Returns a list of dicts with the canonical fields described in the
+    live alignment plan:
+      - signal_id, title, url, date, source, query_id
+      - category (configurator category from candidate_articles; used to
+        map to classifier_category for Phase 5 report sectioning)
+      - classifier_category (None; report layer maps from category when needed)
+      - tier (reserved; None)
+
+    This is a read-only helper and does not change schema. It provides
+    the in-memory master dataset that the customer filter and report
+    layer can consume.
+    """
+    supabase = get_supabase_client()
+    result = supabase.table("candidate_articles")\
+        .select("id, title, url, published_at, source_name, query_id, category, region, value_chain_link")\
+        .eq("run_id", run_id)\
+        .order("published_at", desc=True)\
+        .execute()
+    rows = result.data or []
+    signals: List[Dict[str, Any]] = []
+    for row in rows:
+        signals.append({
+            "signal_id": row.get("id"),
+            "title": row.get("title"),
+            "url": row.get("url"),
+            "date": row.get("published_at"),
+            "source": row.get("source_name"),
+            "query_id": row.get("query_id"),
+            "category": row.get("category"),
+            "region": row.get("region"),
+            "value_chain_link": row.get("value_chain_link"),
+            "classifier_category": None,
+            "tier": None,
+        })
+    return signals
+
+
 def insert_candidate_articles(
     run_id: str,
     workspace_id: str,
@@ -370,11 +425,43 @@ def get_extracted_signals_for_run(run_id: str) -> List[Dict]:
         return []
 
 
+def get_article_publish_dates_for_run(run_id: str) -> Dict[str, Any]:
+    """
+    Phase 5D.1: article_id -> published_at date for candidate_articles of this run.
+    Used when building clusters to set cluster_pub_min / cluster_pub_max.
+    Returns dict mapping str(article_id) -> date (Python date, or None if published_at missing).
+    """
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("candidate_articles").select("id, published_at").eq("run_id", run_id).execute()
+        out = {}
+        for row in (result.data or []):
+            aid = row.get("id")
+            if aid is None:
+                continue
+            pub = row.get("published_at")
+            if pub is None:
+                out[str(aid)] = None
+                continue
+            if isinstance(pub, str) and len(pub) >= 10:
+                try:
+                    from datetime import date
+                    out[str(aid)] = date(int(pub[:4]), int(pub[5:7]), int(pub[8:10]))
+                except (ValueError, TypeError):
+                    out[str(aid)] = None
+            else:
+                out[str(aid)] = None
+        return out
+    except Exception:
+        return {}
+
+
 def insert_signal_clusters(run_id: str, clusters: List[Dict]) -> int:
     """
     V2 Build Spec Phase 2: insert rows into signal_clusters.
     Each dict: cluster_key, signal_type, region?, segment, aggregated_numeric_value?, aggregated_numeric_unit?,
     cluster_size, structural_weight, classification? (optional; Phase 3).
+    Phase 5D.1: cluster_pub_min?, cluster_pub_max? (date or None).
     Returns count inserted.
     """
     if not clusters:
@@ -382,6 +469,8 @@ def insert_signal_clusters(run_id: str, clusters: List[Dict]) -> int:
     supabase = get_supabase_client()
     rows = []
     for c in clusters:
+        pub_min = c.get("cluster_pub_min")
+        pub_max = c.get("cluster_pub_max")
         row = {
             "run_id": run_id,
             "cluster_key": c.get("cluster_key", ""),
@@ -393,6 +482,8 @@ def insert_signal_clusters(run_id: str, clusters: List[Dict]) -> int:
             "cluster_size": int(c.get("cluster_size", 0)),
             "structural_weight": float(c.get("structural_weight", 0)),
             "classification": c.get("classification"),
+            "cluster_pub_min": pub_min.isoformat() if hasattr(pub_min, "isoformat") else pub_min,
+            "cluster_pub_max": pub_max.isoformat() if hasattr(pub_max, "isoformat") else pub_max,
         }
         if row["cluster_key"]:
             rows.append(row)

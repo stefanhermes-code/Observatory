@@ -158,7 +158,10 @@ def assign_request_to_workspace(request_id: str, workspace_id: str) -> bool:
         "created_at": datetime.utcnow().isoformat(),
         "created_by": "admin"
     }
-    
+    ro = req.get("report_options")
+    if isinstance(ro, dict):
+        spec_data["report_options"] = ro
+
     supabase.table("newsletter_specifications").insert(spec_data).execute()
     
     # Update request status
@@ -170,25 +173,16 @@ def assign_request_to_workspace(request_id: str, workspace_id: str) -> bool:
     return True
 
 
-def update_specification(spec_id: str, newsletter_name: Optional[str] = None, categories: Optional[List] = None, 
-                         regions: Optional[List] = None, frequency: Optional[str] = None, 
-                         value_chain_links: Optional[List] = None) -> Dict:
-    """Update a specification's details."""
+def update_specification(spec_id: str, newsletter_name: Optional[str] = None, categories: Optional[List] = None,
+                         regions: Optional[List] = None, frequency: Optional[str] = None,
+                         value_chain_links: Optional[List] = None, report_options: Optional[Dict] = None) -> Dict:
+    """Update a specification's details. report_options: dict for report_title, included_sections, etc."""
     supabase = get_supabase_client()
     
     update_data = {}
     # Only include updated_at if the column exists (some schemas may not have it)
     # We'll try to include it, but if it fails, we'll retry without it
-    
-    if newsletter_name:
-        update_data["newsletter_name"] = newsletter_name
-    if categories is not None:
-        update_data["categories"] = categories
-    if regions is not None:
-        update_data["regions"] = regions
-    if frequency:
-        update_data["frequency"] = frequency
-    
+
     if newsletter_name:
         update_data["newsletter_name"] = newsletter_name
     if categories is not None:
@@ -199,6 +193,8 @@ def update_specification(spec_id: str, newsletter_name: Optional[str] = None, ca
         update_data["frequency"] = frequency
     if value_chain_links is not None:
         update_data["value_chain_links"] = value_chain_links
+    if report_options is not None:
+        update_data["report_options"] = report_options
     
     # Try to update - handle missing columns gracefully
     try:

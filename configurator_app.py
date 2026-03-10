@@ -16,6 +16,11 @@ from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE, VA
 from core.validation import validate_specification
 from core.database import create_specification_request, update_specification_request, get_taxonomy_data
 from core.pricing import calculate_price, format_price
+from core.report_spec import (
+    DEFAULT_REPORT_SPEC,
+    REPORT_SECTIONS_OPTIONS,
+    SIGNAL_STRENGTH_OPTIONS,
+)
 
 # Page configuration
 st.set_page_config(
@@ -116,7 +121,14 @@ if "specification" not in st.session_state:
         "city": "",
         "zip_code": "",
         "country": "",
-        "vat_number": ""
+        "vat_number": "",
+        # Report options (plan §13; defaults from report_spec)
+        "report_title": DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
+        "included_sections": list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
+        "signal_map_enabled": DEFAULT_REPORT_SPEC.get("signal_map_enabled", True),
+        "evidence_appendix_enabled": DEFAULT_REPORT_SPEC.get("evidence_appendix_enabled", True),
+        "minimum_signal_strength_in_report": DEFAULT_REPORT_SPEC.get("minimum_signal_strength_in_report"),
+        "company_signal_tracking_enabled": DEFAULT_REPORT_SPEC.get("company_signal_tracking_enabled", False),
     }
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
@@ -666,7 +678,56 @@ if not st.session_state.submitted:
         
         if spec.get('vat_number'):
             st.write("**VAT Number:**", spec.get('vat_number'))
-    
+
+    # Report options (plan §13; flow into generator report layer)
+    with st.expander("Report options (optional)", expanded=False):
+        st.caption("Control report content: title, sections, signal map, evidence appendix, and minimum signal strength.")
+        report_title = st.text_input(
+            "Report title",
+            value=spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
+            help="Title shown on the generated report.",
+        )
+        st.session_state.specification["report_title"] = report_title
+        included_sections = st.multiselect(
+            "Report sections to include",
+            options=REPORT_SECTIONS_OPTIONS,
+            default=spec.get("included_sections") or list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
+            help="Sections that will appear in the intelligence report.",
+        )
+        st.session_state.specification["included_sections"] = included_sections if included_sections else list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS))
+        signal_map_enabled = st.checkbox(
+            "Include Signal Map",
+            value=spec.get("signal_map_enabled", True),
+            help="Show distribution of developments by theme in the report.",
+        )
+        st.session_state.specification["signal_map_enabled"] = signal_map_enabled
+        evidence_appendix_enabled = st.checkbox(
+            "Include Evidence Appendix",
+            value=spec.get("evidence_appendix_enabled", True),
+            help="Include Appendix A with supporting signals for each development.",
+        )
+        st.session_state.specification["evidence_appendix_enabled"] = evidence_appendix_enabled
+        strength_labels = {"None": None, "Weak": "Weak", "Moderate": "Moderate", "Strong": "Strong"}
+        strength_val = spec.get("minimum_signal_strength_in_report")
+        strength_options = list(strength_labels.keys())
+        try:
+            strength_index = list(strength_labels.values()).index(strength_val) if strength_val is not None else 0
+        except ValueError:
+            strength_index = 0
+        strength_choice = st.selectbox(
+            "Minimum signal strength in report",
+            options=strength_options,
+            index=min(strength_index, len(strength_options) - 1),
+            help="Filter out developments below this strength (None = include all).",
+        )
+        st.session_state.specification["minimum_signal_strength_in_report"] = strength_labels[strength_choice]
+        company_signal_tracking_enabled = st.checkbox(
+            "Enable company signal tracking (future)",
+            value=spec.get("company_signal_tracking_enabled", False),
+            help="Reserved for future company-based tracking.",
+        )
+        st.session_state.specification["company_signal_tracking_enabled"] = company_signal_tracking_enabled
+
     # Submit button
     st.markdown("---")
     
@@ -691,6 +752,14 @@ if not st.session_state.submitted:
             if spec.get("value_chain_links"):
                 if "value_chain_link" not in categories_to_save:
                     categories_to_save.append("value_chain_link")
+            report_options = {
+                "report_title": spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title"),
+                "included_sections": spec.get("included_sections") or DEFAULT_REPORT_SPEC.get("included_sections"),
+                "signal_map_enabled": spec.get("signal_map_enabled", True),
+                "evidence_appendix_enabled": spec.get("evidence_appendix_enabled", True),
+                "minimum_signal_strength_in_report": spec.get("minimum_signal_strength_in_report"),
+                "company_signal_tracking_enabled": spec.get("company_signal_tracking_enabled", False),
+            }
             try:
                 # Check if we're updating an existing request
                 if st.session_state.get("request_id"):
@@ -711,7 +780,8 @@ if not st.session_state.submitted:
                         city=spec.get("city", ""),
                         zip_code=spec.get("zip_code", ""),
                         country=spec.get("country", ""),
-                        vat_number=spec.get("vat_number", "")
+                        vat_number=spec.get("vat_number", ""),
+                        report_options=report_options,
                     )
                     st.success("✅ Specification updated successfully!")
                 else:
@@ -731,7 +801,8 @@ if not st.session_state.submitted:
                         city=spec.get("city", ""),
                         zip_code=spec.get("zip_code", ""),
                         country=spec.get("country", ""),
-                        vat_number=spec.get("vat_number", "")
+                        vat_number=spec.get("vat_number", ""),
+                        report_options=report_options,
                     )
                 
                 # Store the request ID for confirmation

@@ -4,7 +4,7 @@ Database models and Supabase connection for the PU Observatory platform.
 
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 import json
 from pathlib import Path
 from dotenv import load_dotenv
@@ -63,11 +63,14 @@ def create_specification_request(
     city: str = "",
     zip_code: str = "",
     country: str = "",
-    vat_number: str = ""
+    vat_number: str = "",
+    report_options: Optional[Dict[str, Any]] = None,
 ) -> dict:
     """
     Create a new specification request in the database.
-    
+    report_options: optional dict with report_title, included_sections, signal_map_enabled,
+    evidence_appendix_enabled, minimum_signal_strength_in_report, company_signal_tracking_enabled.
+    Stored in report_options column (JSON/JSONB) if present.
     Returns the created specification record.
     """
     supabase = get_supabase_client()
@@ -91,6 +94,8 @@ def create_specification_request(
         "submission_timestamp": datetime.utcnow().isoformat(),
         "status": "pending_review"
     }
+    if report_options is not None:
+        specification["report_options"] = report_options
     
     supabase = get_supabase_client()
     
@@ -166,11 +171,12 @@ def update_specification_request(
     city: str = "",
     zip_code: str = "",
     country: str = "",
-    vat_number: str = ""
+    vat_number: str = "",
+    report_options: Optional[Dict[str, Any]] = None,
 ) -> dict:
     """
     Update an existing specification request in the database.
-    
+    report_options: optional dict; stored in report_options column if provided.
     Returns the updated specification record.
     """
     supabase = get_supabase_client()
@@ -193,6 +199,8 @@ def update_specification_request(
         "vat_number": vat_number,
         "updated_at": datetime.utcnow().isoformat()
     }
+    if report_options is not None:
+        specification["report_options"] = report_options
     
     result = supabase.table("specification_requests")\
         .update(specification)\

@@ -16,6 +16,7 @@ from core.generator_db import (
     create_newsletter_run,
     update_run_status,
     get_candidate_articles_for_run,
+    get_master_signals_for_run,
 )
 from core.token_tracking import compute_cost_for_usage
 
@@ -185,15 +186,18 @@ def execute_generator(
     extraction_result = {"signals_created": 0, "occurrences_created": 0}
     signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
     try:
+        from core.customer_filter import filter_candidates_by_spec
+        filtered_candidates = filter_candidates_by_spec(candidates, run_specification)
+
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
             run_id=run_id,
             workspace_id=workspace_id,
             specification_id=spec_id,
-            candidates=candidates,
+            candidates=filtered_candidates,
         )
         from core.signal_extraction_v2 import run_signal_extraction_v2
-        signal_extraction_result = run_signal_extraction_v2(run_id=run_id, candidates=candidates)
+        signal_extraction_result = run_signal_extraction_v2(run_id=run_id, candidates=filtered_candidates)
         try:
             from core.performance_logger import end_stage
             end_stage("extraction", "success")
@@ -282,12 +286,43 @@ def execute_generator(
     except Exception:
         pass
 
+    use_phase5_report = bool(
+        os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true"
+        or run_specification.get("use_phase5_report") is True
+    )
     use_structural_pipeline = bool(
         os.getenv("USE_STRUCTURAL_PIPELINE", "").strip().lower() == "true"
         or run_specification.get("use_structural_pipeline") is True
     )
 
-    if use_structural_pipeline:
+    if use_phase5_report:
+        try:
+            from core.query_planner import build_query_plan_map
+            from core.intelligence_report import generate_report_from_signals
+
+            query_plan_map = build_query_plan_map(run_specification)
+            signals = get_master_signals_for_run(run_id)
+            report_result = generate_report_from_signals(
+                signals,
+                query_plan_map,
+                run_specification,
+                write_metrics=False,
+                write_html=False,
+            )
+            writer_output = {
+                "content": report_result.get("report_text", ""),
+                "coverage_low": False,
+            }
+        except Exception as e:
+            try:
+                from core.performance_logger import end_run, log_error
+                log_error("synthesis", str(e)[:500])
+                end_run("fail")
+            except Exception:
+                pass
+            update_run_status(run_id, "failed", error_message=str(e))
+            return False, f"Phase 5 report failed: {str(e)}", None, None
+    elif use_structural_pipeline:
         try:
             from core.structural_pipeline import run_structural_pipeline
 
@@ -508,7 +543,8 @@ def run_phase_evidence(
 
     ref_date = datetime.utcnow()
     is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30) else None)
+    # Phase 1 protocol: allow 60 and 90 day lookback for builder (controlled live runs)
+    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30, 60, 90) else None)
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -541,7 +577,7 @@ def run_phase_extract_and_write(
     """
     candidates = get_candidate_articles_for_run(run_id)
     ref_date = datetime.utcnow()
-    if lookback_override in (1, 7, 30):
+    if lookback_override in (1, 7, 30, 60, 90):
         lookback_date, reference_date = get_lookback_from_days(lookback_override, ref_date)
     else:
         lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
@@ -580,12 +616,33 @@ def run_phase_extract_and_write(
     except Exception:
         doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
 
+    use_phase5_report = bool(
+        os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true"
+        or run_specification.get("use_phase5_report") is True
+    )
     use_structural_pipeline = bool(
         os.getenv("USE_STRUCTURAL_PIPELINE", "").strip().lower() == "true"
         or run_specification.get("use_structural_pipeline") is True
     )
 
-    if use_structural_pipeline:
+    if use_phase5_report:
+        from core.query_planner import build_query_plan_map
+        from core.intelligence_report import generate_report_from_signals
+
+        query_plan_map = build_query_plan_map(run_specification)
+        signals = get_master_signals_for_run(run_id)
+        report_result = generate_report_from_signals(
+            signals,
+            query_plan_map,
+            run_specification,
+            write_metrics=False,
+            write_html=False,
+        )
+        writer_output = {
+            "content": report_result.get("report_text", ""),
+            "coverage_low": False,
+        }
+    elif use_structural_pipeline:
         from core.structural_pipeline import run_structural_pipeline
 
         structural_output = run_structural_pipeline(
