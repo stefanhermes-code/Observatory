@@ -31,6 +31,24 @@ from core.generator_execution import (
 )
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 
+
+def _is_phase5_enabled_for_spec(spec: dict) -> bool:
+    """
+    Determine if Phase 5 report path is enabled for this run.
+    Reads USE_PHASE5_REPORT from Streamlit secrets (Cloud) or environment (local),
+    with per-spec override via spec['use_phase5_report'].
+    """
+    val = None
+    try:
+        # st.secrets is only available inside Streamlit; guard with try/except.
+        val = st.secrets.get("USE_PHASE5_REPORT")
+    except Exception:
+        pass
+    if val is None:
+        val = os.getenv("USE_PHASE5_REPORT")
+    flag = str(val).strip().lower() == "true" if val is not None else False
+    return bool(flag or spec.get("use_phase5_report") is True)
+
 # Page configuration
 st.set_page_config(
     page_title="PU Observatory - Report Generator",
@@ -401,7 +419,7 @@ elif page == "📰 Generate Report":
     
     st.markdown("---")
     # Report path indicator (plan §17: verify which path is active)
-    use_phase5 = (os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true" or spec.get("use_phase5_report") is True)
+    use_phase5 = _is_phase5_enabled_for_spec(spec)
     if use_phase5:
         st.info("**Report path:** Phase 5 (development-style report: developments, Signal Map, Appendix A)")
     else:

@@ -24,6 +24,26 @@ from core.token_tracking import compute_cost_for_usage
 BUILDER_EMAIL = "stefan.hermes@htcglobal.asia"
 
 
+def _flag_from_secrets_or_env(name: str) -> bool:
+    """
+    Read boolean feature flag from Streamlit secrets (Cloud) or environment (local).
+    Returns True if the value (case-insensitive) equals 'true'.
+    """
+    val = None
+    try:
+        import streamlit as st  # type: ignore
+
+        # st.secrets raises if not in a Streamlit context; guard with try/except.
+        val = st.secrets.get(name)
+    except Exception:
+        pass
+    if val is None:
+        val = os.getenv(name)
+    if val is None:
+        return False
+    return str(val).strip().lower() == "true"
+
+
 def _build_run_usage_metadata(evidence_summary: Optional[Dict], writer_output: Optional[Dict]) -> Dict:
     """
     Aggregate token usage from Executive Summary (Chat Completions) and web search (Responses API).
@@ -287,11 +307,11 @@ def execute_generator(
         pass
 
     use_phase5_report = bool(
-        os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true"
+        _flag_from_secrets_or_env("USE_PHASE5_REPORT")
         or run_specification.get("use_phase5_report") is True
     )
     use_structural_pipeline = bool(
-        os.getenv("USE_STRUCTURAL_PIPELINE", "").strip().lower() == "true"
+        _flag_from_secrets_or_env("USE_STRUCTURAL_PIPELINE")
         or run_specification.get("use_structural_pipeline") is True
     )
 
