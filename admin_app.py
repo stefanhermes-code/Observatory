@@ -1271,6 +1271,11 @@ elif page == "📰 Intelligence Specifications":
                     # Report options (plan §14; same defaults as report_spec)
                     st.write("**Report options:**")
                     ro = spec.get("report_options") or {}
+                    report_period_ro = st.text_input(
+                        "Report period (descriptive)",
+                        value=ro.get("report_period") or spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
+                        key=f"spec_report_period_{spec.get('id')}"
+                    )
                     report_title_ro = st.text_input(
                         "Report title",
                         value=ro.get("report_title") or spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
@@ -1295,6 +1300,7 @@ elif page == "📰 Intelligence Specifications":
                     )
                     company_tracking = st.checkbox("Company signal tracking (future)", value=ro.get("company_signal_tracking_enabled", spec.get("company_signal_tracking_enabled", False)), key=f"spec_company_track_{spec.get('id')}")
                     report_options = {
+                        "report_period": report_period_ro or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
                         "report_title": report_title_ro or DEFAULT_REPORT_SPEC.get("report_title"),
                         "included_sections": selected_sections or list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
                         "signal_map_enabled": signal_map_enabled,

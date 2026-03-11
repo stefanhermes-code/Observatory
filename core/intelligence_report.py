@@ -432,10 +432,13 @@ def generate_report_from_signals(
     from core.customer_filter import filter_signals_by_spec
 
     # Normalize to article format: group_signals expects title, category (classifier), url, date, source, query_id
+    # Prefer per-signal classifier_category when present (§9); else use CONFIGURATOR_TO_CLASSIFIER fallback.
     articles: List[Dict[str, Any]] = []
     for s in signals:
         config_cat = (s.get("category") or "").strip()
-        classifier_cat = CONFIGURATOR_TO_CLASSIFIER.get(config_cat, "Market Intelligence")
+        classifier_cat = (s.get("classifier_category") or "").strip()
+        if not classifier_cat:
+            classifier_cat = CONFIGURATOR_TO_CLASSIFIER.get(config_cat, "Market Intelligence")
         articles.append({
             "title": s.get("title") or "",
             "url": s.get("url") or "",
@@ -469,7 +472,22 @@ def generate_report_from_signals(
     out: Dict[str, Any] = {"report_text": report_text}
     if write_html:
         title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
-        out["html"] = markdown_to_simple_html(report_text, title=title)
+        # Build pie chart for signal map (§11)
+        signal_map_sections = [
+            "Market Developments",
+            "Technology and Innovation",
+            "Capacity and Investment Activity",
+            "Corporate Developments",
+            "Sustainability and Circular Economy",
+            "Regulatory Developments",
+        ]
+        if (spec or {}).get("included_sections"):
+            signal_map_sections = [s for s in signal_map_sections if s in (spec or {}).get("included_sections", [])]
+        by_sec: Dict[str, int] = defaultdict(int)
+        for d in developments:
+            by_sec[d.section] += 1
+        pie_html = _signal_map_pie_svg(by_sec, len(developments), signal_map_sections)
+        out["html"] = markdown_to_simple_html(report_text, title=title, signal_map_pie_html=pie_html if pie_html else None)
     if write_metrics:
         out["metrics"] = build_report_metrics(len(filtered), developments)
     return out
@@ -641,6 +659,8 @@ def render_report(
             pct = round(100 * count / total_devs, 1) if total_devs else 0
             lines.append(f"| {sec} | {count} | {pct}% |")
         lines.append("")
+        lines.append("<!-- SIGNAL_MAP_PIE -->")
+        lines.append("")
         lines.append("---")
         lines.append("")
 
@@ -724,10 +744,54 @@ def build_report_metrics(
     }
 
 
-def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report") -> str:
-    """Minimal HTML wrapper for report content (no full Markdown parsing)."""
+def _signal_map_pie_svg(
+    by_section_counts: Dict[str, int],
+    total: int,
+    section_order: List[str],
+) -> str:
+    """Build an SVG pie chart for signal map (§11). Percentage shares by development theme."""
+    if total <= 0:
+        return ""
+    import math
+    colors = [
+        "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",
+        "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    ]
+    radius = 80
+    cx, cy = 100, 100
+    cumulative = 0.0
+    segments = []
+    for i, sec in enumerate(section_order):
+        count = by_section_counts.get(sec, 0)
+        if count <= 0:
+            continue
+        pct = count / total
+        start_angle = cumulative * 360.0
+        end_angle = (cumulative + pct) * 360.0
+        cumulative += pct
+        start_rad = math.radians(start_angle - 90)
+        end_rad = math.radians(end_angle - 90)
+        x1 = cx + radius * math.cos(start_rad)
+        y1 = cy + radius * math.sin(start_rad)
+        x2 = cx + radius * math.cos(end_rad)
+        y2 = cy + radius * math.sin(end_rad)
+        large = 1 if (end_angle - start_angle) > 180 else 0
+        d = f"M {cx} {cy} L {x1:.2f} {y1:.2f} A {radius} {radius} 0 {large} 1 {x2:.2f} {y2:.2f} Z"
+        color = colors[i % len(colors)]
+        segments.append(f'<path d="{d}" fill="{color}" stroke="#fff" stroke-width="1"/>')
+    if not segments:
+        return ""
+    svg_inner = "\n".join(segments)
+    return f'<div class="signal-map-pie" style="margin:1em 0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">{svg_inner}</svg></div>'
+
+
+def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", signal_map_pie_html: Optional[str] = None) -> str:
+    """Minimal HTML wrapper for report content (no full Markdown parsing). If signal_map_pie_html is provided, injects it at the placeholder."""
     escaped = md_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     body = escaped.replace("\n", "<br>\n")
+    if signal_map_pie_html:
+        placeholder_escaped = "&lt;!-- SIGNAL_MAP_PIE --&gt;"
+        body = body.replace(placeholder_escaped, signal_map_pie_html)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -740,6 +804,7 @@ h2 {{ font-size: 1.2em; }}
 h3 {{ font-size: 1.05em; }}
 table {{ border-collapse: collapse; }}
 th, td {{ border: 1px solid #ccc; padding: 0.3em 0.6em; text-align: left; }}
+.signal-map-pie {{ margin: 1em 0; }}
 </style>
 </head>
 <body>
