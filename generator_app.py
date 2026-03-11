@@ -431,6 +431,14 @@ elif page == "📰 Generate Report":
     if "gen_error" not in st.session_state:
         st.session_state.gen_error = None
 
+    # Simple explanation of phases so long runs feel less opaque
+    st.caption(
+        "Generation runs in three phases: "
+        "1) collect evidence, 2) extract signals and write the report, "
+        "3) render and save the HTML. A full run can take several minutes; "
+        "you can keep working in other tabs while this finishes."
+    )
+
     # Generate button (only when idle)
     if st.session_state.gen_phase == 0 and st.button("🚀 Generate Report Now", type="primary", width="stretch"):
         if len(selected_categories) == 0:
@@ -449,9 +457,11 @@ elif page == "📰 Generate Report":
         if value_chain_links_override is not None:
             run_spec["value_chain_links"] = value_chain_links_override
 
-        with st.status("Creating run and collecting evidence…", expanded=True) as status:
+        with st.status("Phase 1 of 3 — Collecting evidence…", expanded=True) as status:
             st.write("Checking specification and cadence…")
-            st.write("Ingesting sources and running search (this may take a minute)…")
+            st.write("Ingesting sources and running search.")
+            st.write("This phase can take several minutes depending on lookback period and sources; "
+                     "keep this tab open, but it is safe to switch to other tabs while it runs.")
             run_id, evidence_summary, run_spec, spec_for_phase, err = run_phase_evidence(
                 spec_id=spec_id,
                 workspace_id=st.session_state.selected_workspace,
@@ -488,9 +498,10 @@ elif page == "📰 Generate Report":
         run_id = st.session_state.get("gen_run_id")
         run_spec = st.session_state.get("gen_run_spec")
         params = st.session_state.get("gen_params", {})
-        with st.status("Building report from evidence…", expanded=True) as status:
+        with st.status("Phase 2 of 3 — Extracting signals and writing report…", expanded=True) as status:
             st.write(f"Found **{(st.session_state.get('gen_evidence_summary') or {}).get('inserted', 0)}** items.")
-            st.write("Extracting signals and writing report…")
+            st.write("Clustering signals, classifying developments, and drafting the report text.")
+            st.write("This phase can also take a few minutes; the page will refresh automatically when it is done.")
             try:
                 writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result = run_phase_extract_and_write(
                     run_id=run_id,
@@ -521,8 +532,9 @@ elif page == "📰 Generate Report":
     # Phase 2 done: render and save, then show result
     if st.session_state.gen_phase == 2:
         params = st.session_state.get("gen_params", {})
-        with st.status("Finalizing report…", expanded=True) as status:
-            st.write("Rendering HTML and saving run.")
+        with st.status("Phase 3 of 3 — Finalizing report…", expanded=True) as status:
+            st.write("Rendering the report to HTML, saving the run, and attaching summary metadata.")
+            st.write("This phase is usually quick (seconds), and then your report preview will appear below.")
             result_data = run_phase_render_and_save(
                 run_id=st.session_state.get("gen_run_id"),
                 workspace_id=params.get("workspace_id"),
