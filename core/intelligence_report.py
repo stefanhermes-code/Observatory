@@ -389,9 +389,9 @@ def apply_customer_filter(
 ) -> List[Dict[str, Any]]:
     """
     Filter signals by customer specification (regions, categories, value_chain_links).
-    Signal is kept if it matches the spec: region IN spec.regions (or unset),
-    configurator_category IN spec.categories (or unset), value_chain_link IN spec.value_chain_links (or unset).
-    Empty spec dimension means no filter on that dimension. Unset query metadata (empty string) matches any.
+    Signal is kept only if it explicitly matches the spec. Unset metadata (empty string)
+    does NOT pass when the customer has constrained that dimension (strict behavior per
+    live alignment plan §7).
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
@@ -407,9 +407,9 @@ def apply_customer_filter(
         config_cat = meta.get("configurator_category") or ""
         vcl = meta.get("value_chain_link") or ""
 
-        ok_region = not regions or region in regions or region == ""
-        ok_cat = not categories or config_cat in categories or config_cat == ""
-        ok_vcl = not value_chain_links or vcl in value_chain_links or vcl == ""
+        ok_region = not regions or region in regions
+        ok_cat = not categories or config_cat in categories
+        ok_vcl = not value_chain_links or vcl in value_chain_links
         if ok_region and ok_cat and ok_vcl:
             filtered.append(s)
     return filtered

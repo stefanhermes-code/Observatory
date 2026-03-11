@@ -327,12 +327,14 @@ def execute_generator(
                 query_plan_map,
                 run_specification,
                 write_metrics=False,
-                write_html=False,
+                write_html=True,
             )
             writer_output = {
                 "content": report_result.get("report_text", ""),
                 "coverage_low": False,
             }
+            if report_result.get("html"):
+                writer_output["html"] = report_result["html"]
         except Exception as e:
             try:
                 from core.performance_logger import end_run, log_error
@@ -409,25 +411,29 @@ def execute_generator(
     report_content = writer_output["content"]
     coverage_low = writer_output.get("coverage_low", False)
 
-    # Step 7: Persist Results — render writer output to HTML (same pipeline as before)
+    # Step 7: Persist Results — use Phase 5 HTML when available, else render from content
     display_cadence = cadence_override if cadence_override else None
     run_lookback = evidence_summary.get("lookback_date") if isinstance(evidence_summary, dict) else None
     run_reference = evidence_summary.get("reference_date") if isinstance(evidence_summary, dict) else None
-    html_content, diagnostics = _render_html_from_content(
-        newsletter_name=spec.get("newsletter_name", "Newsletter"),
-        report_content=report_content,
-        spec=run_specification,
-        metadata={
-            "model": "v2_evidence_writer",
-            "timestamp": datetime.utcnow().isoformat(),
-            "extraction": extraction_result,
-            "coverage_low": coverage_low,
-        },
-        user_email=user_email,
-        cadence_override=display_cadence,
-        lookback_date=run_lookback,
-        reference_date=run_reference,
-    )
+    if writer_output.get("html"):
+        html_content = writer_output["html"]
+        diagnostics = {}
+    else:
+        html_content, diagnostics = _render_html_from_content(
+            newsletter_name=spec.get("newsletter_name", "Newsletter"),
+            report_content=report_content,
+            spec=run_specification,
+            metadata={
+                "model": "v2_evidence_writer",
+                "timestamp": datetime.utcnow().isoformat(),
+                "extraction": extraction_result,
+                "coverage_low": coverage_low,
+            },
+            user_email=user_email,
+            cadence_override=display_cadence,
+            lookback_date=run_lookback,
+            reference_date=run_reference,
+        )
 
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
     metadata_with_html = {
@@ -594,8 +600,14 @@ def run_phase_extract_and_write(
     """
     Phase 2: Get candidates, run extraction, run writer. Returns (writer_output, extraction_result).
     When lookback_override is set (builder only, 1/7/30 days), use it; else use spec frequency.
+    Applies customer filter to candidates before extraction (plan §7–8: filter before clustering).
     """
     candidates = get_candidate_articles_for_run(run_id)
+    try:
+        from core.customer_filter import filter_candidates_by_spec
+        candidates = filter_candidates_by_spec(candidates, run_specification)
+    except Exception:
+        pass
     ref_date = datetime.utcnow()
     if lookback_override in (1, 7, 30, 60, 90):
         lookback_date, reference_date = get_lookback_from_days(lookback_override, ref_date)
@@ -637,7 +649,7 @@ def run_phase_extract_and_write(
         doctrine_result = {"resolved": 0, "clusters_processed": 0, "failed": 0}
 
     use_phase5_report = bool(
-        os.getenv("USE_PHASE5_REPORT", "").strip().lower() == "true"
+        _flag_from_secrets_or_env("USE_PHASE5_REPORT")
         or run_specification.get("use_phase5_report") is True
     )
     use_structural_pipeline = bool(
@@ -656,12 +668,14 @@ def run_phase_extract_and_write(
             query_plan_map,
             run_specification,
             write_metrics=False,
-            write_html=False,
+            write_html=True,
         )
         writer_output = {
             "content": report_result.get("report_text", ""),
             "coverage_low": False,
         }
+        if report_result.get("html"):
+            writer_output["html"] = report_result["html"]
     elif use_structural_pipeline:
         from core.structural_pipeline import run_structural_pipeline
 
@@ -715,22 +729,26 @@ def run_phase_render_and_save(
 
     run_lookback = evidence_summary.get("lookback_date") if evidence_summary else None
     run_reference = evidence_summary.get("reference_date") if evidence_summary else None
-    html_content, diagnostics = _render_html_from_content(
-        newsletter_name=spec.get("newsletter_name", "Newsletter"),
-        report_content=report_content,
-        spec=run_specification,
-        metadata={
-            "model": "v2_evidence_writer",
-            "tokens_used": 0,
-            "timestamp": datetime.utcnow().isoformat(),
-            "extraction": extraction_result,
-            "coverage_low": coverage_low,
-        },
-        user_email=user_email,
-        cadence_override=cadence_override,
-        lookback_date=run_lookback,
-        reference_date=run_reference,
-    )
+    if writer_output.get("html"):
+        html_content = writer_output["html"]
+        diagnostics = {}
+    else:
+        html_content, diagnostics = _render_html_from_content(
+            newsletter_name=spec.get("newsletter_name", "Newsletter"),
+            report_content=report_content,
+            spec=run_specification,
+            metadata={
+                "model": "v2_evidence_writer",
+                "tokens_used": 0,
+                "timestamp": datetime.utcnow().isoformat(),
+                "extraction": extraction_result,
+                "coverage_low": coverage_low,
+            },
+            user_email=user_email,
+            cadence_override=cadence_override,
+            lookback_date=run_lookback,
+            reference_date=run_reference,
+        )
 
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
     metadata_with_html = {

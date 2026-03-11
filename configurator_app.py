@@ -123,6 +123,7 @@ if "specification" not in st.session_state:
         "country": "",
         "vat_number": "",
         # Report options (plan §13; defaults from report_spec)
+        "report_period": DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
         "report_title": DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
         "included_sections": list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
         "signal_map_enabled": DEFAULT_REPORT_SPEC.get("signal_map_enabled", True),
@@ -681,7 +682,13 @@ if not st.session_state.submitted:
 
     # Report options (plan §13; flow into generator report layer)
     with st.expander("Report options (optional)", expanded=False):
-        st.caption("Control report content: title, sections, signal map, evidence appendix, and minimum signal strength.")
+        st.caption("Control report content: period, title, sections, signal map, evidence appendix, and minimum signal strength.")
+        report_period = st.text_input(
+            "Report period (descriptive)",
+            value=spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
+            help="e.g. 90-day window; used in report metadata.",
+        )
+        st.session_state.specification["report_period"] = report_period
         report_title = st.text_input(
             "Report title",
             value=spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
@@ -753,6 +760,7 @@ if not st.session_state.submitted:
                 if "value_chain_link" not in categories_to_save:
                     categories_to_save.append("value_chain_link")
             report_options = {
+                "report_period": spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
                 "report_title": spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title"),
                 "included_sections": spec.get("included_sections") or DEFAULT_REPORT_SPEC.get("included_sections"),
                 "signal_map_enabled": spec.get("signal_map_enabled", True),
