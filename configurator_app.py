@@ -109,6 +109,8 @@ if "specification" not in st.session_state:
         "categories": [],
         "value_chain_links": [],  # Step 2: selected value chain link IDs
         "regions": [],
+        # Trigger-style extras (treated as paid options, not content categories)
+        "include_company_news": False,
         "package_tier": "",  # Explicit package tier selection
         "frequency": "",
         "newsletter_name": "",
@@ -237,7 +239,8 @@ with st.expander("💰 Pricing Guide", expanded=False):
     """, unsafe_allow_html=True)
     
     st.markdown("#### Scope Packages")
-    st.markdown("**Your selection of categories and regions determines your package tier, which affects the price:**")
+    st.markdown("**Your selection of categories and regions determines your package tier, which affects the price.**")
+    st.markdown("Extras such as **company news tracking** and **PU value chain split** add surcharges on top of the base/scope price.")
     
     # Scope packages table using HTML
     st.markdown("""
@@ -279,6 +282,16 @@ with st.expander("💰 Pricing Guide", expanded=False):
     </table>
     """, unsafe_allow_html=True)
     
+    st.markdown("#### Paid Extras")
+    st.markdown("""
+    In addition to the scope packages above, you can add:
+    
+    - **Company news tracking**: +20% on the base cadence price  
+    - **PU value chain split** (by value chain link): +15% on the base cadence price  
+    
+    These surcharges are already reflected in the **Estimated Price** box when you select these options.
+    """)
+    
     st.markdown("**Note:** The package tier is automatically determined by your category and region selections. All plans include access to the full Observatory platform and all deliverables.")
     
     st.markdown("#### Example Calculations")
@@ -309,8 +322,11 @@ regions_list = taxonomy_data["regions"]
 # Show form if not submitted, success page if submitted
 if not st.session_state.submitted:
     # Normal form flow - only rendered if NOT submitted
-    # Step 1: Intelligence Scope (categories only; Value Chain Link is Step 2)
-    categories_list_scope = [c for c in categories_list if c["id"] != "value_chain_link"]
+    # Step 1: Intelligence Scope (content categories only; Value Chain Link is Step 2, company news is a paid extra)
+    categories_list_scope = [
+        c for c in categories_list
+        if c["id"] not in ("value_chain_link", "company_news")
+    ]
     st.markdown('<p class="step-header">Step 1: Intelligence Scope</p>', unsafe_allow_html=True)
     st.write("Select one or more categories that your intelligence source should cover:")
     
@@ -334,6 +350,15 @@ if not st.session_state.submitted:
     
     if len(selected_categories) == 0:
         st.warning("⚠️ Please select at least one category to continue.")
+
+    # Extra options (paid switches, not content categories)
+    st.markdown("#### Extra options (paid)")
+    include_company_news = st.checkbox(
+        "Include company news tracking (extra cost)",
+        value=st.session_state.specification.get("include_company_news", False),
+        help="Adds company-news-shaped queries focused on PU-relevant companies.",
+    )
+    st.session_state.specification["include_company_news"] = include_company_news
     
     # Step 2: Value Chain Link
     st.markdown('<p class="step-header">Step 2: Value Chain Link</p>', unsafe_allow_html=True)
@@ -375,11 +400,14 @@ if not st.session_state.submitted:
     
     st.session_state.specification["regions"] = selected_regions
     
-    # Show package tier indicator after regions are selected (uses categories + value_chain_link if any links selected)
+    # Show package tier indicator after regions are selected (uses categories + switches)
     categories_for_scope = list(st.session_state.specification.get("categories", []))
     if st.session_state.specification.get("value_chain_links"):
         if "value_chain_link" not in categories_for_scope:
             categories_for_scope.append("value_chain_link")
+    if st.session_state.specification.get("include_company_news"):
+        if "company_news" not in categories_for_scope:
+            categories_for_scope.append("company_news")
     if len(categories_for_scope) > 0 and len(selected_regions) > 0:
         try:
             from core.pricing import calculate_price
@@ -422,6 +450,9 @@ if not st.session_state.submitted:
     if st.session_state.specification.get("value_chain_links"):
         if "value_chain_link" not in categories_for_tier:
             categories_for_tier.append("value_chain_link")
+    if st.session_state.specification.get("include_company_news"):
+        if "company_news" not in categories_for_tier:
+            categories_for_tier.append("company_news")
     
     suggested_tier = None
     if len(categories_for_tier) > 0 and len(selected_regions) > 0:
@@ -623,9 +654,24 @@ if not st.session_state.submitted:
         
         st.write("**Selected Categories:**")
         if spec["categories"]:
-            selected_cat_names = [cat["name"] for cat in categories_list if cat["id"] in spec["categories"]]
+            selected_cat_names = [
+                cat["name"] for cat in categories_list
+                if cat["id"] in spec["categories"] and cat["id"] not in ("company_news", "value_chain_link")
+            ]
             for cat_name in selected_cat_names:
                 st.write(f"- {cat_name}")
+        else:
+            st.write("*None selected*")
+        # Extras summary
+        st.write("**Extras (paid options):**")
+        extras = []
+        if spec.get("include_company_news"):
+            extras.append("Company news tracking")
+        if spec.get("value_chain_links"):
+            extras.append("PU value chain split")
+        if extras:
+            for e in extras:
+                st.write(f"- {e}")
         else:
             st.write("*None selected*")
         
@@ -754,11 +800,14 @@ if not st.session_state.submitted:
             for error in errors:
                 st.error(f"• {error}")
         else:
-            # Categories to save: include value_chain_link if user selected any value chain links
+            # Categories to save: content categories plus internal trigger flags
             categories_to_save = list(spec["categories"])
             if spec.get("value_chain_links"):
                 if "value_chain_link" not in categories_to_save:
                     categories_to_save.append("value_chain_link")
+            if spec.get("include_company_news"):
+                if "company_news" not in categories_to_save:
+                    categories_to_save.append("company_news")
             report_options = {
                 "report_period": spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
                 "report_title": spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title"),

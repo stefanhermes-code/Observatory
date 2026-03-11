@@ -96,8 +96,19 @@ def calculate_price(
             scope_tier = "Enterprise"
             scope_multiplier = 2.0  # +100%
     
-    # Apply scope multiplier to base price
-    price_per_user_monthly = round(base_price_per_user_monthly * scope_multiplier, 2)
+    # Extra surcharges for paid options (company news and PU value chain split)
+    has_company_news = "company_news" in categories
+    has_value_chain_split = "value_chain_link" in categories
+    extras_multiplier = 1.0
+    if has_company_news:
+        extras_multiplier += 0.20  # +20% for company news tracking
+    if has_value_chain_split:
+        extras_multiplier += 0.15  # +15% for PU value chain split
+
+    total_multiplier = scope_multiplier * extras_multiplier
+
+    # Apply total multiplier (scope + extras) to base price
+    price_per_user_monthly = round(base_price_per_user_monthly * total_multiplier, 2)
     price_per_user_yearly = round(price_per_user_monthly * 12, 2)
     
     # Calculate totals
@@ -123,6 +134,12 @@ def calculate_price(
             "multiplier": scope_multiplier,
             "base_price_per_user_monthly": base_price_per_user_monthly,
             "note": f"Scope determines package tier ({scope_tier} package, {scope_multiplier}x multiplier). All plans include full Observatory access."
+        },
+        "extras": {
+            "company_news_included": has_company_news,
+            "value_chain_split_included": has_value_chain_split,
+            "extras_multiplier": extras_multiplier,
+            "note": "Paid options: +20% for company news tracking, +15% for PU value chain split."
         },
         "total_monthly": total_monthly,
         "total_yearly": total_yearly
