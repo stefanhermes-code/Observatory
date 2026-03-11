@@ -145,24 +145,51 @@ def assign_request_to_workspace(request_id: str, workspace_id: str) -> bool:
     
     req = req_result.data[0]
     
-    # Create the specification from the request
+    # Build base spec data (required fields most schemas have)
     spec_data = {
         "workspace_id": workspace_id,
-        "newsletter_name": req.get("newsletter_name"),
-        "industry_code": req.get("industry_code", "PU"),
-        "categories": req.get("categories"),
-        "regions": req.get("regions"),
-        "frequency": req.get("frequency"),
-        "value_chain_links": req.get("value_chain_links", []),  # Include value chain links if present
+        "newsletter_name": req.get("newsletter_name") or "Unnamed",
+        "categories": req.get("categories") or [],
+        "regions": req.get("regions") or [],
+        "frequency": req.get("frequency") or "monthly",
         "status": "active",
-        "created_at": datetime.utcnow().isoformat(),
-        "created_by": "admin"
     }
+    # Optional columns (may not exist in all deployments)
+    if req.get("industry_code"):
+        spec_data["industry_code"] = req.get("industry_code")
+    if req.get("value_chain_links") is not None:
+        spec_data["value_chain_links"] = req.get("value_chain_links", [])
     ro = req.get("report_options")
     if isinstance(ro, dict):
         spec_data["report_options"] = ro
+    # Some schemas use DB defaults for created_at/created_by; only send if insert fails without them
+    spec_data["created_at"] = datetime.utcnow().isoformat()
+    spec_data["created_by"] = "admin"
 
-    supabase.table("newsletter_specifications").insert(spec_data).execute()
+    # Insert with retries: drop optional columns if DB rejects them (missing column or constraint)
+    last_error = None
+    # Attempt 1: full payload. Attempt 2: drop columns that may not exist. Attempt 3: minimal required set.
+    attempts = [
+        spec_data,
+        {k: v for k, v in spec_data.items() if k not in ("value_chain_links", "report_options", "industry_code")},
+        {k: v for k, v in spec_data.items() if k in ("workspace_id", "newsletter_name", "categories", "regions", "frequency", "status")},
+    ]
+    for attempt in attempts:
+        try:
+            supabase.table("newsletter_specifications").insert(attempt).execute()
+            last_error = None
+            break
+        except Exception as e:
+            last_error = e
+            continue
+
+    if last_error:
+        err_msg = str(last_error)
+        raise RuntimeError(
+            "Failed to create specification. Check Streamlit Cloud logs (Manage app → Logs) for the full error. "
+            "Common causes: missing table columns (run migrations), RLS blocking insert, or invalid workspace_id. "
+            f"Original error: {err_msg}"
+        ) from last_error
     
     # Update request status
     supabase.table("specification_requests")\

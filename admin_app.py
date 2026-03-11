@@ -224,6 +224,7 @@ if page == "📊 Dashboard":
     pending_requests = [r for r in all_requests if r.get('status') == 'pending_review']
     approved_pending_invoice = [r for r in all_requests if r.get('status') == 'approved_pending_invoice']
     invoiced = [r for r in all_requests if r.get('status') == 'invoiced']
+    pending_company_assignment = [r for r in all_requests if r.get('status') == 'pending_company_assignment']
     paid_activated = [r for r in all_requests if r.get('status') == 'paid_activated']
     rejected = [r for r in all_requests if r.get('status') == 'rejected']
     
@@ -233,6 +234,8 @@ if page == "📊 Dashboard":
         flags.append(("⚠️", f"{len(pending_requests)} pending requests need attention", "warning"))
     if len(approved_pending_invoice) > 0:
         flags.append(("💰", f"{len(approved_pending_invoice)} requests approved, pending invoice", "info"))
+    if len(pending_company_assignment) > 0:
+        flags.append(("📌", f"{len(pending_company_assignment)} paid, pending company assignment", "warning"))
     if len(paused_specs) > 0:
         flags.append(("⏸️", f"{len(paused_specs)} specifications are paused", "info"))
     if len(workspaces) == 0:
@@ -273,7 +276,7 @@ if page == "📊 Dashboard":
     
     # Request Status Metrics
     st.subheader("📈 Request Status Metrics")
-    req_col1, req_col2, req_col3, req_col4, req_col5, req_col6 = st.columns(6)
+    req_col1, req_col2, req_col3, req_col4, req_col5, req_col6, req_col7 = st.columns(7)
     
     with req_col1:
         st.metric("Pending Review", len(pending_requests))
@@ -285,12 +288,15 @@ if page == "📊 Dashboard":
         st.metric("Invoiced", len(invoiced))
     
     with req_col4:
-        st.metric("Paid & Activated", len(paid_activated))
+        st.metric("Pending Company Assignment", len(pending_company_assignment))
     
     with req_col5:
-        st.metric("Rejected", len(rejected))
+        st.metric("Paid & Activated", len(paid_activated))
     
     with req_col6:
+        st.metric("Rejected", len(rejected))
+    
+    with req_col7:
         st.metric("Total Requests", len(all_requests))
     
     st.markdown("---")
@@ -348,7 +354,7 @@ elif page == "📥 Process Requests":
     # Filter by status
     status_filter = st.selectbox(
         "Filter by Status",
-        ["All", "pending_review", "approved", "rejected", "on_hold"]
+        ["All", "pending_review", "approved_pending_invoice", "approved", "invoiced", "pending_company_assignment", "paid_activated", "rejected", "on_hold"]
     )
     
     # Get ALL requests (not just pending)
@@ -395,8 +401,8 @@ elif page == "📥 Process Requests":
             
             st.markdown("---")
             
-            # Assign to Company (if approved or paid_activated)
-            if req.get('status') in ['approved_pending_invoice', 'approved', 'paid_activated']:
+            # Assign to Company (when approved, invoiced, or paid but not yet assigned)
+            if req.get('status') in ['approved_pending_invoice', 'approved', 'invoiced', 'pending_company_assignment']:
                 workspaces = get_all_workspaces()
                 if workspaces:
                     workspace_options = {ws.get('id'): f"{ws.get('name')} - {ws.get('company_name')}" for ws in workspaces}
@@ -480,28 +486,32 @@ elif page == "📥 Process Requests":
                             st.rerun()
                 elif req.get('status') == 'invoiced':
                     st.info("Status: Invoiced")
+                elif req.get('status') == 'pending_company_assignment':
+                    st.warning("Status: Paid — assign to company below")
                 elif req.get('status') == 'paid_activated':
                     st.success("✅ Status: Paid & Activated")
             
             with col3:
                 if req.get('status') == 'invoiced':
-                    if st.button("✅ Activate", key=f"activate_{req.get('id')}"):
+                    if st.button("💰 Mark Paid", key=f"mark_paid_{req.get('id')}"):
                         request_id = req.get('id')
-                        result = update_specification_request_status(request_id, "paid_activated")
+                        result = update_specification_request_status(request_id, "pending_company_assignment")
                         if result:
                             if "request_status_updates" not in st.session_state:
                                 st.session_state.request_status_updates = {}
-                            st.session_state.request_status_updates[request_id] = "paid_activated"
+                            st.session_state.request_status_updates[request_id] = "pending_company_assignment"
                             log_audit_action(
-                                "activate_request",
+                                "mark_paid",
                                 st.session_state.user_email,
                                 {"request_id": request_id},
-                                "Activated specification"
+                                "Marked as paid — pending company assignment"
                             )
-                            st.success("Specification activated!")
+                            st.success("Marked as paid. Assign to a company below.")
                             st.rerun()
+                elif req.get('status') == 'pending_company_assignment':
+                    st.caption("↓ Assign to company below")
                 elif req.get('status') == 'paid_activated':
-                    st.info("Ready to assign to company")
+                    st.info("✅ Paid & Activated")
             
             with col4:
                 if st.button("❌ Reject", key=f"reject_{req.get('id')}"):

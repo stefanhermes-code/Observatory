@@ -63,12 +63,14 @@ def get_user_workspaces(user_email: str) -> List[Dict]:
 
 
 def get_workspace_specifications(workspace_id: str) -> List[Dict]:
-    """Get all active newsletter specifications for a workspace."""
+    """Get all newsletter specifications for a workspace that are available for generation.
+    Includes status 'active' and 'paid_activated' so specs activated in Admin (paid_activated) show in Generator.
+    """
     supabase = get_supabase_client()
     result = supabase.table("newsletter_specifications")\
         .select("*")\
         .eq("workspace_id", workspace_id)\
-        .eq("status", "active")\
+        .in_("status", ["active", "paid_activated"])\
         .execute()
     return result.data if result.data else []
 
