@@ -391,12 +391,21 @@ elif page == "📰 Generate Report":
     
     st.markdown("---")
     
-    # Builder-only: lookback period (1/7/30 days) and unlimited runs (stefan.hermes@htcglobal.asia)
+    # Builder-only: lookback period (1/7/30/60/90/120/150/180 days) and unlimited runs (stefan.hermes@htcglobal.asia)
     override_cadence = None
     lookback_override = None
     if st.session_state.user_email.lower() == "stefan.hermes@htcglobal.asia":
         st.markdown("### Builder options")
-        lookback_options = {"1 day": 1, "7 days": 7, "30 days": 30}
+        lookback_options = {
+            "1 day": 1,
+            "7 days": 7,
+            "30 days": 30,
+            "60 days": 60,
+            "90 days": 90,
+            "120 days": 120,
+            "150 days": 150,
+            "180 days": 180,
+        }
         lookback_label = st.selectbox(
             "Lookback period (how far back to include news):",
             options=list(lookback_options.keys()),
