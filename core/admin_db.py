@@ -509,6 +509,17 @@ def get_source_productivity() -> List[Dict]:
     Includes web_search (source_id null) and any registered source that has contributed items.
     """
     supabase = get_supabase_client()
+    # Prefer DB-side aggregation (fast) if the view exists.
+    try:
+        view_result = supabase.table("source_productivity_vw")\
+            .select("source_id, source_name, count")\
+            .order("count", desc=True)\
+            .execute()
+        if view_result.data:
+            return view_result.data
+    except Exception:
+        # View may not exist yet; fall back to client-side counting.
+        pass
     try:
         # Fetch all candidate_articles with only source_id and source_name (may be many rows)
         result = supabase.table("candidate_articles").select("source_id, source_name").execute()
