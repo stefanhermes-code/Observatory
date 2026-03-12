@@ -1,37 +1,65 @@
 """
-Shared timestamp display: use system local timezone (e.g. Windows date/time when run locally).
-Format: DD-MM-YYYY / hh-mm. Used by Admin, Generator, and Configurator apps.
+Shared timestamp display for Admin, Generator, and Configurator apps.
+
+- **Format**: DD-MM-YYYY / hh:mm
+- **Timezone resolution order**:
+  1. If the `LOCAL_TIMEZONE` environment variable is set to an IANA name
+     (e.g. `Europe/Amsterdam`, `Asia/Bangkok`), use that.
+  2. Otherwise, fall back to the **system local timezone** (Windows clock
+     when run locally; server local time in production).
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+
+def _get_preferred_tz() -> timezone | None:
+    """Return a preferred timezone from env, or None if not configured/invalid."""
+    tz_name = os.getenv("LOCAL_TIMEZONE", "").strip()
+    if not tz_name:
+        return None
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return None
 
 
 def format_ts_local(ts: str) -> str:
     """
-    Format an ISO timestamp string (UTC) as DD-MM-YYYY / hh-mm in the **system local** timezone.
-    When the app runs on your PC, this follows Windows date/time. On a server, it uses the server's TZ.
-    Returns a readable string; falls back gracefully if parsing fails.
+    Format an ISO timestamp string (UTC) as DD-MM-YYYY / hh:mm.
+
+    - Tries `LOCAL_TIMEZONE` first (if set), then system-local timezone.
+    - Returns a readable string; falls back gracefully if parsing fails.
     """
     if not ts or not isinstance(ts, str):
         return "Unknown time"
     ts = ts.strip()
     if not ts:
         return "Unknown time"
+
+    preferred_tz = _get_preferred_tz()
+
+    def _to_local(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            dt_with_tz = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt_with_tz = dt
+        if preferred_tz is not None:
+            return dt_with_tz.astimezone(preferred_tz)
+        return dt_with_tz.astimezone()
+
     try:
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        # .astimezone() with no argument uses system local timezone (Windows clock when run locally)
-        local = dt.astimezone()
-        return local.strftime("%d-%m-%Y / %H-%M")
+        local = _to_local(dt)
+        return local.strftime("%d-%m-%Y / %H:%M")
     except Exception:
         try:
             dt = datetime.fromisoformat(ts)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            local = dt.astimezone()
-            return local.strftime("%d-%m-%Y / %H-%M")
+            local = _to_local(dt)
+            return local.strftime("%d-%m-%Y / %H:%M")
         except Exception:
             return ts[:19] if len(ts) >= 19 else ts
+    
