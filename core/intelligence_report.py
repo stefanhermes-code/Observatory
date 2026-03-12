@@ -1097,7 +1097,8 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
 </head>
 <body>
     <div class="header">
-        <img src="PU Observatory logo V3.png" class="header-logo" alt="PU Observatory logo">
+        <!-- Inline logo (same image as HTC Global Market Intelligence_20260217.html) -->
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAADiGGNhQlgAAOIYanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAANvpqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmRiMzU5MGYxLTJkZWEtNGE0Mi1iYjg3LTFkM2VjYWY1MjM3NwAAAAHBanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAA5Wp1bWIAAAApanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zLnYyAAAAALRjYm9yoWdhY3Rpb25zgqNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50v2RuYW1lZkdQVC00b/9xZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWGhZmFjdGlvbm5jMnBhLmNvbnZlcnRlZAAAAKtqdW1iAAAAKGp1bWRjYm9yABEAEIAAAKoAOJtxA2MycGEuaGFzaC5kYXRhAAAAAHtjYm9ypWpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZNyxkbmFtZW5qdW1iZiBtYW5pZmVzdGNhbGdmc2hhMjU2ZGhhc2hYIJereHhizg/H0mK/SB01vzCpI2wy35EoqksTMVitcmBxY3BhZEgAAAAAAAAAAAAAAe1qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAABvmNib3Kmamluc3RhbmNlSUR4LHhtcDppaWQ6Njk4YzI5NjMtNjkyYy00ZTRiLWI1MzQtYTUzMzMyNTY4M2M0" class="header-logo" alt="PU Observatory logo">
         <div class="header-title">
             <h1>{html.escape(title, quote=False)}</h1>
         </div>
