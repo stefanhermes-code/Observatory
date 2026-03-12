@@ -461,7 +461,10 @@ def log_audit_action(action: str, user_email: str, details: Dict, reason: Option
     target_type = None
     target_id = None
     if details:
-        if "request_id" in details:
+        if "run_id" in details:
+            target_type = "newsletter_run"
+            target_id = details.get("run_id")
+        elif "request_id" in details:
             target_type = "specification_request"
             target_id = details.get("request_id")
         elif "workspace_id" in details:

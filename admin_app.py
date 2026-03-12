@@ -5,7 +5,7 @@ Owner-only access.
 """
 
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, Counter
 import sys
 from pathlib import Path
@@ -75,6 +75,9 @@ from core.workspace_members import (
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
 from core.report_spec import DEFAULT_REPORT_SPEC, REPORT_SECTIONS_OPTIONS
+
+from core.datetime_utils import format_ts_local
+
 
 def extract_sources_from_html(html_content: str) -> Counter:
     """
@@ -210,12 +213,16 @@ if page == "📊 Dashboard":
         st.warning(f"Could not load run history: {runs_err}")
     recent_runs = all_runs[:5]
     
-    # Calculate performance metrics
-    from datetime import datetime, timedelta, timezone
-    now = datetime.now(timezone.utc)  # Use timezone-aware datetime
-    last_24h = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 86400]
-    last_7d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 604800]
-    last_30d = [r for r in all_runs if r.get('created_at') and (now - datetime.fromisoformat(r.get('created_at').replace('Z', '+00:00'))).total_seconds() < 2592000]
+    # Calculate performance metrics (based on UTC timestamps; display uses Bangkok-local formatting)
+    now = datetime.now(timezone.utc)
+    def _to_dt(ts: str) -> datetime:
+        try:
+            return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+        except Exception:
+            return now
+    last_24h = [r for r in all_runs if r.get('created_at') and (now - _to_dt(r.get('created_at'))).total_seconds() < 86400]
+    last_7d = [r for r in all_runs if r.get('created_at') and (now - _to_dt(r.get('created_at'))).total_seconds() < 604800]
+    last_30d = [r for r in all_runs if r.get('created_at') and (now - _to_dt(r.get('created_at'))).total_seconds() < 2592000]
     
     active_specs = [s for s in specifications if s.get("status") == "active"]
     paused_specs = [s for s in specifications if s.get("status") == "paused"]
@@ -328,16 +335,7 @@ if page == "📊 Dashboard":
             timestamp = log.get('created_at', '')
             user = log.get('actor_email', 'Unknown')
             reason = log.get('details', {}).get('reason', '') if isinstance(log.get('details'), dict) else ''
-            
-            # Format timestamp
-            if timestamp:
-                try:
-                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    time_str = dt.strftime("%Y-%m-%d %H:%M")
-                except:
-                    time_str = timestamp[:16]
-            else:
-                time_str = "Unknown time"
+            time_str = format_ts_local(timestamp)
             
             # Format action name
             action_display = action.replace('_', ' ').title()
@@ -401,8 +399,8 @@ elif page == "📥 Process Requests":
             
             st.markdown("---")
             
-            # Assign to Company (when approved, invoiced, or paid but not yet assigned)
-            if req.get('status') in ['approved_pending_invoice', 'approved', 'invoiced', 'pending_company_assignment']:
+            # Assign to Company (when approved, invoiced, paid-but-unassigned, or legacy paid_activated)
+            if req.get('status') in ['approved_pending_invoice', 'approved', 'invoiced', 'pending_company_assignment', 'paid_activated']:
                 workspaces = get_all_workspaces()
                 if workspaces:
                     workspace_options = {ws.get('id'): f"{ws.get('name')} - {ws.get('company_name')}" for ws in workspaces}
@@ -1281,11 +1279,9 @@ elif page == "📰 Intelligence Specifications":
                     # Report options (plan §14; same defaults as report_spec)
                     st.write("**Report options:**")
                     ro = spec.get("report_options") or {}
-                    report_period_ro = st.text_input(
-                        "Report period (descriptive)",
-                        value=ro.get("report_period") or spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
-                        key=f"spec_report_period_{spec.get('id')}"
-                    )
+                    # Reporting period is defined numerically; label is derived from days.
+                    effective_days = spec.get("report_period_days") or DEFAULT_REPORT_SPEC.get("report_period_days", 30)
+                    st.write(f"**Reporting period:** {effective_days}-day window")
                     report_title_ro = st.text_input(
                         "Report title",
                         value=ro.get("report_title") or spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
@@ -1310,7 +1306,7 @@ elif page == "📰 Intelligence Specifications":
                     )
                     company_tracking = st.checkbox("Company signal tracking (future)", value=ro.get("company_signal_tracking_enabled", spec.get("company_signal_tracking_enabled", False)), key=f"spec_company_track_{spec.get('id')}")
                     report_options = {
-                        "report_period": report_period_ro or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
+                        "report_period_days": effective_days,
                         "report_title": report_title_ro or DEFAULT_REPORT_SPEC.get("report_title"),
                         "included_sections": selected_sections or list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
                         "signal_map_enabled": signal_map_enabled,
@@ -1426,12 +1422,13 @@ elif page == "💰 Invoicing":
     # Filter by invoicing status
     # If we just generated an invoice, override filter to show it
     default_filter = st.session_state.get('_invoice_filter_override', None)
+    invoice_filters = ["All", "approved_pending_invoice", "invoiced", "pending_company_assignment", "paid_activated"]
     if default_filter:
         # Use the override, then clear it
-        filter_index = ["All", "approved_pending_invoice", "invoiced", "paid_activated"].index(default_filter) if default_filter in ["All", "approved_pending_invoice", "invoiced", "paid_activated"] else 0
+        filter_index = invoice_filters.index(default_filter) if default_filter in invoice_filters else 0
         invoice_status = st.selectbox(
             "Filter by Invoicing Status",
-            ["All", "approved_pending_invoice", "invoiced", "paid_activated"],
+            invoice_filters,
             index=filter_index
         )
         # Clear the override after using it
@@ -1439,7 +1436,7 @@ elif page == "💰 Invoicing":
     else:
         invoice_status = st.selectbox(
             "Filter by Invoicing Status",
-            ["All", "approved_pending_invoice", "invoiced", "paid_activated"]
+            invoice_filters
         )
     
     # Clean up any invalid invoice data (booleans from old session state keys)
@@ -2150,7 +2147,7 @@ elif page == "📈 Reporting":
                 row = {
                     "Intelligence Source": r.get("newsletter_name", "Unknown"),
                     "Frequency": freq.title() if freq else "—",
-                    "Created": (r.get("created_at") or "")[:19],
+                    "Created": format_ts_local(r.get("created_at") or ""),
                     "Duration (s)": round(dur, 1),
                     "Duration/Links": str(duration_per_link) if duration_per_link is not None else "—",
                 }
@@ -2170,7 +2167,7 @@ elif page == "📈 Reporting":
                 dpl = round(float(r["generation_duration_seconds"]) / int(links), 2) if links and int(links) > 0 else "NA"
                 freq = (r.get("frequency") or "").strip()
                 freq_csv = freq.title() if freq else ""
-                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{freq_csv},{(r.get('created_at') or '')[:19]},{round(float(r['generation_duration_seconds']), 1)},{dpl},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
+                gen_time_csv += f"{r.get('newsletter_name', 'Unknown')},{freq_csv},{format_ts_local(r.get('created_at') or '')},{round(float(r['generation_duration_seconds']), 1)},{dpl},{r.get('categories_count', '')},{r.get('regions_count', '')},{r.get('links_count', '')}\n"
             st.download_button(
                 "📥 Export Generation Time",
                 data=gen_time_csv,
@@ -2263,13 +2260,13 @@ elif page == "📈 Reporting":
             st.write(f"**Total Runs:** {len(recent_runs)}")
             
             for run in recent_runs:
-                with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]} - {run.get('status', 'unknown').upper()}"):
+                with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {format_ts_local(run.get('created_at') or '')} - {run.get('status', 'unknown').upper()}"):
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
                         st.write("**Intelligence Source:**", run.get('newsletter_name'))
                         st.write("**Status:**", run.get('status', 'unknown'))
-                        st.write("**Created:**", run.get('created_at', '')[:19])
+                        st.write("**Created:**", format_ts_local(run.get('created_at') or ''))
                     
                     with col2:
                         st.write("**Run ID:**", run.get('id'))
@@ -2353,7 +2350,7 @@ elif page == "📈 Reporting":
                 tool_usage = metadata.get("tool_usage", {}) if isinstance(metadata, dict) else {}
                 vector_store_used = "Yes" if tool_usage.get("vector_store_used") else "No"
                 file_search_count = tool_usage.get("file_search_count", 0)
-                history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{run.get('created_at', '')[:19]},{run.get('id', 'N/A')},{vector_store_used},{file_search_count},{run.get('artifact_path', 'N/A')}\n"
+                history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{format_ts_local(run.get('created_at') or '')},{run.get('id', 'N/A')},{vector_store_used},{file_search_count},{run.get('artifact_path', 'N/A')}\n"
             
             st.download_button(
                 "📥 Export Generation History",
@@ -2732,13 +2729,13 @@ elif page == "📚 Generation History":
         
         for run in recent_runs:
             run_id = run.get("id")
-            with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {run.get('created_at', '')[:19]}"):
+            with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {format_ts_local(run.get('created_at') or '')}"):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.write("**Intelligence Source:**", run.get('newsletter_name'))
                     st.write("**Status:**", run.get('status', 'unknown'))
-                    st.write("**Created:**", run.get('created_at', '')[:19])
+                    st.write("**Created:**", format_ts_local(run.get('created_at') or ''))
                 
                 with col2:
                     st.write("**Run ID:**", run_id)
@@ -2791,6 +2788,23 @@ elif page == "📚 Generation History":
                                 ))
                             if metadata.get("thread_id"):
                                 st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
+                            # Run Audit: read and download
+                            run_audit = metadata.get("run_audit") if isinstance(metadata.get("run_audit"), dict) else None
+                            if run_audit:
+                                st.markdown("---")
+                                st.write("**📋 Run Audit**")
+                                with st.expander("View run audit (counts & drop reasons)", expanded=False):
+                                    st.json(run_audit)
+                                audit_json = json.dumps(run_audit, indent=2, default=str)
+                                st.download_button(
+                                    "📥 Download Run Audit (JSON)",
+                                    data=audit_json,
+                                    file_name=f"run_audit_{run_id[:8]}_{run.get('created_at', '')[:10]}.json",
+                                    mime="application/json",
+                                    key=f"dl_audit_{run_id}"
+                                )
+                            else:
+                                st.caption("No run audit for this run (pre-audit deployment or run failed before audit).")
                     else:
                         st.caption("Click «Download HTML» in the middle column to load timing and download.")
     elif not runs_err:
@@ -2803,7 +2817,7 @@ elif page == "📚 Generation History":
     if recent_runs:
         history_csv = "Intelligence Source,Status,Created,Run ID,Artifact Path\n"
         for run in recent_runs:
-            history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{run.get('created_at', '')[:19]},{run.get('id', 'N/A')},{run.get('artifact_path', 'N/A')}\n"
+            history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{format_ts_local(run.get('created_at') or '')},{run.get('id', 'N/A')},{run.get('artifact_path', 'N/A')}\n"
         
         st.download_button(
             "📥 Export Generation History",
@@ -3013,7 +3027,7 @@ elif page == "📋 Audit Log":
         for log in audit_logs:
             action = log.get('action_type', 'unknown')
             user = log.get('actor_email', 'unknown')
-            timestamp = log.get('created_at', '')[:19] if log.get('created_at') else ''
+            timestamp = format_ts_local(log.get('created_at') or '') if log.get('created_at') else ''
             reason = log.get('details', {}).get('reason', 'No reason provided') if isinstance(log.get('details'), dict) else 'No reason provided'
             st.markdown(f"""
                 **{action}** - {user}
@@ -3032,7 +3046,7 @@ elif page == "📋 Audit Log":
         for log in audit_logs:
             action = log.get('action_type', 'unknown')
             user = log.get('actor_email', 'unknown')
-            timestamp = log.get('created_at', '')[:19] if log.get('created_at') else ''
+            timestamp = format_ts_local(log.get('created_at') or '') if log.get('created_at') else ''
             reason = log.get('details', {}).get('reason', 'No reason provided') if isinstance(log.get('details'), dict) else 'No reason provided'
             audit_csv += f"{action},{user},{timestamp},{reason}\n"
         

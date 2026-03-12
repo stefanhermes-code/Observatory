@@ -421,24 +421,29 @@ def generate_report_from_signals(
     spec: Dict[str, Any],
     write_metrics: bool = False,
     write_html: bool = True,
+    report_period_days: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Generate Phase 5 report from in-memory master signals and query plan map (live path).
     Applies strict post-classification customer filter, then group_signals, build_developments,
-    render_report. No file I/O for inputs. Returns dict with report_text, html (optional), metrics (optional).
+    render_report. No file I/O for inputs. Returns dict with report_text, html (optional), metrics (optional),
+    run_audit_metrics (step counts and drop_reason_counts for per-run audit).
     spec: regions, categories, value_chain_links (filter); included_sections, minimum_signal_strength_in_report,
     report_title (for HTML).
     """
-    from core.customer_filter import filter_signals_by_spec
+    from core.customer_filter import filter_signals_by_spec_with_stats
 
     # Normalize to article format: group_signals expects title, category (classifier), url, date, source, query_id
     # Prefer per-signal classifier_category when present (§9); else use CONFIGURATOR_TO_CLASSIFIER fallback.
     articles: List[Dict[str, Any]] = []
+    missing_classifier_count = 0
     for s in signals:
         config_cat = (s.get("category") or "").strip()
         classifier_cat = (s.get("classifier_category") or "").strip()
         if not classifier_cat:
             classifier_cat = CONFIGURATOR_TO_CLASSIFIER.get(config_cat, "Market Intelligence")
+            if not config_cat:
+                missing_classifier_count += 1
         articles.append({
             "title": s.get("title") or "",
             "url": s.get("url") or "",
@@ -448,18 +453,41 @@ def generate_report_from_signals(
             "query_id": s.get("query_id") or "",
         })
 
-    filtered = filter_signals_by_spec(articles, query_plan_map, spec or {})
+    filtered, customer_filter_stats = filter_signals_by_spec_with_stats(articles, query_plan_map, spec or {})
+
+    # Section filter: count signals that map to included_sections
+    included_sections = (spec or {}).get("included_sections")
+    section_list = list(included_sections) if included_sections else None
+    after_section_count = 0
+    drop_section_count = 0
+    for a in filtered:
+        sec = CATEGORY_TO_SECTION.get(a.get("category") or "", "Market Developments")
+        if section_list is None or sec in section_list:
+            after_section_count += 1
+        else:
+            drop_section_count += 1
 
     clusters = group_signals(filtered)
-    developments = build_developments(clusters)
+    developments_before_strength = build_developments(clusters)
 
-    included_sections = (spec or {}).get("included_sections")
+    # No cluster formed: signals in Strategic Implications (we skip that section in build_developments)
+    no_cluster_count = sum(len(sigs) for (sec, _), sigs in clusters.items() if sec == "Strategic Implications")
+
+    included_sections_set = set(included_sections or [])
     min_strength = (spec or {}).get("minimum_signal_strength_in_report")
+    order = {"Weak": 0, "Moderate": 1, "Strong": 2}
     if min_strength and isinstance(min_strength, str):
-        order = {"Weak": 0, "Moderate": 1, "Strong": 2}
         threshold = order.get(min_strength, 0)
-        developments = [d for d in developments if order.get(d.signal_strength, 0) >= threshold]
+        developments_after_strength = [d for d in developments_before_strength if order.get(d.signal_strength, 0) >= threshold]
+        drop_strength_count = len(developments_before_strength) - len(developments_after_strength)
+    else:
+        developments_after_strength = list(developments_before_strength)
+        drop_strength_count = 0
 
+    developments_written = [d for d in developments_after_strength if not included_sections_set or d.section in included_sections_set]
+    written_count = len(developments_written)
+
+    developments = developments_after_strength
     signal_map_enabled = (spec or {}).get("signal_map_enabled", True)
     evidence_appendix_enabled = (spec or {}).get("evidence_appendix_enabled", True)
     report_text = render_report(
@@ -467,9 +495,28 @@ def generate_report_from_signals(
         included_sections=included_sections,
         signal_map_enabled=signal_map_enabled,
         evidence_appendix_enabled=evidence_appendix_enabled,
+        report_period_days=report_period_days,
+        spec=spec,
     )
 
-    out: Dict[str, Any] = {"report_text": report_text}
+    run_audit_metrics: Dict[str, Any] = {
+        "master_signals_loaded_count": len(signals),
+        "candidates_after_customer_filter_count": len(filtered),
+        "candidates_after_section_filter_count": after_section_count,
+        "grouped_clusters_count": len(clusters),
+        "extracted_developments_count": len(developments_before_strength),
+        "developments_after_strength_threshold_count": len(developments_after_strength),
+        "developments_written_to_report_count": written_count,
+        "drop_failed_region_filter": customer_filter_stats.get("failed_region_filter", 0),
+        "drop_failed_value_chain_filter": customer_filter_stats.get("failed_value_chain_filter", 0),
+        "drop_no_mapped_category": customer_filter_stats.get("no_mapped_category", 0),
+        "drop_failed_section_filter": drop_section_count,
+        "drop_no_cluster_formed": no_cluster_count,
+        "drop_below_minimum_strength": drop_strength_count,
+        "drop_missing_classifier_category": missing_classifier_count,
+    }
+
+    out: Dict[str, Any] = {"report_text": report_text, "run_audit_metrics": run_audit_metrics}
     if write_html:
         title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
         # Build pie chart for signal map (§11)
@@ -592,6 +639,8 @@ def render_report(
     included_sections: Optional[List[str]] = None,
     signal_map_enabled: bool = True,
     evidence_appendix_enabled: bool = True,
+    report_period_days: Optional[int] = None,
+    spec: Optional[Dict[str, Any]] = None,
 ) -> str:
     by_section: Dict[str, List[Development]] = defaultdict(list)
     for d in developments:
@@ -599,18 +648,61 @@ def render_report(
     if included_sections:
         by_section = {k: v for k, v in by_section.items() if k in included_sections}
 
+    # Human-readable reporting period label: derive strictly from numeric days, never from free-text fields.
+    if isinstance(report_period_days, int) and report_period_days > 0:
+        period_label = f"{report_period_days}-day window"
+    else:
+        period_label = "90-day window"
+
+    def _fmt_list(values: Optional[Iterable[str]]) -> str:
+        vals = [str(v) for v in (values or []) if str(v).strip()]
+        return ", ".join(sorted(vals)) if vals else "All"
+
     lines: List[str] = [
         "# Polyurethane Industry Intelligence Briefing",
         "",
-        "*Reporting period: 90-day window*",
-        "",
-        "This briefing summarises notable developments in the polyurethane industry observed during the reporting period. It is intended to support strategic decision-making and does not constitute investment or commercial advice.",
-        "",
-        "---",
-        "",
-        "# Executive Summary",
+        f"*Reporting period: {period_label}*",
         "",
     ]
+
+    # Optional visible Run Scope block at the top of the report
+    if spec is not None:
+        categories = (spec or {}).get("categories") or []
+        regions = (spec or {}).get("regions") or []
+        value_chain_links = (spec or {}).get("value_chain_links") or []
+        included_sections_scope = (spec or {}).get("included_sections") or []
+        min_strength = (spec or {}).get("minimum_signal_strength_in_report") or "None"
+        lines.extend(
+            [
+                "## Run Scope",
+                "",
+                f"- **Reporting period**: {period_label}",
+                f"- **Included categories**: {_fmt_list(categories)}",
+                f"- **Included regions**: {_fmt_list(regions)}",
+                f"- **Included value chain links**: {_fmt_list(value_chain_links)}",
+                f"- **Included sections**: {_fmt_list(included_sections_scope)}",
+                f"- **Minimum signal strength**: {min_strength}",
+                "",
+                "---",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "This briefing summarises notable developments in the polyurethane industry observed during the reporting period. It is intended to support strategic decision-making and does not constitute investment or commercial advice.",
+                "",
+                "---",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "# Executive Summary",
+            "",
+        ]
+    )
 
     # Executive Summary: narrative highlights only; no evidence lists or article references
     strong = [d for d in developments if d.signal_strength == "Strong"]
@@ -877,6 +969,7 @@ def generate_report(
         included_sections=included_sections,
         signal_map_enabled=signal_map_enabled,
         evidence_appendix_enabled=evidence_appendix_enabled,
+        spec=spec,
     )
 
     if output_path is None:

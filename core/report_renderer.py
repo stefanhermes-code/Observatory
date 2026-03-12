@@ -45,12 +45,38 @@ def _format_event_line(ev: EvidenceItem, one_line_interpretation: str) -> str:
     return prefix
 
 
+def _format_paid_listing_intel(ev: EvidenceItem, facts: Dict) -> str:
+    """Format paid listing as non-clickable intel bullets (no URL)."""
+    bullets: List[str] = []
+    if facts.get("market_size"):
+        bullets.append(f"Market size: {facts['market_size']}")
+    if facts.get("cagr"):
+        bullets.append(f"CAGR: {facts['cagr']}")
+    if facts.get("base_year"):
+        bullets.append(f"Base year: {facts['base_year']}")
+    if facts.get("regions"):
+        r = facts["regions"]
+        bullets.append(f"Regions: {', '.join(r) if isinstance(r, list) else r}")
+    if facts.get("segments"):
+        s = facts["segments"]
+        bullets.append(f"Segments: {', '.join(s[:5]) if isinstance(s, list) else s}")
+    if facts.get("key_players"):
+        k = facts["key_players"]
+        bullets.append(f"Key players: {', '.join(k[:5]) if isinstance(k, list) else k}")
+    if not bullets:
+        return f"- **{ev.title or 'Market report listing'}** — (paid listing; no structured facts extracted)"
+    title_line = f"- **{ev.title or 'Market report listing'}** — Market report listing (paid). Visible intel:"
+    return title_line + "\n  " + "\n  ".join(f"- {b}" for b in bullets[:7])
+
+
 def render_structural_report(
     signals: List[StructuralSignal],
     evidence_items: Dict[str, EvidenceItem],
     spec: Dict,
     classifications: Dict[str, StructuralCategory],
     empty_report_diagnostics: Optional[Dict] = None,
+    paid_listing_evidence_ids: Optional[set] = None,
+    paid_listing_facts: Optional[Dict[str, Dict]] = None,
 ) -> str:
     """
     Render hybrid structural report as markdown text.
@@ -139,10 +165,14 @@ def render_structural_report(
         lines.append("#### Events")
         lines.append("")
 
+        paid_ids = paid_listing_evidence_ids or set()
+        paid_facts = paid_listing_facts or {}
         for ev in events:
-            # Placeholder for one-line interpretation: can be enriched later without LLM drift.
-            one_line = f"{display_label(cat)} event."
-            lines.append(_format_event_line(ev, one_line))
+            if ev.id in paid_ids:
+                lines.append(_format_paid_listing_intel(ev, paid_facts.get(ev.id) or {}))
+            else:
+                one_line = f"{display_label(cat)} event."
+                lines.append(_format_event_line(ev, one_line))
             lines.append("")
 
     return "\n".join(lines)

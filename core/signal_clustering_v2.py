@@ -1,11 +1,13 @@
 """
 V2 Build Spec Phase 2: Cluster extracted_signals by (company_name, signal_type, region, segment).
 One row per cluster in signal_clusters; aggregate numeric_value when same unit.
+Phase 5D.1: Populate cluster_pub_min / cluster_pub_max from candidate_articles.published_at per cluster.
+Clusters created before 5D.1 have NULL cluster_pub_* and are excluded from v_structural_momentum_12m until backfilled.
 """
 
 import hashlib
 from collections import defaultdict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 def _cluster_key(company_name: str, signal_type: str, region: str, segment: str) -> str:
@@ -75,19 +77,41 @@ def _structural_weight(signals: List[Dict]) -> float:
     return structural / len(signals)
 
 
+def _cluster_pub_dates(group: List[Dict], article_id_to_date: Dict[str, Any]) -> tuple:
+    """
+    Phase 5D.1: Compute cluster_pub_min and cluster_pub_max from signals in group.
+    article_id_to_date: str(article_id) -> date or None.
+    Returns (cluster_pub_min, cluster_pub_max) as date or None.
+    """
+    dates = []
+    for s in group:
+        aid = s.get("article_id")
+        if aid is None:
+            continue
+        d = article_id_to_date.get(str(aid))
+        if d is not None:
+            dates.append(d)
+    if not dates:
+        return None, None
+    return min(dates), max(dates)
+
+
 def run_signal_clustering_v2(run_id: str) -> Dict[str, Any]:
     """
     Load extracted_signals for run_id, group by (company_name, signal_type, region, segment),
     aggregate numeric_value when same unit, write signal_clusters.
+    Phase 5D.1: Populate cluster_pub_min / cluster_pub_max from candidate_articles.published_at per cluster.
 
     Returns:
         {"clusters_created": N, "signals_grouped": M}
     """
-    from core.generator_db import get_extracted_signals_for_run, insert_signal_clusters
+    from core.generator_db import get_extracted_signals_for_run, get_article_publish_dates_for_run, insert_signal_clusters
 
     signals = get_extracted_signals_for_run(run_id)
     if not signals:
         return {"clusters_created": 0, "signals_grouped": 0}
+
+    article_id_to_date = get_article_publish_dates_for_run(run_id)
 
     groups: Dict[str, List[Dict]] = defaultdict(list)
     for s in signals:
@@ -111,6 +135,7 @@ def run_signal_clustering_v2(run_id: str) -> Dict[str, Any]:
         else:
             agg_val, agg_unit = _aggregate_numeric(group)
         structural_weight = _structural_weight(group)
+        pub_min, pub_max = _cluster_pub_dates(group, article_id_to_date)
         clusters.append({
             "cluster_key": key,
             "signal_type": signal_type,
@@ -121,6 +146,8 @@ def run_signal_clustering_v2(run_id: str) -> Dict[str, Any]:
             "cluster_size": len(group),
             "structural_weight": round(structural_weight, 4),
             "classification": None,
+            "cluster_pub_min": pub_min,
+            "cluster_pub_max": pub_max,
         })
 
     inserted = insert_signal_clusters(run_id, clusters)

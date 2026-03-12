@@ -60,44 +60,88 @@ def _run_web_search(
             tools=[{"type": "web_search"}],
         )
         out: List[Dict[str, Any]] = []
-        # Parse response for citations / search results (structure may vary)
+
+        # Parse response for URL citations first (modern Responses + web_search shape).
+        # We look for message/output_text blocks and use their annotations (type=url_citation)
+        # as the primary source of URLs and titles. Snippet comes from the output_text text.
+        primary_snippet_text: Optional[str] = None
+
         for item in getattr(response, "output", []) or []:
-            if getattr(item, "type", None) == "message" and getattr(item, "content", None):
-                for block in item.content:
-                    if getattr(block, "type", None) == "output_text":
-                        text = getattr(block, "text", "") or ""
-                        # Try to extract URLs from citations if present
-                        if hasattr(block, "citations"):
-                            for c in getattr(block, "citations", []) or []:
-                                url = getattr(c, "url", None) or (c.get("url") if isinstance(c, dict) else None)
-                                title = getattr(c, "title", None) or (c.get("title") if isinstance(c, dict) else None)
-                                if url:
-                                    out.append({
-                                        "url": url,
-                                        "title": title,
-                                        "snippet": (text[:300] if text else None),
-                                        "published_at": None,
-                                        "source_name": "web_search",
-                                    })
-                                    if len(out) >= max_results:
-                                        return _out_with_usage(out[:max_results], response)
-        # If no citations, try to parse URLs from output text
-        for item in getattr(response, "output", []) or []:
-            if getattr(item, "type", None) == "message" and getattr(item, "content", None):
-                for block in item.content:
-                    if getattr(block, "type", None) == "output_text":
-                        text = getattr(block, "text", "") or ""
-                        import re
-                        for m in re.finditer(r"https?://[^\s\)\]\"]+", text):
-                            url = m.group(0).rstrip(".,;")
-                            if len(out) < max_results and url not in [x.get("url") for x in out]:
-                                out.append({
-                                    "url": url,
-                                    "title": None,
-                                    "snippet": text[:300] if text else None,
-                                    "published_at": None,
-                                    "source_name": "web_search",
-                                })
+            if getattr(item, "type", None) != "message" or not getattr(item, "content", None):
+                continue
+            for block in getattr(item, "content", []) or []:
+                if getattr(block, "type", None) != "output_text":
+                    continue
+                text = getattr(block, "text", "") or ""
+                if text and primary_snippet_text is None:
+                    primary_snippet_text = text
+
+                # Newer API: citations live in annotations as url_citation objects
+                annotations = getattr(block, "annotations", None) or getattr(block, "_annotations", None)
+                if annotations is None and isinstance(block, dict):
+                    annotations = block.get("annotations") or block.get("_annotations")
+                annotations = annotations or []
+
+                for ann in annotations:
+                    ann_type = getattr(ann, "type", None) or (ann.get("type") if isinstance(ann, dict) else None)
+                    if ann_type != "url_citation":
+                        continue
+
+                    # url_citation may be nested or flat; handle both.
+                    uc = getattr(ann, "url_citation", None) or (ann.get("url_citation") if isinstance(ann, dict) else None) or ann
+                    url = (
+                        getattr(uc, "url", None)
+                        or (uc.get("url") if isinstance(uc, dict) else None)
+                    )
+                    title = (
+                        getattr(uc, "title", None)
+                        or (uc.get("title") if isinstance(uc, dict) else None)
+                    )
+                    if not url:
+                        continue
+                    if url in [x.get("url") for x in out]:
+                        continue
+                    out.append(
+                        {
+                            "url": url,
+                            "title": title,
+                            "snippet": (text[:300] if text else None),
+                            "published_at": None,
+                            "source_name": "web_search",
+                        }
+                    )
+                    if len(out) >= max_results:
+                        return _out_with_usage(out[:max_results], response)
+
+        # Fallback: try to parse plain URLs from the output_text text if no annotations.
+        if not out:
+            import re
+
+            for item in getattr(response, "output", []) or []:
+                if getattr(item, "type", None) != "message" or not getattr(item, "content", None):
+                    continue
+                for block in getattr(item, "content", []) or []:
+                    if getattr(block, "type", None) != "output_text":
+                        continue
+                    text = getattr(block, "text", "") or ""
+                    if text and primary_snippet_text is None:
+                        primary_snippet_text = text
+                    for m in re.finditer(r"https?://[^\s\)\]\"]+", text or ""):
+                        url = m.group(0).rstrip(".,;")
+                        if url in [x.get("url") for x in out]:
+                            continue
+                        out.append(
+                            {
+                                "url": url,
+                                "title": None,
+                                "snippet": (text[:300] if text else None),
+                                "published_at": None,
+                                "source_name": "web_search",
+                            }
+                        )
+                        if len(out) >= max_results:
+                            return _out_with_usage(out[:max_results], response)
+
         return _out_with_usage(out[:max_results], response)
     except Exception:
         return [], None

@@ -7,6 +7,7 @@ Returns structured JSON: quality_score (0–10), issues[], requires_revision (bo
 from typing import Dict, List, Any, Optional, Tuple
 import json
 import re
+import time
 
 
 def run_critique(synthesis_text: str) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
@@ -42,12 +43,14 @@ def run_critique(synthesis_text: str) -> Tuple[Optional[Dict[str, Any]], Optiona
     )
 
     try:
+        t0 = time.monotonic()
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.2,
             max_tokens=800,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         )
+        response_time_ms = int((time.monotonic() - t0) * 1000)
         choice = resp.choices[0] if resp.choices else None
         raw = (choice.message.content or "").strip() if choice else ""
         usage = None
@@ -57,6 +60,21 @@ def run_critique(synthesis_text: str) -> Tuple[Optional[Dict[str, Any]], Optiona
             out = getattr(u, "output_tokens", None) or getattr(u, "completion_tokens", 0)
             tot = getattr(u, "total_tokens", None) or (inp + out)
             usage = {"input_tokens": inp, "output_tokens": out, "total_tokens": tot, "model": resp.model or "gpt-4o-mini"}
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="critique",
+                    call_type="critique",
+                    model_name=getattr(resp, "model", None) or "gpt-4o-mini",
+                    temperature=0.2,
+                    usage=resp.usage,
+                    response_time_ms=response_time_ms,
+                    call_status="success",
+                    request_id=getattr(resp, "id", None),
+                )
+        except Exception:
+            pass
         # Parse JSON (allow markdown code block wrapper)
         text = raw
         m = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
@@ -72,5 +90,21 @@ def run_critique(synthesis_text: str) -> Tuple[Optional[Dict[str, Any]], Optiona
         data["quality_score"] = max(0, min(10, int(data.get("quality_score", 5))))
         data["requires_revision"] = bool(data.get("requires_revision", True))
         return data, usage
-    except Exception:
+    except Exception as e:
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="critique",
+                    call_type="critique",
+                    model_name="gpt-4o-mini",
+                    temperature=0.2,
+                    usage=None,
+                    response_time_ms=0,
+                    call_status="fail",
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:500],
+                )
+        except Exception:
+            pass
         return None, None

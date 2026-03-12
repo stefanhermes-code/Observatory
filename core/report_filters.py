@@ -4,6 +4,7 @@ Used by Evidence Engine (filter before persist) so Writer and Pipeline do minima
 """
 
 import re
+from typing import Optional
 
 from core.taxonomy import REGION_KEYWORDS, PU_RELEVANCE_KEYWORDS
 
@@ -42,30 +43,29 @@ def is_meta_snippet(text: str) -> bool:
     return False
 
 
-def passes_region_relevance(title: str, snippet: str, region: str) -> bool:
+def passes_region_relevance(title: str, snippet: str, region: str, body: Optional[str] = None) -> bool:
     """
-    True if title or snippet contains at least one keyword for the given region.
-    Used to drop candidates that were returned by a region query but are about other regions
-    (e.g. China article in a SEA-only report). When region has no mapping, we require the
-    region label itself to appear (case-insensitive).
+    True if the content contains at least one keyword for the given region.
+    Region is meant to qualify the item and should be present somewhere in the full item text.
+    title, snippet: from RSS/search (always available). body: full article text when fetched (optional).
+    When region has no mapping, we require the region label itself (case-insensitive).
     """
     if not region:
         return True
     keywords = REGION_KEYWORDS.get(region, [region])
-    text = ((title or "") + " " + (snippet or "")).strip()
+    text = ((title or "") + " " + (snippet or "") + " " + (body or "")).strip()
     if not text:
         return False
     text_lower = text.lower()
     return any(kw.lower() in text_lower for kw in keywords)
 
 
-def passes_pu_relevance(title: str, snippet: str) -> bool:
+def passes_pu_relevance(title: str, snippet: str, body: Optional[str] = None) -> bool:
     """
-    True if title or snippet contains at least one PU-specific keyword (polyurethane, MDI, TDI,
-    polyol, foam, TPU, etc.). Used to drop generic plastics/fibres articles (e.g. PP, PA, PE, PLA)
-    that are not about the PU industry.
+    True if the content contains at least one PU-specific keyword (polyurethane, MDI, TDI,
+    polyol, foam, TPU, etc.). title, snippet: from RSS/search; body: full article text when fetched (optional).
     """
-    text = ((title or "") + " " + (snippet or "")).strip()
+    text = ((title or "") + " " + (snippet or "") + " " + (body or "")).strip()
     if not text:
         return False
     text_lower = text.lower()

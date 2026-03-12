@@ -4,7 +4,7 @@ Rules: accept 2xx and 3xx as valid; mark 403 as restricted (do not drop).
 """
 
 from typing import Tuple, Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 import re
 
 try:
@@ -24,7 +24,15 @@ NOT_CHECKED = "not_checked"
 
 
 def canonicalize_url(url: str) -> str:
-    """Normalize URL for deduplication: scheme+netloc lowercase, strip fragment, sort query (optional)."""
+    """
+    Normalize URL for deduplication and snapshot canonicalization.
+
+    - Scheme and netloc: lowercase.
+    - Fragment: stripped.
+    - Query: tracking parameters stripped (utm_*, fbclid, gclid, rcm); rest preserved.
+    - Path: collapse repeated slashes; remove trailing slash except for root.
+    - Does NOT force https (preserves scheme from input).
+    """
     if not url or not isinstance(url, str):
         return ""
     url = url.strip()
@@ -40,6 +48,12 @@ def canonicalize_url(url: str) -> str:
         if path != "/" and path.endswith("/"):
             path = path.rstrip("/")
         q = p.query
+        if q:
+            params = parse_qs(q, keep_blank_values=True)
+            tracking_prefixes = ("utm_", "fbclid", "gclid", "rcm")
+            filtered = {k: v for k, v in params.items()
+                       if not any(k.lower().startswith(prefix) for prefix in tracking_prefixes)}
+            q = urlencode(filtered, doseq=True)
         return urlunparse((p.scheme.lower(), netloc, path, p.params, q, ""))
     except Exception:
         return url

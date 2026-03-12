@@ -12,6 +12,7 @@ from urllib.parse import quote
 # Add current directory to path to import core modules
 sys.path.insert(0, str(Path(__file__).parent))
 
+from core.datetime_utils import format_ts_local
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE, VALUE_CHAIN_LINKS
 from core.validation import validate_specification
 from core.database import create_specification_request, update_specification_request, get_taxonomy_data
@@ -123,9 +124,9 @@ if "specification" not in st.session_state:
         "city": "",
         "zip_code": "",
         "country": "",
-        "vat_number": "",
-        # Report options (plan §13; defaults from report_spec)
-        "report_period": DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
+    "vat_number": "",
+    # Report options (plan §13; defaults from report_spec)
+    "report_period_days": DEFAULT_REPORT_SPEC.get("report_period_days", 30),
         "report_title": DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
         "included_sections": list(DEFAULT_REPORT_SPEC.get("included_sections", REPORT_SECTIONS_OPTIONS)),
         "signal_map_enabled": DEFAULT_REPORT_SPEC.get("signal_map_enabled", True),
@@ -728,13 +729,7 @@ if not st.session_state.submitted:
 
     # Report options (plan §13; flow into generator report layer)
     with st.expander("Report options (optional)", expanded=False):
-        st.caption("Control report content: period, title, sections, signal map, evidence appendix, and minimum signal strength.")
-        report_period = st.text_input(
-            "Report period (descriptive)",
-            value=spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
-            help="e.g. 90-day window; used in report metadata.",
-        )
-        st.session_state.specification["report_period"] = report_period
+        st.caption("Control report content: title, sections, signal map, evidence appendix, and minimum signal strength. Reporting period is controlled numerically via cadence/lookback days.")
         report_title = st.text_input(
             "Report title",
             value=spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title", "Polyurethane Industry Intelligence Briefing"),
@@ -809,7 +804,7 @@ if not st.session_state.submitted:
                 if "company_news" not in categories_to_save:
                     categories_to_save.append("company_news")
             report_options = {
-                "report_period": spec.get("report_period") or DEFAULT_REPORT_SPEC.get("report_period", "90-day window"),
+                "report_period_days": spec.get("report_period_days") or DEFAULT_REPORT_SPEC.get("report_period_days", 30),
                 "report_title": spec.get("report_title") or DEFAULT_REPORT_SPEC.get("report_title"),
                 "included_sections": spec.get("included_sections") or DEFAULT_REPORT_SPEC.get("included_sections"),
                 "signal_map_enabled": spec.get("signal_map_enabled", True),
@@ -917,13 +912,7 @@ if st.session_state.submitted:
     
     with col2:
         if submission_time:
-            try:
-                from datetime import datetime
-                dt = datetime.fromisoformat(submission_time.replace('Z', '+00:00'))
-                formatted_time = dt.strftime("%Y-%m-%d %H:%M UTC")
-            except:
-                formatted_time = submission_time[:19] if len(submission_time) > 19 else submission_time
-            st.write("**Submitted:**", formatted_time)
+            st.write("**Submitted:**", format_ts_local(submission_time))
         st.write("**Status:**", "Pending Review")
     
     st.info("""

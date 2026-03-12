@@ -39,6 +39,9 @@ SIGNAL_STRENGTH_OPTIONS = [None, "Weak", "Moderate", "Strong"]  # None = include
 # Default report specification (content-driven; evidence appendix and signal map on)
 # When running for a customer, load from customer profile so regions/categories/value_chain_links drive the harvest.
 DEFAULT_REPORT_SPEC: Dict[str, Any] = {
+    # Canonical numeric window for reporting period (days). Labels derive from this.
+    "report_period_days": 30,
+    # Deprecated text label kept only for legacy compatibility; not used in logic.
     "report_period": "90-day window",
     "report_title": "Polyurethane Industry Intelligence Briefing",
     "included_sections": [
@@ -123,6 +126,7 @@ def customer_profile_from_configurator_choices(
             "value_chain_links": list(value_chain_links or []),
             "company_aliases": list(company_aliases or []),
             "report_title": report_title,
+            "report_period_days": DEFAULT_REPORT_SPEC["report_period_days"],
             "report_period": DEFAULT_REPORT_SPEC["report_period"],
             "included_sections": DEFAULT_REPORT_SPEC["included_sections"],
             "signal_map_enabled": DEFAULT_REPORT_SPEC["signal_map_enabled"],

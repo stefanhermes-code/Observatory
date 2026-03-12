@@ -206,6 +206,7 @@ def update_run_status(
     categories_count: Optional[int] = None,
     regions_count: Optional[int] = None,
     links_count: Optional[int] = None,
+    report_period_days: Optional[int] = None,
 ):
     """Update newsletter run status. Optionally set duration and scope counts (categories, regions, links used in run)."""
     supabase = get_supabase_client()
@@ -227,6 +228,11 @@ def update_run_status(
         update_data["regions_count"] = min(32767, max(0, int(regions_count)))
     if links_count is not None:
         update_data["links_count"] = min(32767, max(0, int(links_count)))
+    if report_period_days is not None:
+        try:
+            update_data["report_period_days"] = int(report_period_days)
+        except (TypeError, ValueError):
+            pass
     supabase.table("newsletter_runs").update(update_data).eq("id", run_id).execute()
 
 

@@ -1,0 +1,16 @@
+{
+  "report_period": "90-day window",
+  "report_title": "Polyurethane Industry Intelligence Briefing",
+  "included_sections": [
+    "Market Developments",
+    "Technology and Innovation",
+    "Capacity and Investment Activity",
+    "Corporate Developments",
+    "Sustainability and Circular Economy",
+    "Strategic Implications"
+  ],
+  "signal_map_enabled": true,
+  "evidence_appendix_enabled": true,
+  "minimum_signal_strength_in_report": null,
+  "company_signal_tracking_enabled": false
+}

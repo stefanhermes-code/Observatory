@@ -9,8 +9,8 @@ textColor = "#262730"
 font = "sans serif"
 
 [server]
-# Enable CORS for API calls if needed
-enableCORS = false
+# CORS must be true when XSRF protection is on (otherwise Streamlit overrides and warns)
+enableCORS = true
 enableXsrfProtection = true
 
 [browser]

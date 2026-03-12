@@ -4,6 +4,7 @@ One gpt-4o-mini call per cluster; store result in signal_clusters.classification
 """
 
 import re
+import time
 from collections import defaultdict
 from typing import List, Dict, Any, Optional
 
@@ -73,6 +74,7 @@ def _call_classification(
             aggregated_numeric_value=agg_val,
             time_horizons=time_horizons_str,
         )
+        t0 = time.monotonic()
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -82,6 +84,22 @@ def _call_classification(
             temperature=0.1,
             max_tokens=32,
         )
+        response_time_ms = int((time.monotonic() - t0) * 1000)
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="llm_classification",
+                    call_type="classification",
+                    model_name=getattr(resp, "model", None) or "gpt-4o-mini",
+                    temperature=0.1,
+                    usage=getattr(resp, "usage", None),
+                    response_time_ms=response_time_ms,
+                    call_status="success",
+                    request_id=getattr(resp, "id", None),
+                )
+        except Exception:
+            pass
         if not resp.choices or not resp.choices[0].message or not resp.choices[0].message.content:
             return None
         label = resp.choices[0].message.content.strip().lower()
@@ -99,7 +117,23 @@ def _call_classification(
         if "noise" in label:
             return "noise"
         return "noise"
-    except Exception:
+    except Exception as e:
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="llm_classification",
+                    call_type="classification",
+                    model_name="gpt-4o-mini",
+                    temperature=0.1,
+                    usage=None,
+                    response_time_ms=0,
+                    call_status="fail",
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:500],
+                )
+        except Exception:
+            pass
         return None
 
 

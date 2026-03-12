@@ -16,7 +16,8 @@ import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
-# Only show "Coverage low" when zero items pass the scope filter; allow report with 1+ links
+# Minimum number of candidates (after spec filter) required to produce a full report and run synthesis/critique.
+# Below this: coverage_low=True, no LLM calls. Default 1 = at least one matching article required.
 DEFAULT_MIN_EVIDENCE = 1
 
 # Category IDs we exclude from top-level (replaced by value_chain_links as sub-substructure)
@@ -229,15 +230,29 @@ def write_report_from_evidence(
         try:
             from core.market_intelligence_synthesis import run_market_intelligence_synthesis, SCOPE_GLOBAL, SCOPE_REGION, SCOPE_REGION_SEGMENT
             from core.adversarial_critique import run_critique
+            from core.performance_logger import start_stage, end_stage
             scope = synthesis_scope if synthesis_scope in (SCOPE_GLOBAL, SCOPE_REGION, SCOPE_REGION_SEGMENT) else SCOPE_GLOBAL
-            synthesis_text, exec_summary_usage = run_market_intelligence_synthesis(
-                run_id=run_id,
-                scope=scope,
-                region_macro=synthesis_region_macro,
-                segment=synthesis_segment,
-            )
+            start_stage("synthesis")
+            try:
+                synthesis_text, exec_summary_usage = run_market_intelligence_synthesis(
+                    run_id=run_id,
+                    scope=scope,
+                    region_macro=synthesis_region_macro,
+                    segment=synthesis_segment,
+                )
+                end_stage("synthesis", "success")
+            except Exception as e:
+                end_stage("synthesis", "fail", error_type=type(e).__name__, error_message=str(e)[:500])
+                synthesis_text = None
+                exec_summary_usage = None
             if synthesis_text:
-                critique_result, critique_usage = run_critique(synthesis_text)
+                critique_result, critique_usage = None, None
+                start_stage("critique")
+                try:
+                    critique_result, critique_usage = run_critique(synthesis_text)
+                    end_stage("critique", "success")
+                except Exception as e:
+                    end_stage("critique", "fail", error_type=type(e).__name__, error_message=str(e)[:500])
                 if critique_usage and exec_summary_usage:
                     exec_summary_usage = _merge_usage(exec_summary_usage, critique_usage)
                 if critique_result:

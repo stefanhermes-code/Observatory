@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 
 def filter_candidates_by_spec(
@@ -42,6 +42,47 @@ def filter_candidates_by_spec(
     return filtered
 
 
+def filter_candidates_by_spec_with_stats(
+    candidates: List[Dict[str, Any]],
+    spec: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """
+    Same as filter_candidates_by_spec but also returns drop counts for audit.
+    Returns (filtered_list, {"dropped_total", "failed_region_filter", "failed_value_chain_filter", "no_mapped_category"}).
+    """
+    regions = spec.get("regions") or []
+    categories = spec.get("categories") or []
+    value_chain_links = spec.get("value_chain_links") or []
+
+    stats: Dict[str, int] = {"dropped_total": 0, "failed_region_filter": 0, "failed_value_chain_filter": 0, "no_mapped_category": 0}
+
+    if not regions and not categories and not value_chain_links:
+        return list(candidates), stats
+
+    filtered: List[Dict[str, Any]] = []
+    for c in candidates:
+        region = (c.get("region") or "").strip()
+        category = (c.get("category") or "").strip()
+        vcl = (c.get("value_chain_link") or "").strip()
+
+        ok_region = (not regions) or (region in regions)
+        ok_category = (not categories) or (category in categories)
+        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+
+        if ok_region and ok_category and ok_vcl:
+            filtered.append(c)
+        else:
+            stats["dropped_total"] += 1
+            if not ok_region:
+                stats["failed_region_filter"] += 1
+            if not ok_category:
+                if categories and not category:
+                    stats["no_mapped_category"] += 1
+            if not ok_vcl:
+                stats["failed_value_chain_filter"] += 1
+    return filtered, stats
+
+
 def filter_signals_by_spec(
     signals: List[Dict[str, Any]],
     query_plan_map: Dict[str, Dict[str, str]],
@@ -75,4 +116,48 @@ def filter_signals_by_spec(
         if ok_region and ok_category and ok_vcl:
             filtered.append(s)
     return filtered
+
+
+def filter_signals_by_spec_with_stats(
+    signals: List[Dict[str, Any]],
+    query_plan_map: Dict[str, Dict[str, str]],
+    spec: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
+    """
+    Same as filter_signals_by_spec but also returns drop counts for audit.
+    Returns (filtered_list, {"dropped_total", "failed_region_filter", "failed_value_chain_filter", "no_mapped_category"}).
+    """
+    regions = spec.get("regions") or []
+    categories = spec.get("categories") or []
+    value_chain_links = spec.get("value_chain_links") or []
+
+    stats: Dict[str, int] = {"dropped_total": 0, "failed_region_filter": 0, "failed_value_chain_filter": 0, "no_mapped_category": 0}
+
+    if not regions and not categories and not value_chain_links:
+        return list(signals), stats
+
+    filtered: List[Dict[str, Any]] = []
+    for s in signals:
+        qid = (s.get("query_id") or "").strip()
+        meta = query_plan_map.get(qid) or {}
+        region = (meta.get("region") or "").strip()
+        config_cat = (meta.get("configurator_category") or "").strip()
+        vcl = (meta.get("value_chain_link") or "").strip()
+
+        ok_region = (not regions) or (region in regions)
+        ok_category = (not categories) or (config_cat in categories)
+        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+
+        if ok_region and ok_category and ok_vcl:
+            filtered.append(s)
+        else:
+            stats["dropped_total"] += 1
+            if not ok_region:
+                stats["failed_region_filter"] += 1
+            if not ok_category:
+                if categories and not config_cat:
+                    stats["no_mapped_category"] += 1
+            if not ok_vcl:
+                stats["failed_value_chain_filter"] += 1
+    return filtered, stats
 

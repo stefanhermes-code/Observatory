@@ -6,6 +6,7 @@ Inputs: clustered signals JSON + baseline snapshot JSON. Output: 5 fixed section
 
 from typing import Dict, List, Any, Optional, Tuple
 import json
+import time
 
 SCOPE_GLOBAL = "GLOBAL"
 SCOPE_REGION = "REGION"
@@ -161,8 +162,9 @@ def run_market_intelligence_synthesis(
         "Base conclusions only on the provided structured signals and baseline. "
         "Do not use generic commentary, unsupported claims, or emotive language. "
         "Do not output markdown, bullet points, or section numbers. "
-        "Output plain text only: exactly 5 blocks of 2–4 sentences each, in this order: "
-        "1) Structural Movements 2) Cyclical Pressures 3) Regulatory and Capital Shifts 4) Competitive Implications 5) Forward Risk Signals. "
+        "Output plain text only: exactly 5 sections in this order, each starting with the section name on its own line: "
+        "Structural Movements, Cyclical Pressures, Regulatory and Capital Shifts, Competitive Implications, Forward Risk Signals. "
+        "After each section name, write 2–4 sentences. Separate each section with a single blank line. "
         "If baseline data exists and is non-zero, quantify deviations versus the 3Y rolling baseline where possible. "
         "If baseline net is zero, state clearly that no structural expansion baseline exists in the period. "
         "If no relevant signals exist in a category, explicitly state absence of activity; do not speculate."
@@ -179,16 +181,18 @@ def run_market_intelligence_synthesis(
         f"Clustered Signals (JSON):\n{signals_json}\n\n"
         f"Baseline Snapshot (JSON):\n{baseline_json}\n\n"
         f"{revision_note}"
-        "Write the 5 sections. Each section 2–4 sentences. No headings, no numbering, no markdown. Separate each section with a single blank line."
+        "Write the 5 sections. Start each section with its name on a single line (Structural Movements, then Cyclical Pressures, then Regulatory and Capital Shifts, then Competitive Implications, then Forward Risk Signals), then 2–4 sentences. No numbering, no markdown. Separate sections with a single blank line."
     )
 
     try:
+        t0 = time.monotonic()
         resp = client.chat.completions.create(
             model="gpt-4o",
             temperature=0.25,
             max_tokens=1500,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         )
+        response_time_ms = int((time.monotonic() - t0) * 1000)
         choice = resp.choices[0] if resp.choices else None
         text = (choice.message.content or "").strip() if choice else ""
         usage = None
@@ -199,6 +203,37 @@ def run_market_intelligence_synthesis(
                 "total_tokens": getattr(resp.usage, "total_tokens", 0),
                 "model": resp.model or "gpt-4o",
             }
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="synthesis",
+                    call_type="synthesis",
+                    model_name=getattr(resp, "model", None) or "gpt-4o",
+                    temperature=0.25,
+                    usage=resp.usage,
+                    response_time_ms=response_time_ms,
+                    call_status="success",
+                    request_id=getattr(resp, "id", None),
+                )
+        except Exception:
+            pass
         return text, usage
-    except Exception:
+    except Exception as e:
+        try:
+            from core.performance_logger import log_llm_call, get_current_run_id
+            if get_current_run_id():
+                log_llm_call(
+                    stage_name="synthesis",
+                    call_type="synthesis",
+                    model_name="gpt-4o",
+                    temperature=0.25,
+                    usage=None,
+                    response_time_ms=0,
+                    call_status="fail",
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:500],
+                )
+        except Exception:
+            pass
         return None, None
