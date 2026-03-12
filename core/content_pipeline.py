@@ -191,7 +191,7 @@ def render_html_from_content(
     """
     from datetime import datetime
     import base64
-    from core.run_dates import get_lookback_from_cadence
+    from core.run_dates import get_lookback_from_days, get_lookback_days
 
     if lookback_date is not None and reference_date is not None:
         try:
@@ -199,12 +199,14 @@ def render_html_from_content(
             reference_date = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))
         except Exception:
             lookback_date = reference_date = None
-    ref_date_for_cadence = datetime.utcnow()
+    ref_date_fallback = datetime.utcnow()
     if lookback_date is None or reference_date is None:
-        cadence = spec.get('frequency', 'monthly')
-        lookback_date, ref_date_for_cadence = get_lookback_from_cadence(cadence, ref_date_for_cadence)
+        report_period_days = spec.get("report_period_days")
+        if not (report_period_days and isinstance(report_period_days, int) and report_period_days > 0):
+            report_period_days = get_lookback_days(spec.get("frequency", "monthly"))
+        lookback_date, ref_date_fallback = get_lookback_from_days(report_period_days, ref_date_fallback)
         if reference_date is None:
-            reference_date = ref_date_for_cadence
+            reference_date = ref_date_fallback
     # Effective lookback in days for header (Monitor Period)
     try:
         ref = reference_date if isinstance(reference_date, datetime) else datetime.fromisoformat(str(reference_date).replace("Z", "+00:00"))

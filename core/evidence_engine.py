@@ -24,7 +24,7 @@ DROP_PU_PROVEN_JSONLD = "pu_not_relevant_proven_by_jsonld"
 DROP_OTHER = "other"
 
 from core.admin_db import get_all_sources
-from core.run_dates import get_lookback_from_cadence, get_lookback_days, is_in_date_range, parse_published_at
+from core.run_dates import get_lookback_days, get_lookback_from_days, is_in_date_range, parse_published_at
 from core.generator_db import insert_candidate_articles
 from core.url_tools import canonicalize_url, validate_url, VALID_2XX, VALID_3XX, RESTRICTED_403, NOT_CHECKED, source_from_url
 from core.query_planner import build_query_plan
@@ -226,26 +226,21 @@ def run_evidence_engine(
     search_provider: Optional[Any] = None,
     cadence_override: Optional[str] = None,
     reference_date: Optional[datetime] = None,
-    lookback_days_override: Optional[int] = None,
+    report_period_days: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Load enabled sources, ingest from RSS/sitemap/html_list, run query plan via search,
-    canonicalize + validate + dedupe, filter by date range (cadence + app date), insert candidate_articles.
-    reference_date defaults to datetime.utcnow() so the app, not the model, defines "today".
-    When lookback_days_override is set (e.g. 1, 7, 30 for builder), that defines the window; otherwise
-    lookback is from spec frequency (daily=2, weekly=7, monthly=30). cadence_override only bypasses run limit.
+    canonicalize + validate + dedupe, filter by date range, insert candidate_articles.
+    reference_date defaults to datetime.utcnow(). Date window is derived exclusively from
+    report_period_days: caller must pass the canonical value; if None/<=0, migration fallback
+    uses get_lookback_days(spec.frequency). cadence_override only bypasses run limit.
     Returns summary: { "candidates_from_sources": int, "candidates_from_search": int, "inserted": int, "query_plan": [...], "lookback_date": iso, "reference_date": iso }.
     """
     ref_date = reference_date if reference_date is not None else datetime.utcnow()
-    if lookback_days_override is not None and lookback_days_override > 0:
-        from core.run_dates import get_lookback_from_days
-        lookback_date, ref_date = get_lookback_from_days(lookback_days_override, ref_date)
-        cadence = f"{lookback_days_override}d"
-        lookback_days = lookback_days_override
-    else:
-        cadence = spec.get("frequency", "monthly")
-        lookback_date, ref_date = get_lookback_from_cadence(cadence, ref_date)
-        lookback_days = get_lookback_days(cadence)
+    effective_days = report_period_days if (report_period_days is not None and report_period_days > 0) else get_lookback_days(spec.get("frequency", "monthly"))
+    lookback_date, ref_date = get_lookback_from_days(effective_days, ref_date)
+    cadence = f"{effective_days}d"
+    lookback_days = effective_days
 
     summary: Dict[str, Any] = {
         "candidates_from_sources": 0,

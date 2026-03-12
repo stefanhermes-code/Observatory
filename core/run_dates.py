@@ -1,7 +1,12 @@
 """
 V2: Single source of truth for run date range.
 Uses application date (datetime.utcnow()) only — never the LLM's date.
-Cadence determines lookback window; all evidence and report filtering use this.
+
+Canonical input for date-window logic: report_period_days (int).
+The only low-level function that turns "how many days" into (lookback_date, reference_date)
+is get_lookback_from_days(report_period_days, reference_date). All runtime date filtering
+must be driven by that; callers resolve report_period_days from spec (and optional builder
+override) and pass it explicitly.
 """
 
 from datetime import datetime, timedelta
@@ -9,7 +14,12 @@ from typing import Optional, Tuple
 
 
 def get_lookback_days(cadence: str) -> int:
-    """Return lookback days for cadence. daily=2, weekly=7, monthly=30."""
+    """
+    Return lookback days for a cadence. daily=2, weekly=7, monthly=30.
+    Use only when resolving report_period_days for legacy specs that have no
+    report_period_days set (migration fallback). Do not use for date-window
+    filtering; use get_lookback_from_days(report_period_days, ref_date) instead.
+    """
     c = (cadence or "monthly").strip().lower()
     if c == "daily":
         return 2
@@ -23,8 +33,10 @@ def get_lookback_from_cadence(
     reference_date: Optional[datetime] = None,
 ) -> Tuple[datetime, datetime]:
     """
-    Return (lookback_date, reference_date) for the run.
-    reference_date defaults to datetime.utcnow() so the app, not the model, defines "today".
+    DEPRECATED for live path. Return (lookback_date, reference_date) from cadence.
+    Use only for migration/backward compatibility when report_period_days is not yet
+    persisted. In live path callers must pass report_period_days and use
+    get_lookback_from_days(report_period_days, reference_date) only.
     """
     ref = reference_date if reference_date is not None else datetime.utcnow()
     days = get_lookback_days(cadence)
@@ -33,14 +45,17 @@ def get_lookback_from_cadence(
 
 
 def get_lookback_from_days(
-    lookback_days: int,
+    report_period_days: int,
     reference_date: Optional[datetime] = None,
 ) -> Tuple[datetime, datetime]:
     """
-    Return (lookback_date, reference_date) when lookback is given in days (e.g. builder override: 1, 7, 30).
+    Sole canonical date-window function. Accepts only report_period_days (int).
+    Returns (lookback_date, reference_date). reference_date defaults to
+    datetime.utcnow(). All runtime date filtering must use this with
+    report_period_days passed explicitly from the caller.
     """
     ref = reference_date if reference_date is not None else datetime.utcnow()
-    days = max(1, min(365, int(lookback_days)))
+    days = max(1, min(365, int(report_period_days)))
     lookback = ref - timedelta(days=days)
     return lookback, ref
 

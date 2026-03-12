@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from core.run_dates import get_lookback_from_cadence, get_lookback_from_days
+from core.run_dates import get_lookback_from_days, get_lookback_days
 from core.generator_db import (
     get_specification_detail,
     check_frequency_enforcement,
@@ -85,6 +85,58 @@ def _render_html_from_content(*args, **kwargs):
     return render_html_from_content(*args, **kwargs)
 
 
+def _persist_run_audit_on_failure(
+    run_id: str,
+    spec_id: str,
+    workspace_id: str,
+    user_email: str,
+    run_specification: Dict,
+    error_message: str,
+    lookback_days_override: Optional[int] = None,
+    use_phase5_report: bool = False,
+    evidence_summary: Optional[Dict] = None,
+    candidates_count: int = 0,
+    candidates_after_customer_filter: int = 0,
+    customer_filter_drop_counts: Optional[Dict] = None,
+    run_audit_metrics: Optional[Dict] = None,
+) -> None:
+    """Build partial run audit and persist to audit_log + run metadata so every run has an audit."""
+    try:
+        from core.run_audit import build_run_audit, persist_run_audit
+        use_phase5 = use_phase5_report or bool(_flag_from_secrets_or_env("USE_PHASE5_REPORT") or run_specification.get("use_phase5_report") is True)
+        base_days = run_specification.get("report_period_days")
+        if isinstance(base_days, int) and base_days > 0:
+            default_days = base_days
+        else:
+            default_days = get_lookback_days(run_specification.get("frequency", "monthly"))
+        report_period_days = lookback_days_override if lookback_days_override is not None else default_days
+        audit = build_run_audit(
+            run_id=run_id,
+            spec_id=spec_id,
+            spec=run_specification,
+            report_period_days=report_period_days,
+            use_phase5_report=use_phase5,
+            evidence_summary=evidence_summary,
+            candidates_count=candidates_count,
+            candidates_after_customer_filter=candidates_after_customer_filter,
+            report_metrics=run_audit_metrics or {},
+            customer_filter_drop_counts=customer_filter_drop_counts or {},
+            workspace_id=workspace_id,
+        )
+        audit["status"] = "failed"
+        audit["error_message"] = error_message[:500] if error_message else None
+        persist_run_audit(run_id, user_email or "generator", audit)
+        update_run_status(
+            run_id,
+            "failed",
+            error_message=error_message,
+            metadata={"run_audit": audit},
+            report_period_days=report_period_days,
+        )
+    except Exception:
+        update_run_status(run_id, "failed", error_message=error_message)
+
+
 def execute_generator(
     spec_id: str,
     workspace_id: str,
@@ -137,7 +189,13 @@ def execute_generator(
         run_specification["regions"] = regions_override
     if value_chain_links_override is not None:
         run_specification["value_chain_links"] = value_chain_links_override
-    
+
+    # Canonical report period: set once so all phases use only report_period_days for date window.
+    base_days = run_specification.get("report_period_days")
+    default_days = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(run_specification.get("frequency", "monthly"))
+    report_period_days = lookback_days_override if lookback_days_override is not None else default_days
+    run_specification["report_period_days"] = report_period_days
+
     # Step 4: Create run record (run_id must exist before evidence ingestion — V2-DB-02)
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
@@ -165,7 +223,10 @@ def execute_generator(
             end_run("fail")
         except Exception:
             pass
-        update_run_status(run_id, "failed", error_message="Phase 8 forced failure: ingestion")
+        _persist_run_audit_on_failure(
+            run_id, spec_id, workspace_id, user_email, run_specification,
+            "Phase 8 forced failure: ingestion", lookback_days_override=lookback_days_override,
+        )
         return False, "Phase 8 forced failure: ingestion", None, None
     try:
         from core.evidence_engine import run_evidence_engine
@@ -177,7 +238,7 @@ def execute_generator(
             validate_urls=True,
             cadence_override=cadence_override,
             reference_date=ref_date,
-            lookback_days_override=lookback_days_override,
+            report_period_days=run_specification["report_period_days"],
         )
         try:
             end_stage("ingestion", "success")
@@ -193,10 +254,7 @@ def execute_generator(
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
 
     candidates = get_candidate_articles_for_run(run_id)
-    if lookback_days_override is not None:
-        lookback_date, reference_date = get_lookback_from_days(lookback_days_override, ref_date)
-    else:
-        lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
+    lookback_date, reference_date = get_lookback_from_days(run_specification["report_period_days"], ref_date)
 
     try:
         from core.performance_logger import start_stage, end_stage, log_error
@@ -205,10 +263,14 @@ def execute_generator(
         pass
     extraction_result = {"signals_created": 0, "occurrences_created": 0}
     signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
+    customer_filter_drop_counts: Dict = {}
     try:
+        from core.customer_filter import filter_candidates_by_spec_with_stats
+        filtered_candidates, customer_filter_drop_counts = filter_candidates_by_spec_with_stats(candidates, run_specification)
+    except Exception:
         from core.customer_filter import filter_candidates_by_spec
         filtered_candidates = filter_candidates_by_spec(candidates, run_specification)
-
+    try:
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
             run_id=run_id,
@@ -314,6 +376,7 @@ def execute_generator(
         _flag_from_secrets_or_env("USE_STRUCTURAL_PIPELINE")
         or run_specification.get("use_structural_pipeline") is True
     )
+    run_audit_metrics: Optional[Dict] = None
 
     if use_phase5_report:
         try:
@@ -329,6 +392,7 @@ def execute_generator(
                 write_metrics=False,
                 write_html=True,
             )
+            run_audit_metrics = report_result.get("run_audit_metrics")
             writer_output = {
                 "content": report_result.get("report_text", ""),
                 "coverage_low": False,
@@ -342,7 +406,14 @@ def execute_generator(
                 end_run("fail")
             except Exception:
                 pass
-            update_run_status(run_id, "failed", error_message=str(e))
+            _persist_run_audit_on_failure(
+                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
+                lookback_days_override=lookback_days_override, use_phase5_report=True,
+                evidence_summary=evidence_summary, candidates_count=len(candidates),
+                candidates_after_customer_filter=len(filtered_candidates),
+                customer_filter_drop_counts=customer_filter_drop_counts,
+                run_audit_metrics=run_audit_metrics,
+            )
             return False, f"Phase 5 report failed: {str(e)}", None, None
     elif use_structural_pipeline:
         try:
@@ -385,7 +456,13 @@ def execute_generator(
                 diag_path.write_text(json.dumps(diag_payload, indent=2, default=str), encoding="utf-8")
             except Exception:
                 pass
-            update_run_status(run_id, "failed", error_message=str(e))
+            _persist_run_audit_on_failure(
+                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
+                lookback_days_override=lookback_days_override,
+                evidence_summary=evidence_summary, candidates_count=len(candidates),
+                candidates_after_customer_filter=len(filtered_candidates),
+                customer_filter_drop_counts=customer_filter_drop_counts,
+            )
             return False, f"Structural pipeline failed: {str(e)}", None, None
     else:
         try:
@@ -404,7 +481,13 @@ def execute_generator(
                 end_run("fail")
             except Exception:
                 pass
-            update_run_status(run_id, "failed", error_message=str(e))
+            _persist_run_audit_on_failure(
+                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
+                lookback_days_override=lookback_days_override,
+                evidence_summary=evidence_summary, candidates_count=len(candidates),
+                candidates_after_customer_filter=len(filtered_candidates),
+                customer_filter_drop_counts=customer_filter_drop_counts,
+            )
             return False, f"Report generation failed: {str(e)}", None, None
 
     # Use writer content as report body (evidence-only; no Assistant)
@@ -483,6 +566,32 @@ def execute_generator(
     metadata_with_html["regeneration_flag"] = writer_output.get("regeneration_flag", False)
     if report_content:
         metadata_with_html["report_content"] = report_content
+    # Per-run audit: spec context, step counts, drop_reason_counts (counts only)
+    base_days = run_specification.get("report_period_days")
+    if isinstance(base_days, int) and base_days > 0:
+        default_days = base_days
+    else:
+        default_days = get_lookback_days(run_specification.get("frequency", "monthly"))
+    report_period_days = lookback_days_override if lookback_days_override is not None else default_days
+    try:
+        from core.run_audit import build_run_audit, persist_run_audit
+        run_audit = build_run_audit(
+            run_id=run_id,
+            spec_id=spec_id,
+            spec=run_specification,
+            report_period_days=report_period_days,
+            use_phase5_report=use_phase5_report,
+            evidence_summary=evidence_summary,
+            candidates_count=len(candidates),
+            candidates_after_customer_filter=len(filtered_candidates),
+            report_metrics=run_audit_metrics or {},
+            customer_filter_drop_counts=customer_filter_drop_counts,
+            workspace_id=workspace_id,
+        )
+        metadata_with_html["run_audit"] = run_audit
+        persist_run_audit(run_id, user_email or "generator", run_audit)
+    except Exception:
+        pass
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -497,9 +606,15 @@ def execute_generator(
     if links_count is None and isinstance(evidence_summary, dict):
         links_count = evidence_summary.get("inserted")
     update_run_status(
-        run_id, "success", artifact_path, metadata=metadata_with_html,
+        run_id,
+        "success",
+        artifact_path,
+        metadata=metadata_with_html,
         generation_duration_seconds=duration,
-        categories_count=categories_count, regions_count=regions_count, links_count=links_count,
+        categories_count=categories_count,
+        regions_count=regions_count,
+        links_count=links_count,
+        report_period_days=report_period_days,
     )
 
     try:
@@ -571,6 +686,11 @@ def run_phase_evidence(
     is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
     # Phase 1 protocol: allow 60 and 90 day lookback for builder (controlled live runs)
     lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30, 60, 90) else None)
+    # Canonical report period: set on run_spec so all phases use only report_period_days for date window
+    base_days = run_specification.get("report_period_days")
+    default_days = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(frequency)
+    report_period_days = lookback_days_override if lookback_days_override is not None else default_days
+    run_specification["report_period_days"] = report_period_days
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -581,7 +701,7 @@ def run_phase_evidence(
             validate_urls=True,
             cadence_override=cadence_override,
             reference_date=ref_date,
-            lookback_days_override=lookback_days_override,
+            report_period_days=run_specification["report_period_days"],
         )
     except Exception as ev_err:
         evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
@@ -609,10 +729,13 @@ def run_phase_extract_and_write(
     except Exception:
         pass
     ref_date = datetime.utcnow()
-    if lookback_override in (1, 7, 30, 60, 90):
-        lookback_date, reference_date = get_lookback_from_days(lookback_override, ref_date)
-    else:
-        lookback_date, reference_date = get_lookback_from_cadence(run_specification.get("frequency", "monthly"), ref_date)
+    # Date window from canonical report_period_days only (builder override applied when setting run_spec)
+    report_period_days = run_specification.get("report_period_days")
+    if not (report_period_days and isinstance(report_period_days, int) and report_period_days > 0):
+        report_period_days = get_lookback_days(run_specification.get("frequency", "monthly"))
+    if lookback_override is not None and lookback_override in (1, 7, 30, 60, 90):
+        report_period_days = lookback_override
+    lookback_date, reference_date = get_lookback_from_days(report_period_days, ref_date)
     try:
         from core.intelligence_extraction import run_intelligence_extraction
         extraction_result = run_intelligence_extraction(
@@ -660,15 +783,29 @@ def run_phase_extract_and_write(
     if use_phase5_report:
         from core.query_planner import build_query_plan_map
         from core.intelligence_report import generate_report_from_signals
+        from core.run_dates import get_lookback_days
 
         query_plan_map = build_query_plan_map(run_specification)
         signals = get_master_signals_for_run(run_id)
+
+        # Determine effective report period in days for this run (used for reporting period label).
+        base_days = (run_specification or {}).get("report_period_days")
+        if isinstance(base_days, int) and base_days > 0:
+            default_days = base_days
+        else:
+            default_days = get_lookback_days((run_specification or {}).get("frequency", "monthly"))
+        if lookback_override in (1, 7, 30, 60, 90, 120, 150, 180):
+            report_period_days = lookback_override
+        else:
+            report_period_days = default_days
+
         report_result = generate_report_from_signals(
             signals,
             query_plan_map,
             run_specification,
             write_metrics=False,
             write_html=True,
+            report_period_days=report_period_days,
         )
         writer_output = {
             "content": report_result.get("report_text", ""),
