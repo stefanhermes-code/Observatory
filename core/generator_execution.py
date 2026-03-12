@@ -573,8 +573,8 @@ def execute_generator(
     else:
         default_days = get_lookback_days(run_specification.get("frequency", "monthly"))
     report_period_days = lookback_days_override if lookback_days_override is not None else default_days
+    from core.run_audit import build_run_audit, persist_run_audit
     try:
-        from core.run_audit import build_run_audit, persist_run_audit
         run_audit = build_run_audit(
             run_id=run_id,
             spec_id=spec_id,
@@ -588,9 +588,21 @@ def execute_generator(
             customer_filter_drop_counts=customer_filter_drop_counts,
             workspace_id=workspace_id,
         )
-        metadata_with_html["run_audit"] = run_audit
+        run_audit["status"] = "success"
+    except Exception as e:
+        # Minimal fallback audit so every successful run still has an audit record
+        run_audit = {
+            "run_id": run_id,
+            "spec_id": spec_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "error_message": f"audit_build_failed: {str(e)[:300]}",
+        }
+    metadata_with_html["run_audit"] = run_audit
+    try:
         persist_run_audit(run_id, user_email or "generator", run_audit)
     except Exception:
+        # Do not block a successful run if audit_log insert fails; metadata still carries run_audit.
         pass
     duration = None
     if isinstance(evidence_summary, dict):
