@@ -35,6 +35,7 @@ from core.admin_db import (
     get_recent_runs,
     get_recent_runs_with_metadata,
     get_run_by_id,
+    get_run_audit_for_run_id,
     get_audit_logs,
     log_audit_action,
     get_all_sources,
@@ -2724,8 +2725,8 @@ elif page == "📚 Generation History":
         st.caption("This is usually a Supabase permission issue (e.g. RLS on newsletter_runs blocking SELECT). Generator, Admin and Configurator use the same secrets.")
     elif recent_runs:
         st.write(f"**Total Runs:** {len(recent_runs)}")
-        # When user clicks "Download HTML" we fetch that run's full row (with metadata) on next run
-        download_run_id = st.session_state.get("gen_history_download_run_id")
+        # When user clicks "Load details" we fetch that run's full row (with metadata) on next run
+        details_run_id = st.session_state.get("gen_history_details_run_id")
         
         for run in recent_runs:
             run_id = run.get("id")
@@ -2742,37 +2743,19 @@ elif page == "📚 Generation History":
                     st.write("**HTML File:**", run.get('artifact_path', 'N/A'))
                     
                     if run.get('artifact_path'):
-                        if download_run_id == run_id:
-                            full_run = get_run_by_id(run_id)
-                            if full_run and isinstance(full_run.get("metadata"), dict):
-                                metadata = full_run["metadata"]
-                                html_content = metadata.get("html_content")
-                                if html_content:
-                                    st.download_button(
-                                        "📥 Download HTML",
-                                        data=html_content,
-                                        file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
-                                        key=f"download_{run_id}"
-                                    )
-                                else:
-                                    st.warning("⚠️ HTML content not available for this run")
-                                tool_usage = metadata.get("tool_usage", {})
-                                if tool_usage:
-                                    st.markdown("---")
-                                    st.write("**🔍 Vector Store Usage:**")
-                                    if tool_usage.get("vector_store_used"):
-                                        st.success(f"✅ Used ({tool_usage.get('file_search_count', 0)} file_search call(s))")
-                                    else:
-                                        st.warning("⚠️ No file_search detected")
-                            else:
-                                st.warning("⚠️ Could not load run details")
-                        else:
-                            if st.button("📥 Download HTML", key=f"fetch_dl_{run_id}"):
-                                st.session_state["gen_history_download_run_id"] = run_id
+                        btn_cols = st.columns([1, 1])
+                        with btn_cols[0]:
+                            if st.button("🔎 Load details", key=f"load_details_{run_id}"):
+                                st.session_state["gen_history_details_run_id"] = run_id
                                 st.rerun()
+                        with btn_cols[1]:
+                            if details_run_id == run_id:
+                                if st.button("✖ Clear", key=f"clear_details_{run_id}"):
+                                    st.session_state["gen_history_details_run_id"] = None
+                                    st.rerun()
                 
                 with col3:
-                    if download_run_id == run_id:
+                    if details_run_id == run_id:
                         full_run = get_run_by_id(run_id)
                         if full_run and isinstance(full_run.get("metadata"), dict):
                             metadata = full_run["metadata"]
@@ -2788,8 +2771,20 @@ elif page == "📚 Generation History":
                                 ))
                             if metadata.get("thread_id"):
                                 st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
+                            # Download HTML (if present)
+                            html_content = metadata.get("html_content")
+                            if html_content:
+                                st.markdown("---")
+                                st.download_button(
+                                    "📥 Download HTML",
+                                    data=html_content,
+                                    file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
+                                    key=f"download_{run_id}"
+                                )
                             # Run Audit: read and download
                             run_audit = metadata.get("run_audit") if isinstance(metadata.get("run_audit"), dict) else None
+                            if not run_audit:
+                                run_audit = get_run_audit_for_run_id(run_id)
                             if run_audit:
                                 st.markdown("---")
                                 st.write("**📋 Run Audit**")
@@ -2804,9 +2799,11 @@ elif page == "📚 Generation History":
                                     key=f"dl_audit_{run_id}"
                                 )
                             else:
-                                st.caption("No run audit for this run (pre-audit deployment or run failed before audit).")
+                                st.caption("No run audit found for this run (neither in run metadata nor in audit_log).")
                     else:
-                        st.caption("Click «Download HTML» in the middle column to load timing and download.")
+                            st.caption("Could not load run details (metadata unavailable).")
+                    else:
+                        st.caption("Click «Load details» to view Run Audit, timing, and downloads.")
     elif not runs_err:
         st.info("No generation runs yet")
         st.caption("Run a report in the Generator app to see it here.")

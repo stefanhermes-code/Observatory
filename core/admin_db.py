@@ -442,6 +442,34 @@ def get_run_by_id(run_id: str) -> Optional[Dict]:
     return None
 
 
+def get_run_audit_for_run_id(run_id: str) -> Optional[Dict]:
+    """
+    Fetch the most recent per-run audit payload for a run_id from audit_log.
+    This is a fallback when newsletter_runs.metadata.run_audit is missing
+    (e.g. older runs before metadata persistence or runs where metadata was overwritten).
+    """
+    if not run_id:
+        return None
+    supabase = get_supabase_client()
+    try:
+        result = (
+            supabase.table("audit_log")
+            .select("details, created_at")
+            .eq("action_type", "run_audit")
+            .eq("target_id", run_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data and len(result.data) > 0:
+            row = result.data[0]
+            details = row.get("details")
+            return details if isinstance(details, dict) else None
+    except Exception:
+        pass
+    return None
+
+
 def get_audit_logs(limit: int = 50) -> List[Dict]:
     """Get audit log entries."""
     supabase = get_supabase_client()
