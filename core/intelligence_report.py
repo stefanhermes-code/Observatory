@@ -993,7 +993,22 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
 
     body_html = "\n".join(html_parts)
 
-    # Use styling similar to the existing HTC HTML template (Calibri, print-friendly)
+    # Extract "Run Scope" block (if present) into a dedicated summary/meta panel
+    report_meta_html = ""
+    scope_match = re.search(
+        r"(<h2>Run Scope</h2>\\s*<ul>.*?</ul>)",
+        body_html,
+        flags=re.DOTALL,
+    )
+    if scope_match:
+        scope_block = scope_match.group(1)
+        report_meta_html = f'<div class="report-meta">{scope_block}</div>'
+        body_html = body_html[: scope_match.start()] + body_html[scope_match.end() :]
+
+    # Remove the first <h1> from body_html (title now lives in the header block)
+    body_html = re.sub(r"<h1>.*?</h1>", "", body_html, count=1, flags=re.DOTALL)
+
+    # Use styling and layout similar to the HTC HTML template (Calibri, header with logo, summary block)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1014,6 +1029,36 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
             padding: 20px;
             color: #333;
             line-height: 1.6;
+        }}
+        .header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+        }}
+        .header-logo {{
+            max-width: 150px;
+            height: auto;
+        }}
+        .header-title {{
+            flex: 1;
+            text-align: center;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }}
+        .report-meta {{
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }}
+        .report-meta p {{
+            margin: 5px 0;
         }}
         h1 {{
             color: #333;
@@ -1069,6 +1114,14 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
     </style>
 </head>
 <body>
+    <div class="header">
+        <img src="PU Observatory logo V3.png" class="header-logo" alt="PU Observatory logo">
+        <div class="header-title">
+            <h1>{html.escape(title, quote=False)}</h1>
+        </div>
+        <div style="width: 120px;"></div>
+    </div>
+    {report_meta_html}
 {body_html}
 </body>
 </html>
