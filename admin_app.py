@@ -2800,7 +2800,7 @@ elif page == "📚 Generation History":
                                 )
                             else:
                                 st.caption("No run audit found for this run (neither in run metadata nor in audit_log).")
-                    else:
+                        else:
                             st.caption("Could not load run details (metadata unavailable).")
                     else:
                         st.caption("Click «Load details» to view Run Audit, timing, and downloads.")
