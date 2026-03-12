@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import html
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -878,29 +879,197 @@ def _signal_map_pie_svg(
 
 
 def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", signal_map_pie_html: Optional[str] = None) -> str:
-    """Minimal HTML wrapper for report content (no full Markdown parsing). If signal_map_pie_html is provided, injects it at the placeholder."""
-    escaped = md_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    body = escaped.replace("\n", "<br>\n")
-    if signal_map_pie_html:
-        placeholder_escaped = "&lt;!-- SIGNAL_MAP_PIE --&gt;"
-        body = body.replace(placeholder_escaped, signal_map_pie_html)
+    """
+    Render a constrained Markdown-like report into clean HTML suitable for external use.
+
+    Supported:
+    - Headings: #, ##, ###
+    - Horizontal rule: ---
+    - Bullet lists: - item
+    - Tables: GitHub-style pipe tables
+    - Inline bold/italic: **bold**, *italic*
+    - Signal map pie placeholder: <!-- SIGNAL_MAP_PIE --> replaced with provided HTML
+    """
+
+    lines = md_text.splitlines()
+    html_parts: List[str] = []
+    i = 0
+
+    def _escape(text: str) -> str:
+        return html.escape(text, quote=False)
+
+    def _inline(text: str) -> str:
+        # Escape HTML, then apply simple Markdown inline formatting
+        escaped = _escape(text)
+        escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+        escaped = re.sub(r"\*(.+?)\*", r"<em>\1</em>", escaped)
+        return escaped
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        # Skip empty lines early
+        if not stripped:
+            i += 1
+            continue
+
+        # Signal map pie placeholder: inject raw HTML
+        if stripped == "<!-- SIGNAL_MAP_PIE -->" and signal_map_pie_html:
+            html_parts.append(signal_map_pie_html)
+            i += 1
+            continue
+
+        # Headings (#, ##, ###)
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            level = max(1, min(level, 3))
+            text = stripped[level:].strip()
+            html_parts.append(f"<h{level}>{_inline(text)}</h{level}>")
+            i += 1
+            continue
+
+        # Horizontal rule
+        if stripped == "---":
+            html_parts.append("<hr>")
+            i += 1
+            continue
+
+        # Tables (pipe syntax with separator row)
+        if "|" in stripped and i + 1 < len(lines) and set(lines[i + 1].replace("|", "").strip()) <= set("-: "):
+            header_line = stripped
+            separator_line = lines[i + 1]
+            header_cells = [c.strip() for c in header_line.strip().strip("|").split("|")]
+            i += 2
+            rows: List[List[str]] = []
+            while i < len(lines) and "|" in lines[i]:
+                row_cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                rows.append(row_cells)
+                i += 1
+            table_html = ["<table>"]
+            table_html.append("<thead><tr>" + "".join(f"<th>{_inline(c)}</th>" for c in header_cells) + "</tr></thead>")
+            if rows:
+                table_html.append("<tbody>")
+                for row in rows:
+                    # Pad row to header length
+                    padded = row + [""] * (len(header_cells) - len(row))
+                    table_html.append("<tr>" + "".join(f"<td>{_inline(c)}</td>" for c in padded[:len(header_cells)]) + "</tr>")
+                table_html.append("</tbody>")
+            table_html.append("</table>")
+            html_parts.append("\n".join(table_html))
+            continue
+
+        # Bullet list (- item)
+        if stripped.lstrip().startswith("- "):
+            list_items: List[str] = []
+            while i < len(lines) and lines[i].strip().lstrip().startswith("- "):
+                item_text = lines[i].strip().lstrip()[2:].strip()
+                list_items.append(f"<li>{_inline(item_text)}</li>")
+                i += 1
+            html_parts.append("<ul>")
+            html_parts.extend(list_items)
+            html_parts.append("</ul>")
+            continue
+
+        # Paragraph: collect consecutive text lines
+        para_lines: List[str] = []
+        while i < len(lines):
+            current = lines[i]
+            curr_stripped = current.strip()
+            if not curr_stripped:
+                i += 1
+                break
+            if curr_stripped.startswith("#") or curr_stripped == "---":
+                break
+            if "|" in curr_stripped and i + 1 < len(lines) and set(lines[i + 1].replace("|", "").strip()) <= set("-: "):
+                break
+            if curr_stripped.lstrip().startswith("- "):
+                break
+            para_lines.append(curr_stripped)
+            i += 1
+        if para_lines:
+            paragraph = " ".join(para_lines)
+            html_parts.append(f"<p>{_inline(paragraph)}</p>")
+
+    body_html = "\n".join(html_parts)
+
+    # Use styling similar to the existing HTC HTML template (Calibri, print-friendly)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>{title}</title>
-<style>
-body {{ font-family: system-ui, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }}
-h1 {{ font-size: 1.5em; border-bottom: 1px solid #ccc; }}
-h2 {{ font-size: 1.2em; }}
-h3 {{ font-size: 1.05em; }}
-table {{ border-collapse: collapse; }}
-th, td {{ border: 1px solid #ccc; padding: 0.3em 0.6em; text-align: left; }}
-.signal-map-pie {{ margin: 1em 0; }}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{html.escape(title, quote=False)}</title>
+    <style>
+        @media print {{
+            .no-print {{ display: none !important; }}
+            body {{ margin: 0; padding: 20px; }}
+            @page {{ margin: 1cm; }}
+        }}
+        body {{
+            font-family: Calibri, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 10pt;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }}
+        h1 {{
+            color: #333;
+            padding-bottom: 10px;
+            margin-top: 30px;
+            font-size: 20px;
+            border-bottom: 1px solid #ddd;
+        }}
+        h2 {{
+            color: #333;
+            margin-top: 30px;
+            font-size: 18px;
+            font-weight: bold;
+        }}
+        h3 {{
+            color: #555;
+            margin-top: 20px;
+            font-size: 16px;
+        }}
+        p {{
+            margin: 10px 0;
+        }}
+        ul {{
+            margin: 10px 0 10px 25px;
+        }}
+        li {{
+            margin-bottom: 4px;
+        }}
+        table {{
+            border-collapse: collapse;
+            margin: 15px 0;
+            width: 100%;
+        }}
+        th, td {{
+            border: 1px solid #ccc;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 9pt;
+        }}
+        th {{
+            background-color: #f5f5f5;
+        }}
+        .signal-map-pie {{
+            margin: 1em 0;
+        }}
+        a {{
+            color: #1f77b4;
+            text-decoration: none;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
 </head>
 <body>
-<pre style="white-space: pre-wrap;">{body}</pre>
+{body_html}
 </body>
 </html>
 """
