@@ -2717,7 +2717,7 @@ elif page == "📚 Generation History":
     
     st.markdown("---")
     
-    # Get recent runs (list only, no metadata — avoids timeout)
+    # Get recent runs (list only). For each expanded run we fetch full metadata on demand.
     recent_runs, runs_err = get_recent_runs(RECENT_RUNS_LIMIT)
     
     if runs_err:
@@ -2725,9 +2725,7 @@ elif page == "📚 Generation History":
         st.caption("This is usually a Supabase permission issue (e.g. RLS on newsletter_runs blocking SELECT). Generator, Admin and Configurator use the same secrets.")
     elif recent_runs:
         st.write(f"**Total Runs:** {len(recent_runs)}")
-        # When user clicks "Load details" we fetch that run's full row (with metadata) on next run
-        details_run_id = st.session_state.get("gen_history_details_run_id")
-        
+
         for run in recent_runs:
             run_id = run.get("id")
             with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {format_ts_local(run.get('created_at') or '')}"):
@@ -2741,69 +2739,40 @@ elif page == "📚 Generation History":
                 with col2:
                     st.write("**Run ID:**", run_id)
                     st.write("**HTML File:**", run.get('artifact_path', 'N/A'))
-                    
-                    if run.get('artifact_path'):
-                        btn_cols = st.columns([1, 1])
-                        with btn_cols[0]:
-                            if st.button("🔎 Load details", key=f"load_details_{run_id}"):
-                                st.session_state["gen_history_details_run_id"] = run_id
-                                st.rerun()
-                        with btn_cols[1]:
-                            if details_run_id == run_id:
-                                if st.button("✖ Clear", key=f"clear_details_{run_id}"):
-                                    st.session_state["gen_history_details_run_id"] = None
-                                    st.rerun()
                 
                 with col3:
-                    if details_run_id == run_id:
-                        full_run = get_run_by_id(run_id)
-                        if full_run and isinstance(full_run.get("metadata"), dict):
-                            metadata = full_run["metadata"]
-                            st.write("**Model:**", metadata.get("model", "N/A"))
-                            st.write("**Tokens Used:**", metadata.get("tokens_used", "N/A"))
-                            ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
-                            timing = ev.get("timing_seconds") or {}
-                            if timing:
-                                st.markdown("---")
-                                st.caption("**Timing (s):** ingestion {:.0f} · web search {:.0f} · validate/dedupe {:.0f} · persist {:.0f} · total {:.0f}".format(
-                                    timing.get("source_ingestion", 0), timing.get("web_search", 0),
-                                    timing.get("validate_dedupe", 0), timing.get("persist", 0), timing.get("total", 0),
-                                ))
-                            if metadata.get("thread_id"):
-                                st.write("**Thread ID:**", metadata.get("thread_id")[:20] + "...")
-                            # Download HTML (if present)
-                            html_content = metadata.get("html_content")
-                            if html_content:
-                                st.markdown("---")
-                                st.download_button(
-                                    "📥 Download HTML",
-                                    data=html_content,
-                                    file_name=f"{run.get('newsletter_name', 'intelligence')}_{run.get('created_at', '')[:10]}.html",
-                                    key=f"download_{run_id}"
-                                )
-                            # Run Audit: read and download
-                            run_audit = metadata.get("run_audit") if isinstance(metadata.get("run_audit"), dict) else None
-                            if not run_audit:
-                                run_audit = get_run_audit_for_run_id(run_id)
-                            if run_audit:
-                                st.markdown("---")
-                                st.write("**📋 Run Audit**")
-                                with st.expander("View run audit (counts & drop reasons)", expanded=False):
-                                    st.json(run_audit)
-                                audit_json = json.dumps(run_audit, indent=2, default=str)
-                                st.download_button(
-                                    "📥 Download Run Audit (JSON)",
-                                    data=audit_json,
-                                    file_name=f"run_audit_{run_id[:8]}_{run.get('created_at', '')[:10]}.json",
-                                    mime="application/json",
-                                    key=f"dl_audit_{run_id}"
-                                )
-                            else:
-                                st.caption("No run audit found for this run (neither in run metadata nor in audit_log).")
+                    # Fetch full run metadata once when you open the expander
+                    full_run = get_run_by_id(run_id)
+                    metadata = full_run.get("metadata") if (full_run and isinstance(full_run.get("metadata"), dict)) else {}
+                    if metadata:
+                        # Timing / model (optional context)
+                        ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
+                        timing = ev.get("timing_seconds") or {}
+                        if timing:
+                            st.caption("**Timing (s):** ingestion {:.0f} · web search {:.0f} · validate/dedupe {:.0f} · persist {:.0f} · total {:.0f}".format(
+                                timing.get("source_ingestion", 0), timing.get("web_search", 0),
+                                timing.get("validate_dedupe", 0), timing.get("persist", 0), timing.get("total", 0),
+                            ))
+                        # Run Audit: prefer metadata.run_audit, fall back to audit_log
+                        run_audit = metadata.get("run_audit") if isinstance(metadata.get("run_audit"), dict) else None
+                        if not run_audit:
+                            run_audit = get_run_audit_for_run_id(run_id)
+                        if run_audit:
+                            st.markdown("---")
+                            # Single simple action: download audit report as HTML
+                            audit_html = f"""<html><head><meta charset='utf-8'><title>Run Audit {run_id[:8]}</title></head>
+<body><h2>Run Audit</h2><pre>{json.dumps(run_audit, indent=2, default=str)}</pre></body></html>"""
+                            st.download_button(
+                                "📥 Download Audit Report (HTML)",
+                                data=audit_html,
+                                file_name=f"run_audit_{run_id[:8]}_{(run.get('created_at') or '')[:10]}.html",
+                                mime="text/html",
+                                key=f"dl_audit_{run_id}"
+                            )
                         else:
-                            st.caption("Could not load run details (metadata unavailable).")
+                            st.caption("No run audit found for this run (neither in run metadata nor in audit_log).")
                     else:
-                        st.caption("Click «Load details» to view Run Audit, timing, and downloads.")
+                        st.caption("Could not load run details (metadata unavailable).")
     elif not runs_err:
         st.info("No generation runs yet")
         st.caption("Run a report in the Generator app to see it here.")
