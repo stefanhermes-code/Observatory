@@ -422,6 +422,7 @@ def generate_report_from_signals(
     write_metrics: bool = False,
     write_html: bool = True,
     report_period_days: Optional[int] = None,
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate Phase 5 report from in-memory master signals and query plan map (live path).
@@ -544,6 +545,7 @@ def generate_report_from_signals(
             title=title,
             signal_map_pie_html=pie_html if pie_html else None,
             deploy_version=_deploy,
+            run_id=run_id,
         )
     if write_metrics:
         out["metrics"] = build_report_metrics(len(filtered), developments)
@@ -962,6 +964,7 @@ def markdown_to_simple_html(
     title: str = "Intelligence Report",
     signal_map_pie_html: Optional[str] = None,
     deploy_version: Optional[str] = None,
+    run_id: Optional[str] = None,
 ) -> str:
     """
     Render a constrained Markdown-like report into clean HTML suitable for external use.
@@ -974,6 +977,7 @@ def markdown_to_simple_html(
     - Inline bold/italic: **bold**, *italic*
     - Signal map pie placeholder: <!-- SIGNAL_MAP_PIE --> replaced with provided HTML
     - deploy_version: if set, shown in the report header for traceability.
+    - run_id: if set, shown in the report header so Admin History can be matched to the HTML file.
     """
 
     lines = md_text.splitlines()
@@ -1210,6 +1214,7 @@ def markdown_to_simple_html(
         <div class="header-title">
             <h1>{html.escape(title, quote=False)}</h1>
             {f'<p class="header-deploy">Deploy: {html.escape(deploy_version, quote=False)}</p>' if deploy_version else ''}
+            {f'<p class="header-deploy">Run ID: {html.escape(run_id, quote=False)}</p>' if run_id else ''}
         </div>
         <div style="width: 120px;"></div>
     </div>
