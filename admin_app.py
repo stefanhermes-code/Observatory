@@ -2739,7 +2739,10 @@ elif page == "📚 Generation History":
                 
                 with col1:
                     st.write("**Intelligence Source:**", run.get('newsletter_name'))
-                    st.write("**Status:**", run.get('status', 'unknown'))
+                    run_status = run.get('status', 'unknown')
+                    st.write("**Status:**", run_status)
+                    if run_status == "failed_finalization":
+                        st.error("AUDIT MISSING – RUN FINALIZATION FAILED")
                     st.write("**Created:**", format_ts_local(run.get('created_at') or ''))
                 
                 with col2:
@@ -2776,7 +2779,8 @@ elif page == "📚 Generation History":
                                 key=f"dl_audit_{run_id}"
                             )
                         else:
-                            st.caption("No run audit found for this run (neither in run metadata nor in audit_log).")
+                            st.error("AUDIT MISSING – RUN FINALIZATION FAILED")
+                            st.caption("No run audit in metadata or audit_log. Run bundle was not completed.")
                     else:
                         st.caption("Could not load run details (metadata unavailable).")
     elif not runs_err:

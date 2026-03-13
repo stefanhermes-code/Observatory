@@ -41,6 +41,36 @@ def _int(v: Any) -> int:
         return 0
 
 
+def create_empty_run_audit(report_period_days: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Initialize run_audit at run start (Run Bundle Architecture).
+    Every run has this object; the pipeline updates steps and drop_reason_counts during execution.
+    """
+    return {
+        "steps": {
+            "stage_1_master_signals_loaded": 0,
+            "stage_2_after_date_filter": 0,
+            "stage_3_after_customer_scope_filter": 0,
+            "stage_4_after_section_mapping": 0,
+            "stage_5_clusters_formed": 0,
+            "stage_6_developments_extracted": 0,
+            "stage_7_after_strength_threshold": 0,
+            "stage_8_developments_written_to_report": 0,
+            "master_signals_loaded_count": 0,
+            "query_plan_candidates_count": 0,
+            "candidates_after_date_filter_count": 0,
+            "candidates_after_customer_filter_count": 0,
+            "candidates_after_section_filter_count": 0,
+            "grouped_clusters_count": 0,
+            "extracted_developments_count": 0,
+            "developments_after_strength_threshold_count": 0,
+            "developments_written_to_report_count": 0,
+        },
+        "drop_reason_counts": {},
+        "report_period_days": report_period_days,
+    }
+
+
 def build_run_audit(
     run_id: str,
     spec_id: str,

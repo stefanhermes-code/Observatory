@@ -1,6 +1,10 @@
 """
 Canonical Generator Execution Pattern.
-Implements the 7-step execution flow as defined in the Generator Execution Pattern document.
+Implements the 7-step execution flow and Run Bundle Architecture:
+- execute_generator() is the single run controller: the only place that creates and finalizes runs.
+- Every run produces a run bundle (run_id, status, spec_id, report_period_days, html_output_path, timing, run_audit, error_message).
+- Audit is initialized at run start and updated during the pipeline; finalize_run() persists it in try/finally so audit is never skipped.
+- A run is only marked success if run_audit and html_output_path exist; otherwise status is failed_finalization.
 """
 
 from typing import Dict, Optional, Tuple, List
@@ -22,6 +26,11 @@ from core.token_tracking import compute_cost_for_usage
 
 # Builder-only: can set lookback to 1/7/30 days and run without frequency limit
 BUILDER_EMAIL = "stefan.hermes@htcglobal.asia"
+
+
+class RunFailedError(Exception):
+    """Raised when the pipeline fails after a run record exists; finally will call finalize_run."""
+    pass
 
 
 def _flag_from_secrets_or_env(name: str) -> bool:
@@ -100,7 +109,7 @@ def _persist_run_audit_on_failure(
     customer_filter_drop_counts: Optional[Dict] = None,
     run_audit_metrics: Optional[Dict] = None,
 ) -> None:
-    """Build partial run audit and persist to audit_log + run metadata so every run has an audit."""
+    """Build partial run audit and persist to audit_log + run metadata. Used only from phased runs / legacy paths."""
     try:
         from core.run_audit import build_run_audit, persist_run_audit
         use_phase5 = use_phase5_report or bool(_flag_from_secrets_or_env("USE_PHASE5_REPORT") or run_specification.get("use_phase5_report") is True)
@@ -135,6 +144,62 @@ def _persist_run_audit_on_failure(
         )
     except Exception:
         update_run_status(run_id, "failed", error_message=error_message)
+
+
+def finalize_run(
+    run_id: str,
+    user_email: str,
+    run_bundle: Dict,
+    metadata: Optional[Dict] = None,
+    report_period_days: Optional[int] = None,
+    generation_duration_seconds: Optional[float] = None,
+    categories_count: Optional[int] = None,
+    regions_count: Optional[int] = None,
+    links_count: Optional[int] = None,
+) -> None:
+    """
+    Run Bundle Architecture: the only place that persists run completion.
+    Persists run_audit to newsletter_runs.metadata.run_audit, writes to audit_log,
+    persists html_output_path and timing, sets final status.
+    A run may only be marked "success" if run_audit, html_output_path, and timing exist;
+    otherwise status becomes "failed_finalization".
+    """
+    from core.run_audit import persist_run_audit
+
+    status = run_bundle.get("status", "failed")
+    run_audit = run_bundle.get("run_audit") if isinstance(run_bundle.get("run_audit"), dict) else None
+    html_output_path = run_bundle.get("html_output_path")
+    timing = run_bundle.get("timing")
+
+    # Valid state rule: never success without audit and output path (CharlieC Run Bundle)
+    if status == "success" and (not run_audit or not html_output_path):
+        status = "failed_finalization"
+
+    if metadata is None:
+        metadata = {}
+    if run_audit is not None:
+        metadata["run_audit"] = run_audit
+        run_audit["status"] = status
+        if run_bundle.get("error_message"):
+            run_audit["error_message"] = (run_bundle["error_message"] or "")[:500]
+        try:
+            persist_run_audit(run_id, user_email or "generator", run_audit)
+        except Exception:
+            pass
+
+    rp_days = report_period_days if report_period_days is not None else run_bundle.get("report_period_days")
+    update_run_status(
+        run_id,
+        status,
+        artifact_path=html_output_path,
+        error_message=run_bundle.get("error_message"),
+        metadata=metadata if metadata else None,
+        generation_duration_seconds=generation_duration_seconds,
+        categories_count=categories_count,
+        regions_count=regions_count,
+        links_count=links_count,
+        report_period_days=rp_days,
+    )
 
 
 def execute_generator(
@@ -197,37 +262,62 @@ def execute_generator(
     run_specification["report_period_days"] = report_period_days
 
     # Step 4: Create run record (run_id must exist before evidence ingestion — V2-DB-02)
+    # Run Bundle Architecture: only place that creates and finalizes runs.
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
 
-    try:
-        from core.performance_logger import start_run, end_run, start_stage, end_stage, log_error
-        start_run(run_id)
-    except Exception:
-        pass
+    from core.run_audit import create_empty_run_audit
+    run_audit_init = create_empty_run_audit(report_period_days)
+    run_audit_init["run_id"] = run_id
+    run_audit_init["spec_id"] = spec_id
+    run_bundle = {
+        "run_id": run_id,
+        "status": "running",
+        "spec_id": spec_id,
+        "report_period_days": report_period_days,
+        "html_output_path": None,
+        "timing": None,
+        "run_audit": run_audit_init,
+        "error_message": None,
+    }
+    metadata_with_html = None
+    result_data = None
+    artifact_path_out = None
+    duration = None
+    categories_count = None
+    regions_count = None
+    links_count = None
 
-    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
-    ref_date = datetime.utcnow()
-    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
     try:
-        from core.performance_logger import start_stage, end_stage, log_error
-        start_stage("ingestion")
-    except Exception:
-        pass
-    if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
         try:
-            from core.performance_logger import end_stage, log_error, end_run
-            end_stage("ingestion", "fail", error_type="Phase8Validation", error_message="Phase 8 forced failure: ingestion")
-            log_error("ingestion", "Phase 8 forced failure: ingestion")
-            end_run("fail")
+            from core.performance_logger import start_run, end_run, start_stage, end_stage, log_error
+            start_run(run_id)
         except Exception:
             pass
-        _persist_run_audit_on_failure(
-            run_id, spec_id, workspace_id, user_email, run_specification,
-            "Phase 8 forced failure: ingestion", lookback_days_override=lookback_days_override,
-        )
-        return False, "Phase 8 forced failure: ingestion", None, None
+
+        # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
+        ref_date = datetime.utcnow()
+        is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
+        lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
+        try:
+            from core.performance_logger import start_stage, end_stage, log_error
+            start_stage("ingestion")
+        except Exception:
+            pass
+        if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
+            try:
+                from core.performance_logger import end_stage, log_error, end_run
+                end_stage("ingestion", "fail", error_type="Phase8Validation", error_message="Phase 8 forced failure: ingestion")
+                log_error("ingestion", "Phase 8 forced failure: ingestion")
+                end_run("fail")
+            except Exception:
+                pass
+            run_bundle["status"] = "failed"
+            run_bundle["error_message"] = "Phase 8 forced failure: ingestion"
+            if isinstance(run_bundle.get("run_audit"), dict):
+                run_bundle["run_audit"]["status"] = "failed"
+                run_bundle["run_audit"]["error_message"] = "Phase 8 forced failure: ingestion"
+            raise RunFailedError("Phase 8 forced failure: ingestion")
     try:
         from core.evidence_engine import run_evidence_engine
         evidence_summary = run_evidence_engine(
@@ -406,15 +496,12 @@ def execute_generator(
                 end_run("fail")
             except Exception:
                 pass
-            _persist_run_audit_on_failure(
-                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
-                lookback_days_override=lookback_days_override, use_phase5_report=True,
-                evidence_summary=evidence_summary, candidates_count=len(candidates),
-                candidates_after_customer_filter=len(filtered_candidates),
-                customer_filter_drop_counts=customer_filter_drop_counts,
-                run_audit_metrics=run_audit_metrics,
-            )
-            return False, f"Phase 5 report failed: {str(e)}", None, None
+            run_bundle["status"] = "failed"
+            run_bundle["error_message"] = f"Phase 5 report failed: {str(e)}"
+            if isinstance(run_bundle.get("run_audit"), dict):
+                run_bundle["run_audit"]["status"] = "failed"
+                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
+            raise RunFailedError(f"Phase 5 report failed: {str(e)}")
     elif use_structural_pipeline:
         try:
             from core.structural_pipeline import run_structural_pipeline
@@ -456,14 +543,12 @@ def execute_generator(
                 diag_path.write_text(json.dumps(diag_payload, indent=2, default=str), encoding="utf-8")
             except Exception:
                 pass
-            _persist_run_audit_on_failure(
-                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
-                lookback_days_override=lookback_days_override,
-                evidence_summary=evidence_summary, candidates_count=len(candidates),
-                candidates_after_customer_filter=len(filtered_candidates),
-                customer_filter_drop_counts=customer_filter_drop_counts,
-            )
-            return False, f"Structural pipeline failed: {str(e)}", None, None
+            run_bundle["status"] = "failed"
+            run_bundle["error_message"] = f"Structural pipeline failed: {str(e)}"
+            if isinstance(run_bundle.get("run_audit"), dict):
+                run_bundle["run_audit"]["status"] = "failed"
+                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
+            raise RunFailedError(f"Structural pipeline failed: {str(e)}")
     else:
         try:
             from core.intelligence_writer import write_report_from_evidence
@@ -481,14 +566,12 @@ def execute_generator(
                 end_run("fail")
             except Exception:
                 pass
-            _persist_run_audit_on_failure(
-                run_id, spec_id, workspace_id, user_email, run_specification, str(e),
-                lookback_days_override=lookback_days_override,
-                evidence_summary=evidence_summary, candidates_count=len(candidates),
-                candidates_after_customer_filter=len(filtered_candidates),
-                customer_filter_drop_counts=customer_filter_drop_counts,
-            )
-            return False, f"Report generation failed: {str(e)}", None, None
+            run_bundle["status"] = "failed"
+            run_bundle["error_message"] = f"Report generation failed: {str(e)}"
+            if isinstance(run_bundle.get("run_audit"), dict):
+                run_bundle["run_audit"]["status"] = "failed"
+                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
+            raise RunFailedError(f"Report generation failed: {str(e)}")
 
     # Use writer content as report body (evidence-only; no Assistant)
     report_content = writer_output["content"]
@@ -599,11 +682,6 @@ def execute_generator(
             "error_message": f"audit_build_failed: {str(e)[:300]}",
         }
     metadata_with_html["run_audit"] = run_audit
-    try:
-        persist_run_audit(run_id, user_email or "generator", run_audit)
-    except Exception:
-        # Do not block a successful run if audit_log insert fails; metadata still carries run_audit.
-        pass
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -617,17 +695,20 @@ def execute_generator(
     links_count = (diagnostics or {}).get("items_included") if isinstance(diagnostics, dict) else None
     if links_count is None and isinstance(evidence_summary, dict):
         links_count = evidence_summary.get("inserted")
-    update_run_status(
-        run_id,
-        "success",
-        artifact_path,
-        metadata=metadata_with_html,
-        generation_duration_seconds=duration,
-        categories_count=categories_count,
-        regions_count=regions_count,
-        links_count=links_count,
-        report_period_days=report_period_days,
-    )
+
+    # Run bundle: success path — finalize_run (in finally) will persist
+    run_bundle["status"] = "success"
+    run_bundle["html_output_path"] = artifact_path
+    run_bundle["timing"] = evidence_summary.get("timing_seconds") if isinstance(evidence_summary, dict) else None
+    run_bundle["run_audit"] = run_audit
+    result_data = {
+        "run_id": run_id,
+        "html_content": html_content,
+        "report_content": report_content,
+        "metadata": metadata_with_html,
+        "artifact_path": artifact_path
+    }
+    artifact_path_out = artifact_path
 
     try:
         from core.performance_logger import end_run
@@ -650,15 +731,30 @@ def execute_generator(
     except Exception:
         pass
 
-    result_data = {
-        "run_id": run_id,
-        "html_content": html_content,
-        "report_content": report_content,
-        "metadata": metadata_with_html,
-        "artifact_path": artifact_path
-    }
+    except RunFailedError:
+        pass
+    except Exception as e:
+        run_bundle["status"] = "failed"
+        run_bundle["error_message"] = str(e)
+        if isinstance(run_bundle.get("run_audit"), dict):
+            run_bundle["run_audit"]["status"] = "failed"
+            run_bundle["run_audit"]["error_message"] = (str(e))[:500]
+    finally:
+        finalize_run(
+            run_id,
+            user_email,
+            run_bundle,
+            metadata=metadata_with_html,
+            report_period_days=report_period_days,
+            generation_duration_seconds=duration,
+            categories_count=categories_count,
+            regions_count=regions_count,
+            links_count=links_count,
+        )
 
-    return True, None, result_data, artifact_path
+    if run_bundle.get("status") == "success":
+        return True, None, result_data, artifact_path_out
+    return False, run_bundle.get("error_message") or "Run failed", None, None
 
 
 # --- Phased execution for UI progress feedback (each phase can be run, then UI updates, then next phase) ---
