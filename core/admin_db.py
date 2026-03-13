@@ -450,28 +450,49 @@ def get_run_by_id(run_id: str) -> Optional[Dict]:
     if not run_id:
         return None
     supabase = get_supabase_client()
+    import logging
+
+    # First, fetch the run row itself. If this fails, we truly cannot proceed.
     try:
-        result = supabase.table("newsletter_runs")\
-            .select("*")\
-            .eq("id", run_id)\
-            .limit(1)\
+        result = (
+            supabase.table("newsletter_runs")
+            .select("*")
+            .eq("id", run_id)
+            .limit(1)
             .execute()
-        if result.data and len(result.data) > 0:
-            run = result.data[0]
-            if run.get("specification_id"):
-                spec = supabase.table("newsletter_specifications")\
-                    .select("newsletter_name")\
-                    .eq("id", run["specification_id"])\
-                    .limit(1)\
-                    .execute()
-                if spec.data and len(spec.data) > 0:
-                    run["newsletter_name"] = spec.data[0].get("newsletter_name", "Unknown")
-            else:
-                run["newsletter_name"] = "Unknown"
-            return run
-    except Exception:
-        pass
-    return None
+        )
+    except Exception as e:
+        logging.warning("get_run_by_id(%s) failed fetching run: %s", run_id, e)
+        return None
+
+    if not result.data:
+        return None
+
+    run = result.data[0]
+
+    # Ensure we always have some newsletter_name, even if the spec lookup fails.
+    if not run.get("newsletter_name"):
+        run["newsletter_name"] = "Unknown"
+
+    spec_id = run.get("specification_id")
+    if spec_id:
+        try:
+            spec = (
+                supabase.table("newsletter_specifications")
+                .select("newsletter_name")
+                .eq("id", spec_id)
+                .limit(1)
+                .execute()
+            )
+            if spec.data and len(spec.data) > 0:
+                run["newsletter_name"] = spec.data[0].get("newsletter_name", "Unknown")
+        except Exception as e:
+            # Spec lookup is best-effort only; never hide a valid run/metadata because this failed.
+            logging.warning(
+                "get_run_by_id(%s) failed fetching spec %s: %s", run_id, spec_id, e
+            )
+
+    return run
 
 
 def get_run_audit_for_run_id(run_id: str) -> Optional[Dict]:

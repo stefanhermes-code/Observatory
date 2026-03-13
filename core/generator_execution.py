@@ -309,6 +309,27 @@ def execute_generator(
     run_id = run["id"]
     _record_controller_milestone(run_id, user_email, "run_created")
 
+    # Diagnostic: record effective lookback inputs for this run in audit_log so we can confirm source of 2-day window.
+    try:
+        from core.admin_db import log_audit_action
+
+        log_audit_action(
+            "run_lookback_debug",
+            user_email or "generator",
+            {
+                "run_id": run_id,
+                "spec_id": spec_id,
+                "workspace_id": workspace_id,
+                "lookback_override_param": lookback_override,
+                "spec_report_period_days": base_days,
+                "spec_frequency": run_specification.get("frequency", "monthly"),
+                "effective_report_period_days": report_period_days,
+            },
+        )
+    except Exception:
+        # Debug logging must never block the run.
+        pass
+
     from core.run_audit import create_empty_run_audit
     run_audit_init = create_empty_run_audit(report_period_days)
     run_audit_init["run_id"] = run_id
@@ -529,6 +550,7 @@ def execute_generator(
                 run_specification,
                 write_metrics=False,
                 write_html=True,
+                report_period_days=run_specification.get("report_period_days"),
             )
             run_audit_metrics = report_result.get("run_audit_metrics")
             writer_output = {
