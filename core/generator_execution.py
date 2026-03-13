@@ -294,54 +294,53 @@ def execute_generator(
     except Exception:
         pass
 
+    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
+    ref_date = datetime.utcnow()
+    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
+    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
     try:
-        # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
-        ref_date = datetime.utcnow()
-        is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-        lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
+        from core.performance_logger import start_stage, end_stage, log_error
+        start_stage("ingestion")
+    except Exception:
+        pass
+    if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
         try:
-            from core.performance_logger import start_stage, end_stage, log_error
-            start_stage("ingestion")
+            from core.performance_logger import end_stage, log_error, end_run
+            end_stage("ingestion", "fail", error_type="Phase8Validation", error_message="Phase 8 forced failure: ingestion")
+            log_error("ingestion", "Phase 8 forced failure: ingestion")
+            end_run("fail")
         except Exception:
             pass
-        if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
-            try:
-                from core.performance_logger import end_stage, log_error, end_run
-                end_stage("ingestion", "fail", error_type="Phase8Validation", error_message="Phase 8 forced failure: ingestion")
-                log_error("ingestion", "Phase 8 forced failure: ingestion")
-                end_run("fail")
-            except Exception:
-                pass
-            run_bundle["status"] = "failed"
-            run_bundle["error_message"] = "Phase 8 forced failure: ingestion"
-            if isinstance(run_bundle.get("run_audit"), dict):
-                run_bundle["run_audit"]["status"] = "failed"
-                run_bundle["run_audit"]["error_message"] = "Phase 8 forced failure: ingestion"
-            raise RunFailedError("Phase 8 forced failure: ingestion")
+        run_bundle["status"] = "failed"
+        run_bundle["error_message"] = "Phase 8 forced failure: ingestion"
+        if isinstance(run_bundle.get("run_audit"), dict):
+            run_bundle["run_audit"]["status"] = "failed"
+            run_bundle["run_audit"]["error_message"] = "Phase 8 forced failure: ingestion"
+        raise RunFailedError("Phase 8 forced failure: ingestion")
+    try:
+        from core.evidence_engine import run_evidence_engine
+        evidence_summary = run_evidence_engine(
+            run_id=run_id,
+            workspace_id=workspace_id,
+            specification_id=spec_id,
+            spec=run_specification,
+            validate_urls=True,
+            cadence_override=cadence_override,
+            reference_date=ref_date,
+            report_period_days=run_specification["report_period_days"],
+        )
         try:
-            from core.evidence_engine import run_evidence_engine
-            evidence_summary = run_evidence_engine(
-                run_id=run_id,
-                workspace_id=workspace_id,
-                specification_id=spec_id,
-                spec=run_specification,
-                validate_urls=True,
-                cadence_override=cadence_override,
-                reference_date=ref_date,
-                report_period_days=run_specification["report_period_days"],
-            )
-            try:
-                end_stage("ingestion", "success")
-            except Exception:
-                pass
-        except Exception as ev_err:
-            try:
-                from core.performance_logger import end_stage, log_error
-                end_stage("ingestion", "fail", error_type=type(ev_err).__name__, error_message=str(ev_err)[:500])
-                log_error("ingestion", str(ev_err)[:500])
-            except Exception:
-                pass
-            evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
+            end_stage("ingestion", "success")
+        except Exception:
+            pass
+    except Exception as ev_err:
+        try:
+            from core.performance_logger import end_stage, log_error
+            end_stage("ingestion", "fail", error_type=type(ev_err).__name__, error_message=str(ev_err)[:500])
+            log_error("ingestion", str(ev_err)[:500])
+        except Exception:
+            pass
+        evidence_summary = {"error": str(ev_err), "inserted": 0, "query_plan": []}
 
     candidates = get_candidate_articles_for_run(run_id)
     lookback_date, reference_date = get_lookback_from_days(run_specification["report_period_days"], ref_date)
