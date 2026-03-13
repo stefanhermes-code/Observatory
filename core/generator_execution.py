@@ -601,6 +601,8 @@ def execute_generator(
         )
 
     artifact_path = f"workspace/{workspace_id}/spec/{spec_id}/{datetime.utcnow().strftime('%Y%m%d')}/{run_id}.html"
+    from core.app_version import get_deploy_version
+
     metadata_with_html = {
         "html_content": html_content,
         "model": "v2_evidence_writer",
@@ -613,6 +615,7 @@ def execute_generator(
         "signal_classification_v2": signal_classification_result,
         "doctrine_v2": doctrine_result,
         "coverage_low": coverage_low,
+        "deploy_version": get_deploy_version(),
     }
     usage_meta = _build_run_usage_metadata(evidence_summary, writer_output)
     if usage_meta:

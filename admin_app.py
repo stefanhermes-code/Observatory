@@ -2754,6 +2754,9 @@ elif page == "📚 Generation History":
                     full_run = get_run_by_id(run_id)
                     metadata = full_run.get("metadata") if (full_run and isinstance(full_run.get("metadata"), dict)) else {}
                     if metadata:
+                        deploy_version = metadata.get("deploy_version")
+                        if deploy_version:
+                            st.caption(f"**Deploy:** {deploy_version}")
                         # Timing / model (optional context)
                         ev = (metadata.get("evidence_summary") or {}) if isinstance(metadata.get("evidence_summary"), dict) else {}
                         timing = ev.get("timing_seconds") or {}
