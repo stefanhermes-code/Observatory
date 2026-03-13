@@ -1037,10 +1037,60 @@ def run_phase_render_and_save(
     links_count = (diagnostics or {}).get("items_included") if isinstance(diagnostics, dict) else None
     if links_count is None and isinstance(evidence_summary, dict):
         links_count = evidence_summary.get("inserted")
+
+    # Build and persist run audit for phased runs as well (so Admin never sees "audit missing").
+    from core.run_audit import build_run_audit, persist_run_audit
+    # Reuse the same Phase5 flag logic as the main controller.
+    use_phase5_report = bool(
+        _flag_from_secrets_or_env("USE_PHASE5_REPORT")
+        or run_specification.get("use_phase5_report") is True
+    )
+    base_days = run_specification.get("report_period_days")
+    if isinstance(base_days, int) and base_days > 0:
+        report_period_days = base_days
+    else:
+        report_period_days = get_lookback_days(run_specification.get("frequency", "monthly"))
+    try:
+        run_audit = build_run_audit(
+            run_id=run_id,
+            spec_id=spec_id,
+            spec=run_specification,
+            report_period_days=report_period_days,
+            use_phase5_report=use_phase5_report,
+            evidence_summary=evidence_summary if isinstance(evidence_summary, dict) else {},
+            candidates_count=0,
+            candidates_after_customer_filter=0,
+            report_metrics={},
+            customer_filter_drop_counts={},
+            workspace_id=workspace_id,
+        )
+        run_audit["status"] = "success"
+    except Exception as e:
+        # Minimal fallback so even phased-success runs always have an audit record.
+        run_audit = {
+            "run_id": run_id,
+            "spec_id": spec_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "error_message": f"audit_build_failed: {str(e)[:300]}",
+        }
+    metadata_with_html["run_audit"] = run_audit
+    try:
+        persist_run_audit(run_id, user_email or "generator", run_audit)
+    except Exception:
+        # Do not block a successful run if audit_log insert fails; metadata still carries run_audit.
+        pass
+
     update_run_status(
-        run_id, "success", artifact_path, metadata=metadata_with_html,
+        run_id,
+        "success",
+        artifact_path,
+        metadata=metadata_with_html,
         generation_duration_seconds=duration,
-        categories_count=categories_count, regions_count=regions_count, links_count=links_count,
+        categories_count=categories_count,
+        regions_count=regions_count,
+        links_count=links_count,
+        report_period_days=report_period_days,
     )
 
     return {
