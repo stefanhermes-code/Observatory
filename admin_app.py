@@ -78,6 +78,7 @@ from core.token_tracking import get_token_usage_by_workspace, get_token_usage_su
 from core.report_spec import DEFAULT_REPORT_SPEC, REPORT_SECTIONS_OPTIONS
 
 from core.datetime_utils import format_ts_local
+from core.app_version import get_deploy_version
 
 
 def extract_sources_from_html(html_content: str) -> Counter:
@@ -176,6 +177,7 @@ except:
 st.sidebar.title("⚙️ Admin Control Tower")
 st.sidebar.markdown(f"**User:** {st.session_state.user_email}")
 st.sidebar.markdown(f"**Role:** {st.session_state.user_role}")
+st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 if st.sidebar.button("🚪 Logout"):
     logout()

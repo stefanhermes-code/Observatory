@@ -32,6 +32,7 @@ from core.generator_execution import (
 )
 from core.run_dates import get_lookback_days
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
+from core.app_version import get_deploy_version
 
 
 def _is_phase5_enabled_for_spec(spec: dict) -> bool:
@@ -97,6 +98,7 @@ if not st.session_state.authenticated:
 # Sidebar
 st.sidebar.title("📰 Report Generator")
 st.sidebar.markdown(f"**User:** {st.session_state.user_email}")
+st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 if st.sidebar.button("🚪 Logout"):
     logout()
