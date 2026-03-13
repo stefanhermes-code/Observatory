@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 
@@ -59,6 +60,47 @@ def format_ts_local(ts: str) -> str:
         try:
             dt = datetime.fromisoformat(ts)
             local = _to_local(dt)
+            return local.strftime("%d-%m-%Y / %H:%M")
+        except Exception:
+            return ts[:19] if len(ts) >= 19 else ts
+
+
+def format_ts_in_timezone(ts: str, tz_name: Optional[str]) -> str:
+    """
+    Format timestamp in a specific IANA timezone if provided; otherwise use global/local rules.
+
+    - ts: ISO string in UTC (newsletter_runs.created_at / completed_at)
+    - tz_name: e.g. "Europe/Amsterdam". If invalid/missing, falls back to format_ts_local.
+    """
+    if not tz_name:
+        return format_ts_local(ts)
+
+    if not ts or not isinstance(ts, str):
+        return "Unknown time"
+    ts = ts.strip()
+    if not ts:
+        return "Unknown time"
+
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        return format_ts_local(ts)
+
+    def _to_local_specific(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            dt_with_tz = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt_with_tz = dt
+        return dt_with_tz.astimezone(tz)
+
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        local = _to_local_specific(dt)
+        return local.strftime("%d-%m-%Y / %H:%M")
+    except Exception:
+        try:
+            dt = datetime.fromisoformat(ts)
+            local = _to_local_specific(dt)
             return local.strftime("%d-%m-%Y / %H:%M")
         except Exception:
             return ts[:19] if len(ts) >= 19 else ts

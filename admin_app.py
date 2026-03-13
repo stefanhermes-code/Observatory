@@ -47,6 +47,7 @@ from core.admin_db import (
     seed_sources_from_list,
     get_tracked_companies,
     seed_tracked_companies_from_list,
+    get_workspace_timezone,
 )
 try:
     from core.admin_db import get_criteria_productivity
@@ -77,7 +78,7 @@ from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, VALUE_CHAIN_LINKS
 from core.token_tracking import get_token_usage_by_workspace, get_token_usage_summary, format_token_cost
 from core.report_spec import DEFAULT_REPORT_SPEC, REPORT_SECTIONS_OPTIONS
 
-from core.datetime_utils import format_ts_local
+from core.datetime_utils import format_ts_local, format_ts_in_timezone
 from core.app_version import get_deploy_version
 
 
@@ -2734,7 +2735,9 @@ elif page == "📚 Generation History":
 
         for run in recent_runs:
             run_id = run.get("id")
-            with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {format_ts_local(run.get('created_at') or '')}"):
+            ws_tz = get_workspace_timezone(run.get("workspace_id")) if run.get("workspace_id") else None
+            created_label = format_ts_in_timezone(run.get("created_at") or "", ws_tz)
+            with st.expander(f"📄 {run.get('newsletter_name', 'Unknown')} - {created_label}"):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -2743,7 +2746,7 @@ elif page == "📚 Generation History":
                     st.write("**Status:**", run_status)
                     if run_status == "failed_finalization":
                         st.error("AUDIT MISSING – RUN FINALIZATION FAILED")
-                    st.write("**Created:**", format_ts_local(run.get('created_at') or ''))
+                    st.write("**Created:**", created_label)
                 
                 with col2:
                     st.write("**Run ID:**", run_id)
@@ -2796,7 +2799,9 @@ elif page == "📚 Generation History":
     if recent_runs:
         history_csv = "Intelligence Source,Status,Created,Run ID,Artifact Path\n"
         for run in recent_runs:
-            history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{format_ts_local(run.get('created_at') or '')},{run.get('id', 'N/A')},{run.get('artifact_path', 'N/A')}\n"
+            ws_tz = get_workspace_timezone(run.get("workspace_id")) if run.get("workspace_id") else None
+            created_label = format_ts_in_timezone(run.get("created_at") or "", ws_tz)
+            history_csv += f"{run.get('newsletter_name', 'Unknown')},{run.get('status', 'unknown')},{created_label},{run.get('id', 'N/A')},{run.get('artifact_path', 'N/A')}\n"
         
         st.download_button(
             "📥 Export Generation History",

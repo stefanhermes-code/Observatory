@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 
+from core.company_timezone import guess_timezone_from_country_city
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -94,6 +96,36 @@ def get_all_workspaces() -> List[Dict]:
     supabase = get_supabase_client()
     result = supabase.table("workspaces").select("*").order("created_at", desc=True).execute()
     return result.data if result.data else []
+
+
+def get_workspace_by_id(workspace_id: str) -> Optional[Dict]:
+    """Fetch a single workspace by id, including optional timezone/country/city fields."""
+    if not workspace_id:
+        return None
+    supabase = get_supabase_client()
+    try:
+        result = supabase.table("workspaces").select("*").eq("id", workspace_id).limit(1).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
+def get_workspace_timezone(workspace_id: str) -> Optional[str]:
+    """
+    Return the workspace timezone if configured, or attempt to derive it from country/city.
+
+    - If workspaces.timezone is set, return that.
+    - Else, derive from workspaces.country / workspaces.city when available.
+    """
+    ws = get_workspace_by_id(workspace_id)
+    if not ws:
+        return None
+    tz = (ws.get("timezone") or "").strip()
+    if tz:
+        return tz
+    country = (ws.get("country") or "").strip()
+    city = (ws.get("city") or "").strip()
+    return guess_timezone_from_country_city(country=country, city=city)
 
 
 def create_workspace(name: str, company_name: str, contact_email: str) -> Dict:
