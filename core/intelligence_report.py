@@ -1,10 +1,9 @@
 """
-PU Observatory – Phase 5: Intelligence Report Generation (reusable component).
+PU Observatory – Intelligence Report Generation.
 
-Transforms classified_articles.csv and category_hit_counts.csv into a customer-facing
-intelligence briefing. Implements signal grouping, development extraction, evidence
-anchoring, and signal strength. No references to internal systems, classification, or
-pipelines. Report is suitable for external distribution.
+Transforms classified signals into a customer-facing intelligence briefing: signal
+grouping, development extraction, evidence anchoring, signal strength, and generated
+Strategic Implications. Report is suitable for external distribution.
 """
 
 from __future__ import annotations
@@ -604,6 +603,78 @@ def build_developments(clusters: Dict[Tuple[str, str], List[Dict[str, Any]]]) ->
 
 
 # -----------------------------------------------------------------------------
+# Strategic Implications — generated from developments (no fixed placeholder)
+# -----------------------------------------------------------------------------
+
+def generate_strategic_implications(
+    developments: List[Development],
+    report_period_days: Optional[int] = None,
+    spec: Optional[Dict[str, Any]] = None,
+) -> Tuple[List[str], Optional[Dict[str, Any]]]:
+    """
+    Generate the Strategic Implications section from the report developments via LLM.
+    Returns (list of markdown lines for the section body, usage_dict or None).
+    On failure or empty developments, returns ([], None); caller can omit the section.
+    """
+    if not developments:
+        return [], None
+    period = f"{report_period_days}-day" if isinstance(report_period_days, int) and report_period_days > 0 else "reporting"
+    summary_parts = []
+    for d in developments[:40]:  # cap input size
+        summary_parts.append(f"- [{d.section}] {d.title} ({d.signal_strength}): {d.interpretation[:180]}{'...' if len(d.interpretation) > 180 else ''}")
+    context = "\n".join(summary_parts)[:8000]
+    try:
+        from core.openai_assistant import get_openai_client
+        client = get_openai_client()
+        if not client:
+            return [], None
+    except Exception:
+        return [], None
+    system = (
+        "You are a polyurethane industry strategist. Based only on the listed developments from the report, "
+        "write a short Strategic Implications section for the polyurethane industry. "
+        "Output exactly 3–5 bullet points. Each line must start with '- **Label:** ' (e.g. **Demand:** or **Technology:**) "
+        "followed by 1–2 sentences. Use only the themes and facts from the developments; do not add generic or unsupported claims. "
+        "Output plain text, no extra headings or markdown beyond the bullet list."
+    )
+    user = (
+        f"Reporting period: {period} window.\n\nDevelopments in this report:\n{context}\n\n"
+        "Write 3–5 strategic implication bullets. Each line: '- **Label:** sentence.'"
+    )
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.25,
+            max_tokens=800,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        )
+        choice = resp.choices[0] if resp.choices else None
+        text = (choice.message.content or "").strip() if choice else ""
+        usage = None
+        if getattr(resp, "usage", None):
+            usage = {
+                "input_tokens": getattr(resp.usage, "input_tokens", 0),
+                "output_tokens": getattr(resp.usage, "output_tokens", 0),
+                "total_tokens": getattr(resp.usage, "total_tokens", 0),
+                "model": getattr(resp, "model", None) or "gpt-4o-mini",
+            }
+        if not text:
+            return [], usage
+        # Parse into lines; ensure each line is a bullet
+        out_lines = []
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if not line.startswith("-"):
+                line = "- " + line
+            out_lines.append(line)
+        return out_lines, usage
+    except Exception:
+        return [], None
+
+
+# -----------------------------------------------------------------------------
 # Render report (development blocks; Executive Summary without evidence lists)
 # -----------------------------------------------------------------------------
 
@@ -770,6 +841,22 @@ def render_report(
         lines.append("")
         for d in devs:
             lines.extend(_render_development_block(d))
+        lines.append("")
+
+    # Strategic Implications — generated from developments (no fixed text)
+    si_lines, _ = generate_strategic_implications(
+        developments, report_period_days=report_period_days, spec=spec
+    )
+    if si_lines:
+        lines.append("# Strategic Implications")
+        lines.append("")
+        lines.append("Taken together, the developments observed suggest the following for the polyurethane industry:")
+        lines.append("")
+        lines.extend(si_lines)
+        lines.append("")
+        lines.append("This briefing is based on openly reported developments during the reporting period and is intended to support strategic discussion. For specific decisions, further verification and expert advice are recommended.")
+        lines.append("")
+        lines.append("---")
         lines.append("")
 
     # Appendix A — Evidence Signals (traceability) — optional per spec

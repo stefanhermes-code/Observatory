@@ -1,6 +1,6 @@
 """
-Phase 5 – Market Intelligence Synthesis Engine.
-Structured, baseline-aware, scope-selectable. Replaces executive summary from markdown body.
+Market Intelligence Synthesis.
+Structured, baseline-aware, scope-selectable synthesis from clustered signals and baseline.
 Inputs: clustered signals JSON + baseline snapshot JSON. Output: 5 fixed sections, 2–4 sentences each.
 """
 
@@ -137,7 +137,7 @@ def run_market_intelligence_synthesis(
     """
     Produce Market Intelligence Report from structured signals + baseline.
     scope: GLOBAL | REGION | REGION_SEGMENT. For REGION/REGION_SEGMENT pass region_macro (and segment).
-    critique_issues: optional list of diagnostic strings from Phase 6 critique; when set, prompt asks for revision addressing these.
+    critique_issues: optional list of diagnostic strings from adversarial critique; when set, prompt asks for revision addressing these.
     Returns (report_text, usage_dict). Report has exactly 5 sections, 2–4 sentences each, no markdown.
     """
     clusters = _clusters_for_synthesis(run_id, scope, region_macro, segment)
