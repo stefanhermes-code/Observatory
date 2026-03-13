@@ -33,6 +33,28 @@ class RunFailedError(Exception):
     pass
 
 
+def _record_controller_milestone(run_id: str, user_email: str, milestone: str) -> None:
+    """
+    Minimal milestone trace for the run controller.
+
+    Writes to audit_log via log_audit_action so we can see exactly where execution stopped,
+    without depending on the full run audit.
+    """
+    try:
+        from datetime import datetime, timezone
+        from core.admin_db import log_audit_action
+
+        payload = {
+            "run_id": run_id,
+            "milestone": milestone,
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        }
+        log_audit_action("run_controller_milestone", user_email or "generator", payload)
+    except Exception:
+        # Never block the run on observability.
+        pass
+
+
 def _flag_from_secrets_or_env(name: str) -> bool:
     """
     Read boolean feature flag from Streamlit secrets (Cloud) or environment (local).
@@ -159,34 +181,31 @@ def finalize_run(
 ) -> None:
     """
     Run Bundle Architecture: the only place that persists run completion.
-    Persists run_audit to newsletter_runs.metadata.run_audit, writes to audit_log,
-    persists html_output_path and timing, sets final status.
-    A run may only be marked "success" if run_audit, html_output_path, and timing exist;
-    otherwise status becomes "failed_finalization".
+
+    For debugging/diagnostics, we split responsibilities:
+    - Core result finalization: persist status + html_output_path + metadata.
+    - Audit/observability finalization: best-effort write of run_audit to audit_log + metadata.
+
+    Rules:
+    - If html_output_path exists but audit write fails, mark status as 'success_with_audit_failure'
+      (or keep existing status if it is already non-success). Do NOT hide the run result.
+    - Only use 'failed_finalization' for cases where even the core result cannot be finalized
+      (e.g. missing html_output_path on an apparent success).
     """
     from core.run_audit import persist_run_audit
 
     status = run_bundle.get("status", "failed")
     run_audit = run_bundle.get("run_audit") if isinstance(run_bundle.get("run_audit"), dict) else None
     html_output_path = run_bundle.get("html_output_path")
-    timing = run_bundle.get("timing")
 
-    # Valid state rule: never success without audit and output path (CharlieC Run Bundle)
-    if status == "success" and (not run_audit or not html_output_path):
+    # Core result validity: a "success" with no HTML is a real finalization failure.
+    if status == "success" and not html_output_path:
         status = "failed_finalization"
 
     if metadata is None:
         metadata = {}
-    if run_audit is not None:
-        metadata["run_audit"] = run_audit
-        run_audit["status"] = status
-        if run_bundle.get("error_message"):
-            run_audit["error_message"] = (run_bundle["error_message"] or "")[:500]
-        try:
-            persist_run_audit(run_id, user_email or "generator", run_audit)
-        except Exception:
-            pass
 
+    # Core result finalization (always runs, even if audit fails).
     rp_days = report_period_days if report_period_days is not None else run_bundle.get("report_period_days")
     update_run_status(
         run_id,
@@ -200,6 +219,26 @@ def finalize_run(
         links_count=links_count,
         report_period_days=rp_days,
     )
+
+    # Audit / observability finalization (best-effort; never hides a successful run).
+    if run_audit is not None:
+        try:
+            run_audit["status"] = status
+            if run_bundle.get("error_message"):
+                run_audit["error_message"] = (run_bundle["error_message"] or "")[:500]
+            persist_run_audit(run_id, user_email or "generator", run_audit)
+            # Also attach into metadata for downstream readers (Admin History).
+            metadata["run_audit"] = run_audit
+            update_run_status(run_id, status, metadata=metadata)
+        except Exception:
+            # If HTML exists but audit write fails, mark as success_with_audit_failure
+            if html_output_path and status == "success":
+                status = "success_with_audit_failure"
+                try:
+                    update_run_status(run_id, status, artifact_path=html_output_path)
+                except Exception:
+                    # At this point, we have at least persisted the original success run.
+                    pass
 
 
 def execute_generator(
@@ -223,6 +262,8 @@ def execute_generator(
         - artifact_path: Path to stored artifact if succeeded
     """
     
+    _record_controller_milestone("pending", user_email, "controller_entered")
+
     # Step 1: Retrieve Active Specification
     spec = get_specification_detail(spec_id)
     if not spec:
@@ -230,6 +271,7 @@ def execute_generator(
     
     if spec.get("status") != "active":
         return False, f"Specification is not active (status: {spec.get('status')})", None, None
+    _record_controller_milestone("pending", user_email, "spec_loaded")
     
     # Step 2: Enforce Cadence Rules
     frequency = spec.get("frequency", "monthly")
@@ -265,6 +307,7 @@ def execute_generator(
     # Run Bundle Architecture: only place that creates and finalizes runs.
     run = create_newsletter_run(spec_id, workspace_id, user_email, "running", frequency=frequency)
     run_id = run["id"]
+    _record_controller_milestone(run_id, user_email, "run_created")
 
     from core.run_audit import create_empty_run_audit
     run_audit_init = create_empty_run_audit(report_period_days)
@@ -303,6 +346,7 @@ def execute_generator(
         start_stage("ingestion")
     except Exception:
         pass
+    _record_controller_milestone(run_id, user_email, "ingestion_started")
     if os.environ.get("PHASE8_FORCE_FAIL") == "ingestion":
         try:
             from core.performance_logger import end_stage, log_error, end_run
@@ -333,6 +377,7 @@ def execute_generator(
             end_stage("ingestion", "success")
         except Exception:
             pass
+        _record_controller_milestone(run_id, user_email, "ingestion_finished")
     except Exception as ev_err:
         try:
             from core.performance_logger import end_stage, log_error
@@ -350,6 +395,7 @@ def execute_generator(
         start_stage("extraction")
     except Exception:
         pass
+    _record_controller_milestone(run_id, user_email, "filtering_started")
     extraction_result = {"signals_created": 0, "occurrences_created": 0}
     signal_extraction_result = {"extracted_count": 0, "signals_inserted": 0, "articles_processed": 0}
     customer_filter_drop_counts: Dict = {}
@@ -374,6 +420,7 @@ def execute_generator(
             end_stage("extraction", "success")
         except Exception:
             pass
+        _record_controller_milestone(run_id, user_email, "filtering_finished")
     except Exception as ext_err:
         try:
             from core.performance_logger import end_stage, log_error
@@ -389,6 +436,7 @@ def execute_generator(
         start_stage("clustering")
     except Exception:
         pass
+    _record_controller_milestone(run_id, user_email, "clustering_started")
     try:
         from core.signal_clustering_v2 import run_signal_clustering_v2
         signal_clustering_result = run_signal_clustering_v2(run_id=run_id)
@@ -397,6 +445,7 @@ def execute_generator(
             end_stage("clustering", "success")
         except Exception:
             pass
+        _record_controller_milestone(run_id, user_email, "clustering_finished")
     except Exception as cl_err:
         try:
             from core.performance_logger import end_stage, log_error
