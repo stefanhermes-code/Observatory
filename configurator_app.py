@@ -13,6 +13,7 @@ from urllib.parse import quote
 sys.path.insert(0, str(Path(__file__).parent))
 
 from core.datetime_utils import format_ts_local
+from core.app_version import get_deploy_version
 from core.taxonomy import PU_CATEGORIES, REGIONS, FREQUENCIES, INDUSTRY_CODE, VALUE_CHAIN_LINKS
 from core.validation import validate_specification
 from core.database import create_specification_request, update_specification_request, get_taxonomy_data
@@ -138,6 +139,12 @@ if "submitted" not in st.session_state:
     st.session_state.submitted = False
 if "request_id" not in st.session_state:
     st.session_state.request_id = None
+
+# Sidebar: logo at top, then deploy (visible when sidebar is expanded)
+_sidebar_logo = "Background Documentation/PU Observatory logo V3.png"
+if Path(_sidebar_logo).exists():
+    st.sidebar.image(_sidebar_logo, use_container_width=True)
+st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 # Header with logo
 logo_path = "Background Documentation/PU Observatory logo V3.png"

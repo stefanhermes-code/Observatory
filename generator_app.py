@@ -95,10 +95,14 @@ if not st.session_state.authenticated:
     login_page_workspace()
     st.stop()
 
-# Sidebar
+# Sidebar: logo at top, then deploy, then rest
+_sidebar_logo = "Background Documentation/PU Observatory logo V3.png"
+if Path(_sidebar_logo).exists():
+    st.sidebar.image(_sidebar_logo, use_container_width=True)
+st.sidebar.caption(f"Deploy: {get_deploy_version()}")
+st.sidebar.markdown("---")
 st.sidebar.title("📰 Report Generator")
 st.sidebar.markdown(f"**User:** {st.session_state.user_email}")
-st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 if st.sidebar.button("🚪 Logout"):
     logout()

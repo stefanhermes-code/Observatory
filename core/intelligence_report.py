@@ -534,7 +534,17 @@ def generate_report_from_signals(
         for d in developments:
             by_sec[d.section] += 1
         pie_html = _signal_map_pie_svg(by_sec, len(developments), signal_map_sections)
-        out["html"] = markdown_to_simple_html(report_text, title=title, signal_map_pie_html=pie_html if pie_html else None)
+        try:
+            from core.app_version import get_deploy_version
+            _deploy = get_deploy_version()
+        except Exception:
+            _deploy = None
+        out["html"] = markdown_to_simple_html(
+            report_text,
+            title=title,
+            signal_map_pie_html=pie_html if pie_html else None,
+            deploy_version=_deploy,
+        )
     if write_metrics:
         out["metrics"] = build_report_metrics(len(filtered), developments)
     return out
@@ -947,7 +957,12 @@ def _signal_map_pie_svg(
     return f'<div class="signal-map-pie" style="margin:1em 0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">{svg_inner}</svg></div>'
 
 
-def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", signal_map_pie_html: Optional[str] = None) -> str:
+def markdown_to_simple_html(
+    md_text: str,
+    title: str = "Intelligence Report",
+    signal_map_pie_html: Optional[str] = None,
+    deploy_version: Optional[str] = None,
+) -> str:
     """
     Render a constrained Markdown-like report into clean HTML suitable for external use.
 
@@ -958,6 +973,7 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
     - Tables: GitHub-style pipe tables
     - Inline bold/italic: **bold**, *italic*
     - Signal map pie placeholder: <!-- SIGNAL_MAP_PIE --> replaced with provided HTML
+    - deploy_version: if set, shown in the report header for traceability.
     """
 
     lines = md_text.splitlines()
@@ -1119,6 +1135,11 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
             font-size: 24px;
             font-weight: bold;
         }}
+        .header-deploy {{
+            margin: 4px 0 0 0;
+            font-size: 0.85em;
+            color: #666;
+        }}
         .report-meta {{
             background-color: #f5f5f5;
             padding: 15px;
@@ -1188,6 +1209,7 @@ def markdown_to_simple_html(md_text: str, title: str = "Intelligence Report", si
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAADiGGNhQlgAAOIYanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAANvpqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmRiMzU5MGYxLTJkZWEtNGE0Mi1iYjg3LTFkM2VjYWY1MjM3NwAAAAHBanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAA5Wp1bWIAAAApanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zLnYyAAAAALRjYm9yoWdhY3Rpb25zgqNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50v2RuYW1lZkdQVC00b/9xZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWGhZmFjdGlvbm5jMnBhLmNvbnZlcnRlZAAAAKtqdW1iAAAAKGp1bWRjYm9yABEAEIAAAKoAOJtxA2MycGEuaGFzaC5kYXRhAAAAAHtjYm9ypWpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZNyxkbmFtZW5qdW1iZiBtYW5pZmVzdGNhbGdmc2hhMjU2ZGhhc2hYIJereHhizg/H0mK/SB01vzCpI2wy35EoqksTMVitcmBxY3BhZEgAAAAAAAAAAAAAAe1qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAABvmNib3Kmamluc3RhbmNlSUR4LHhtcDppaWQ6Njk4YzI5NjMtNjkyYy00ZTRiLWI1MzQtYTUzMzMyNTY4M2M0" class="header-logo" alt="PU Observatory logo">
         <div class="header-title">
             <h1>{html.escape(title, quote=False)}</h1>
+            {f'<p class="header-deploy">Deploy: {html.escape(deploy_version, quote=False)}</p>' if deploy_version else ''}
         </div>
         <div style="width: 120px;"></div>
     </div>

@@ -173,11 +173,15 @@ try:
 except:
     st.markdown('<h1 style="font-size: 2.5rem; font-weight: bold; color: #1f77b4; margin-bottom: 1rem;">PU Observatory - Administrator</h1>', unsafe_allow_html=True)
 
-# Sidebar navigation
+# Sidebar: logo at top, then deploy, then nav
+_sidebar_logo = "Logo in blue steel no BG.png"
+if Path(_sidebar_logo).exists():
+    st.sidebar.image(_sidebar_logo, use_container_width=True)
+st.sidebar.caption(f"Deploy: {get_deploy_version()}")
+st.sidebar.markdown("---")
 st.sidebar.title("⚙️ Admin Control Tower")
 st.sidebar.markdown(f"**User:** {st.session_state.user_email}")
 st.sidebar.markdown(f"**Role:** {st.session_state.user_role}")
-st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 if st.sidebar.button("🚪 Logout"):
     logout()
