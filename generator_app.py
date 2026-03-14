@@ -402,7 +402,7 @@ elif page == "📰 Generate Report":
     override_cadence = None
     lookback_override = None
     if st.session_state.user_email.lower() == "stefan.hermes@htcglobal.asia":
-        st.markdown("### Builder options")
+        st.markdown("### Report period")
         lookback_options = {
             "1 day": 1,
             "7 days": 7,
@@ -414,7 +414,7 @@ elif page == "📰 Generate Report":
             "180 days": 180,
         }
         lookback_label = st.selectbox(
-            "Lookback period (how far back to include news):",
+            "The report period represents the time window from today looking back in time to find relevant intelligence.",
             options=list(lookback_options.keys()),
             index=1,
             help="Only you see this. Choose how many days of news to include.",
@@ -434,25 +434,14 @@ elif page == "📰 Generate Report":
         st.caption("Lookback: {} · Runs: {}.".format(lookback_label, "unlimited" if override_cadence else "per specification"))
     
     st.markdown("---")
-    # Report path indicator (plan §17: verify which path is active)
-    use_phase5 = _is_phase5_enabled_for_spec(spec)
-    if use_phase5:
-        st.info("**Report path:** Phase 5 (development-style report: developments, Signal Map, Appendix A)")
-    else:
-        st.caption("**Report path:** Legacy (structural pipeline or evidence writer). Set env `USE_PHASE5_REPORT=true` or spec `use_phase5_report` for Phase 5.")
-    st.markdown("---")
     # Session state for phased generation (progress feedback)
     if "gen_phase" not in st.session_state:
         st.session_state.gen_phase = 0
     if "gen_error" not in st.session_state:
         st.session_state.gen_error = None
 
-    # Simple explanation of phases so long runs feel less opaque
     st.caption(
-        "Generation runs in three phases: "
-        "1) collect evidence, 2) extract signals and write the report, "
-        "3) render and save the HTML. A full run can take several minutes; "
-        "you can keep working in other tabs while this finishes."
+        "Gathering intelligence and creating your report. A full run can take up to 10 minutes, depending on your choices."
     )
 
     # Generate button (only when idle)
@@ -479,11 +468,8 @@ elif page == "📰 Generate Report":
             base_days = spec.get("report_period_days")
             run_spec["report_period_days"] = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(spec.get("frequency", "monthly"))
 
-        with st.status("Phase 1 of 3 — Collecting evidence…", expanded=True) as status:
-            st.write("Checking specification and cadence…")
-            st.write("Ingesting sources and running search.")
-            st.write("This phase can take several minutes depending on lookback period and sources; "
-                     "keep this tab open, but it is safe to switch to other tabs while it runs.")
+        with st.status("Step 1: Gathering Intelligence", expanded=True) as status:
+            st.write("This step can take several minutes depending on chosen configuration.")
             run_id, evidence_summary, run_spec, spec_for_phase, err = run_phase_evidence(
                 spec_id=spec_id,
                 workspace_id=st.session_state.selected_workspace,
@@ -497,8 +483,6 @@ elif page == "📰 Generate Report":
                 st.session_state.gen_phase = 0
                 status.update(label="Failed", state="error")
                 st.rerun()
-            inserted = (evidence_summary or {}).get("inserted", 0)
-            st.write(f"**Found {inserted} items.** Extracting and building report…")
 
         st.session_state.gen_phase = 1
         st.session_state.gen_run_id = run_id
@@ -520,10 +504,8 @@ elif page == "📰 Generate Report":
         run_id = st.session_state.get("gen_run_id")
         run_spec = st.session_state.get("gen_run_spec")
         params = st.session_state.get("gen_params", {})
-        with st.status("Phase 2 of 3 — Extracting signals and writing report…", expanded=True) as status:
-            st.write(f"Found **{(st.session_state.get('gen_evidence_summary') or {}).get('inserted', 0)}** items.")
-            st.write("Clustering signals, classifying developments, and drafting the report text.")
-            st.write("This phase can also take a few minutes; the page will refresh automatically when it is done.")
+        with st.status("Step 2: Validating and verifying intelligence", expanded=True) as status:
+            st.write("This step can also take a few minutes; the page will refresh automatically when it is done.")
             try:
                 writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result = run_phase_extract_and_write(
                     run_id=run_id,
@@ -540,7 +522,6 @@ elif page == "📰 Generate Report":
                 st.session_state.gen_phase = 0
                 status.update(label="Failed", state="error")
                 st.rerun()
-            st.write("Rendering and saving…")
 
         st.session_state.gen_writer_output = writer_output
         st.session_state.gen_extraction_result = extraction_result
@@ -554,9 +535,9 @@ elif page == "📰 Generate Report":
     # Phase 2 done: render and save, then show result
     if st.session_state.gen_phase == 2:
         params = st.session_state.get("gen_params", {})
-        with st.status("Phase 3 of 3 — Finalizing report…", expanded=True) as status:
-            st.write("Rendering the report to HTML, saving the run, and attaching summary metadata.")
-            st.write("This phase is usually quick (seconds), and then your report preview will appear below.")
+        with st.status("Step 3: Writing the Intelligence Report", expanded=True) as status:
+            st.write("Once the report is finished you can download it.")
+            st.write("This step is usually quick (seconds), and then your report preview will appear below.")
             result_data = run_phase_render_and_save(
                 run_id=st.session_state.get("gen_run_id"),
                 workspace_id=params.get("workspace_id"),
