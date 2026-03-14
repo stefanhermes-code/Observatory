@@ -472,11 +472,12 @@ elif page == "📰 Generate Report":
         run_spec["regions"] = selected_regions
         if value_chain_links_override is not None:
             run_spec["value_chain_links"] = value_chain_links_override
-        # Canonical report period: set so all phases use only report_period_days for date window
-        base_days = spec.get("report_period_days")
-        run_spec["report_period_days"] = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(spec.get("frequency", "monthly"))
-        if lookback_override is not None and lookback_override in (1, 7, 30, 60, 90):
+        # Builder only: use chosen lookback with no fallback. Other users never get lookback_override (it stays None).
+        if lookback_override is not None:
             run_spec["report_period_days"] = lookback_override
+        else:
+            base_days = spec.get("report_period_days")
+            run_spec["report_period_days"] = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(spec.get("frequency", "monthly"))
 
         with st.status("Phase 1 of 3 — Collecting evidence…", expanded=True) as status:
             st.write("Checking specification and cadence…")

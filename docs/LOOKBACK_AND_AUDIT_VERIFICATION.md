@@ -26,8 +26,9 @@
 
 ## 2. Builder override in Generator UI
 
-- The Generator UI (builder only) **only** sends one of: **1, 7, 30, 60, 90, 120, 150, 180** days. A 2-day value **cannot** come from this UI; it would come from a dev script or direct API call.
-- The UI default is **7 days** (`index=1`). The selectbox key is `builder_lookback`; Streamlit keeps the last selection for the session.
+- **Builder (stefan.hermes@htcglobal.asia):** The chosen lookback in the UI is used with **no fallback** to spec or frequency. Whatever is selected (1, 7, 30, 60, 90, 120, 150, 180 days) is the actual report window. The developer is not restricted by the specification.
+- **Other users:** The lookback dropdown is not shown; `lookback_override` is never set. Report period comes only from the specification (`report_period_days` or `get_lookback_days(frequency)`).
+- The UI default for the builder is **7 days** (`index=1`). The selectbox key is `builder_lookback`; Streamlit keeps the last selection for the session.
 
 ## 3. Phase-5 report period
 

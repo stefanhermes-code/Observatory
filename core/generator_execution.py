@@ -297,7 +297,9 @@ def execute_generator(
     if value_chain_links_override is not None:
         run_specification["value_chain_links"] = value_chain_links_override
 
-    # Canonical report period: set once so all phases use only report_period_days for date window.
+    # Canonical report period. Builder (stefan.hermes@htcglobal.asia): use chosen lookback only, no fallback. Others: spec or frequency default only.
+    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
+    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
     base_days = run_specification.get("report_period_days")
     default_days = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(run_specification.get("frequency", "monthly"))
     report_period_days = lookback_days_override if lookback_days_override is not None else default_days
@@ -359,10 +361,8 @@ def execute_generator(
     except Exception:
         pass
 
-    # V2: Run Evidence Engine — persist candidate_articles (date filter: builder can choose 1/7/30 or LOOKBACK_DAYS env; else spec)
+    # V2: Run Evidence Engine — persist candidate_articles (date window already set above: builder = chosen lookback, others = spec/frequency).
     ref_date = datetime.utcnow()
-    is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
     try:
         from core.performance_logger import start_stage, end_stage, log_error
         start_stage("ingestion")
@@ -866,9 +866,8 @@ def run_phase_evidence(
 
     ref_date = datetime.utcnow()
     is_builder = user_email and user_email.strip().lower() == BUILDER_EMAIL.lower()
-    # Phase 1 protocol: allow 60 and 90 day lookback for builder (controlled live runs)
-    lookback_days_override = (lookback_override if is_builder and lookback_override in (1, 7, 30, 60, 90) else None)
-    # Canonical report period: set on run_spec so all phases use only report_period_days for date window
+    # Builder only: use chosen lookback with no fallback (any positive int). Others: spec or frequency only.
+    lookback_days_override = (lookback_override if is_builder and isinstance(lookback_override, int) and lookback_override > 0 else None)
     base_days = run_specification.get("report_period_days")
     default_days = base_days if (isinstance(base_days, int) and base_days > 0) else get_lookback_days(frequency)
     report_period_days = lookback_days_override if lookback_days_override is not None else default_days
@@ -911,12 +910,10 @@ def run_phase_extract_and_write(
     except Exception:
         pass
     ref_date = datetime.utcnow()
-    # Date window from canonical report_period_days only (builder override applied when setting run_spec)
+    # Use run_spec from Phase 1: builder already has chosen lookback there; others have spec/frequency.
     report_period_days = run_specification.get("report_period_days")
     if not (report_period_days and isinstance(report_period_days, int) and report_period_days > 0):
         report_period_days = get_lookback_days(run_specification.get("frequency", "monthly"))
-    if lookback_override is not None and lookback_override in (1, 7, 30, 60, 90):
-        report_period_days = lookback_override
     lookback_date, reference_date = get_lookback_from_days(report_period_days, ref_date)
     try:
         from core.intelligence_extraction import run_intelligence_extraction
