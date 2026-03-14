@@ -47,6 +47,13 @@ def create_empty_run_audit(report_period_days: Optional[int] = None) -> Dict[str
     Every run has this object; the pipeline updates steps and drop_reason_counts during execution.
     """
     return {
+        "signals_after_query_plan": 0,
+        "signals_after_date_filter": 0,
+        "drop_validation": 0,
+        "drop_empty_url": 0,
+        "drop_dedup": 0,
+        "drop_other": 0,
+        "signals_after_preinsert_validation": 0,
         "steps": {
             "stage_1_master_signals_loaded": 0,
             "stage_2_after_date_filter": 0,
@@ -113,8 +120,16 @@ def build_run_audit(
     # CharlieC: signals after source fetch and after query plan (evidence engine funnel)
     signals_after_source_fetch = _int(funnel.get("from_sources")) or _int(evidence_summary.get("candidates_from_sources", 0))
     signals_after_query_plan = _int(funnel.get("combined")) or (_int(evidence_summary.get("candidates_from_sources", 0)) + _int(evidence_summary.get("candidates_from_search", 0)))
+    signals_after_date_filter = _int(funnel.get("after_first_pass")) or _int(evidence_summary.get("inserted"))
     audit["signals_after_source_fetch"] = signals_after_source_fetch
     audit["signals_after_query_plan"] = signals_after_query_plan
+    audit["signals_after_date_filter"] = signals_after_date_filter
+    # Pre-insert filtering stage (CharlieC: expose where signals are removed before DB insert)
+    audit["drop_validation"] = _int(funnel.get("drop_validation"))
+    audit["drop_empty_url"] = _int(funnel.get("drop_empty_url"))
+    audit["drop_dedup"] = _int(funnel.get("drop_dedup"))
+    audit["drop_other"] = _int(funnel.get("drop_other"))
+    audit["signals_after_preinsert_validation"] = _int(funnel.get("signals_after_preinsert_validation")) or _int(evidence_summary.get("inserted"))
 
     # Pipeline stage counters (STAGE_1..STAGE_8 + query_plan_candidates for diagnostics)
     audit["steps"] = {

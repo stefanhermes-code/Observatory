@@ -18,6 +18,7 @@ DROP_DATE = "date"
 DROP_URL = "url"
 DROP_META_SNIPPET = "meta_snippet"
 DROP_CANONICAL = "canonical"
+DROP_URL_VALIDATION = "url_validation"  # validate_url failed (2xx check)
 DROP_PU_ANCHOR_MISSING = "pu_anchor_missing"
 DROP_REGION_PROVEN_JSONLD = "region_mismatch_proven_by_jsonld"
 DROP_PU_PROVEN_JSONLD = "pu_not_relevant_proven_by_jsonld"
@@ -375,8 +376,8 @@ def run_evidence_engine(
         if validate_urls:
             status, code = validate_url(url)
             if status != VALID_2XX:
-                drop_buckets[DROP_URL] += 1
-                dropped_list.append((_snap(c), DROP_URL))
+                drop_buckets[DROP_URL_VALIDATION] += 1
+                dropped_list.append((_snap(c), DROP_URL_VALIDATION))
                 continue
             validation_status, http_status = status, code
         else:
@@ -484,6 +485,19 @@ def run_evidence_engine(
     summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
 
     # 4) Funnel and drop buckets (protocol: jsonld counts and new drop buckets)
+    # Pre-insert drop breakdown for audit (CharlieC: expose where signals are removed)
+    drop_validation = (
+        drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
+        + drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
+        + drop_buckets.get(DROP_PU_PROVEN_JSONLD, 0)
+        + drop_buckets.get(DROP_URL_VALIDATION, 0)
+    )
+    drop_empty_url = drop_buckets.get(DROP_URL, 0) + drop_buckets.get(DROP_CANONICAL, 0)
+    drop_other = (
+        drop_buckets.get(DROP_META_SNIPPET, 0)
+        + drop_buckets.get(DROP_DATE, 0)
+        + drop_buckets.get(DROP_OTHER, 0)
+    )
     summary["funnel"] = {
         "from_sources": summary["candidates_from_sources"],
         "from_search": summary["candidates_from_search"],
@@ -493,6 +507,10 @@ def run_evidence_engine(
         "jsonld_found": jsonld_found_count,
         "inserted": len(to_insert),
         "drop_buckets": dict(drop_buckets),
+        "drop_validation": drop_validation,
+        "drop_empty_url": drop_empty_url,
+        "drop_dedup": 0,
+        "drop_other": drop_other,
     }
     summary["top10_kept"] = [
         {
@@ -518,11 +536,16 @@ def run_evidence_engine(
         for snap, reason in dropped_list
     ]
 
-    # 5) Persist
+    # 5) Persist (capture drop_empty_url and drop_dedup from insert at point of filter)
     t_persist_start = time.perf_counter()
-    inserted = insert_candidate_articles(run_id, workspace_id, specification_id, to_insert)
+    insert_result = insert_candidate_articles(run_id, workspace_id, specification_id, to_insert)
     summary["timing_seconds"]["persist"] = round(time.perf_counter() - t_persist_start, 1)
+    inserted = insert_result.get("inserted", 0) if isinstance(insert_result, dict) else insert_result
     summary["inserted"] = inserted
+    if isinstance(insert_result, dict):
+        summary["funnel"]["drop_empty_url"] = summary["funnel"].get("drop_empty_url", 0) + insert_result.get("drop_empty_url", 0)
+        summary["funnel"]["drop_dedup"] = insert_result.get("drop_dedup", 0)
+        summary["funnel"]["signals_after_preinsert_validation"] = inserted
     summary["timing_seconds"]["total"] = round(time.perf_counter() - t0, 1)
 
     # Print funnel to stdout for run capture

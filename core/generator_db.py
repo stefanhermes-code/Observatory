@@ -334,16 +334,17 @@ def insert_candidate_articles(
     workspace_id: str,
     specification_id: str,
     candidates: List[Dict],
-) -> int:
+) -> Dict[str, int]:
     """
     V2: Insert candidate_articles for a run. Deduplicates by (canonical_url, title) within batch
     so one URL (e.g. newsletter page) can have multiple candidates with different titles.
     Each candidate dict: url, canonical_url, title, snippet, published_at, source_id?, source_name,
     query_id?, query_text?, validation_status, http_status.
-    Returns count inserted.
+    Returns dict with keys: inserted, drop_empty_url, drop_dedup (for audit instrumentation).
     """
+    out = {"inserted": 0, "drop_empty_url": 0, "drop_dedup": 0}
     if not candidates:
-        return 0
+        return out
     supabase = get_supabase_client()
     seen: set = set()  # (canonical_url, title_normalized)
     rows = []
@@ -351,9 +352,11 @@ def insert_candidate_articles(
         canonical = (c.get("canonical_url") or "").strip()
         title_norm = (c.get("title") or "").strip()
         if not canonical:
+            out["drop_empty_url"] += 1
             continue
         key = (canonical, title_norm)
         if key in seen:
+            out["drop_dedup"] += 1
             continue
         seen.add(key)
         row = {
@@ -377,12 +380,13 @@ def insert_candidate_articles(
         }
         rows.append(row)
     if not rows:
-        return 0
+        return out
     try:
         supabase.table("candidate_articles").insert(rows).execute()
-        return len(rows)
+        out["inserted"] = len(rows)
+        return out
     except Exception:
-        return 0
+        return out
 
 
 def insert_extracted_signals(run_id: str, signals: List[Dict]) -> int:

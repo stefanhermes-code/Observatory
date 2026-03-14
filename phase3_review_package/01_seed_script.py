@@ -92,7 +92,8 @@ def main():
          "title": "New CEO appointed at XYZ Foam USA", "snippet": "In the USA, new CEO appointed at XYZ Foam.", "published_at": base_ts, "source_name": "phase3_synthetic", "query_id": "phase3_e2", "validation_status": "not_checked", "category": "market_intel", "region": "Americas", "value_chain_link": "production"},
     ]
 
-    inserted = insert_candidate_articles(run_id=run_id, workspace_id=workspace_id, specification_id=spec_id, candidates=candidates)
+    result = insert_candidate_articles(run_id=run_id, workspace_id=workspace_id, specification_id=spec_id, candidates=candidates)
+    inserted = result.get("inserted", result) if isinstance(result, dict) else result
     print(f"run_id={run_id}")
     print(f"candidates_inserted={inserted}")
     print("Use this run_id for export scripts and the single full trace.")
