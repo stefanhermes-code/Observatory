@@ -485,18 +485,14 @@ def run_evidence_engine(
     summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
 
     # 4) Funnel and drop buckets (protocol: jsonld counts and new drop buckets)
-    # Pre-insert drop breakdown for audit (CharlieC: expose where signals are removed)
+    # Pre-insert drop breakdown: EXCLUSIVE counts for the stage between after_first_pass (265) and insert (35).
+    # Only second-loop drops belong here; first-loop drops (url, meta_snippet, date, canonical, other) already
+    # happened before after_first_pass, so they must not be counted in pre-insert counters.
     drop_validation = (
         drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
         + drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
         + drop_buckets.get(DROP_PU_PROVEN_JSONLD, 0)
         + drop_buckets.get(DROP_URL_VALIDATION, 0)
-    )
-    drop_empty_url = drop_buckets.get(DROP_URL, 0) + drop_buckets.get(DROP_CANONICAL, 0)
-    drop_other = (
-        drop_buckets.get(DROP_META_SNIPPET, 0)
-        + drop_buckets.get(DROP_DATE, 0)
-        + drop_buckets.get(DROP_OTHER, 0)
     )
     summary["funnel"] = {
         "from_sources": summary["candidates_from_sources"],
@@ -508,9 +504,9 @@ def run_evidence_engine(
         "inserted": len(to_insert),
         "drop_buckets": dict(drop_buckets),
         "drop_validation": drop_validation,
-        "drop_empty_url": drop_empty_url,
+        "drop_empty_url": 0,
         "drop_dedup": 0,
-        "drop_other": drop_other,
+        "drop_other": 0,
     }
     summary["top10_kept"] = [
         {
@@ -543,7 +539,7 @@ def run_evidence_engine(
     inserted = insert_result.get("inserted", 0) if isinstance(insert_result, dict) else insert_result
     summary["inserted"] = inserted
     if isinstance(insert_result, dict):
-        summary["funnel"]["drop_empty_url"] = summary["funnel"].get("drop_empty_url", 0) + insert_result.get("drop_empty_url", 0)
+        summary["funnel"]["drop_empty_url"] = insert_result.get("drop_empty_url", 0)
         summary["funnel"]["drop_dedup"] = insert_result.get("drop_dedup", 0)
         summary["funnel"]["signals_after_preinsert_validation"] = inserted
     summary["timing_seconds"]["total"] = round(time.perf_counter() - t0, 1)

@@ -1,0 +1,114 @@
+================================================================================
+CHARLIEC – Pre-Insert Filtering Audit Counters (Clarification and Correction)
+================================================================================
+
+This document explains the pre-insert drop counters and the fix applied so that
+each signal is counted only once at the stage where it is removed.
+
+--------------------------------------------------------------------------------
+1. PIPELINE STAGES
+--------------------------------------------------------------------------------
+
+  signals_after_query_plan     = combined from sources + search (e.g. 431)
+           |
+           v  [FIRST LOOP: url, meta_snippet, date, canonical]
+  signals_after_date_filter   = after_first_pass = len(grouped) (e.g. 265)
+           |
+           v  [PRE-INSERT STAGE: second-loop validation + insert empty/dedup]
+  signals_after_preinsert_validation = inserted into DB (e.g. 35)
+           |
+           v  [CUSTOMER SCOPE FILTER]
+  stage_3_after_customer_scope_filter (e.g. 0)
+
+--------------------------------------------------------------------------------
+2. DROP_COUNTER DEFINITIONS (PRE-INSERT STAGE ONLY)
+--------------------------------------------------------------------------------
+
+Pre-insert counters now count ONLY drops that occur BETWEEN after_first_pass
+(265) and insert (35). First-loop drops (url, meta_snippet, date, canonical,
+other) are NOT included in these counters because they happened before we had
+265 signals.
+
+  drop_validation
+  ---------------
+  - Exact rule: A signal is dropped by validation when it fails one of:
+    (a) PU anchor check (no PU-relevant anchor in title/snippet/enriched text)
+    (b) validate_url (HTTP not 2xx when validate_urls=True)
+    (c) Region relevance (JSON-LD proof and region mismatch)
+    (d) PU relevance (JSON-LD proof and PU not relevant)
+  - Each signal increments at most ONE drop counter. The pipeline applies
+    these checks in sequence and stops at the first failure.
+  - Counters are EXCLUSIVE: a signal is counted in exactly one of
+    drop_validation, drop_empty_url, drop_dedup, drop_other.
+
+  drop_empty_url
+  --------------
+  - Exact rule: During insert_candidate_articles(), a record is skipped if
+    canonical_url is missing or empty after strip.
+  - Each signal counted once. Exclusive.
+
+  drop_dedup
+  ----------
+  - Exact rule: During insert_candidate_articles(), a record is skipped if
+    (canonical_url, title) was already seen in the same batch.
+  - Each signal counted once. Exclusive.
+
+  drop_other
+  ----------
+  - For the PRE-INSERT stage (265 → 35), drop_other is always 0.
+  - The labels "meta_snippet", "date", "url", "canonical", "other" in the
+    evidence engine apply to the FIRST loop (431 → 265). Those drops are
+    not part of the pre-insert stage, so they are no longer added to
+    drop_validation / drop_empty_url / drop_other for the audit.
+  - Counters are exclusive.
+
+--------------------------------------------------------------------------------
+3. WHY COUNTS EXCEEDED THE OBSERVED DROP (BEFORE FIX)
+--------------------------------------------------------------------------------
+
+Previously we summed:
+  drop_validation = pu_anchor + region_jsonld + pu_jsonld + url_validation  [second loop]
+  drop_empty_url  = url + canonical  [first loop] + insert empty
+  drop_other      = meta_snippet + date + other   [first loop]
+
+So drop_validation (230) + drop_other (107) = 337, but the reduction from
+265 → 35 is only 230. The 107 were first-loop drops (already reflected in
+431 → 265). Including them in "pre-insert" double-counted.
+
+CORRECTION: Pre-insert counters now include only:
+  - drop_validation = second-loop validation drops only (230)
+  - drop_empty_url = from insert only (0)
+  - drop_dedup     = from insert only (0)
+  - drop_other     = 0
+
+So: 265 - 230 - 0 - 0 - 0 = 35.
+
+--------------------------------------------------------------------------------
+4. CUSTOMER SCOPE FILTER COUNTERS (CORRECTION)
+--------------------------------------------------------------------------------
+
+Scope filter input is only the signals that survived pre-insert (35), not
+the 265 after date filter.
+
+  scope_filter_input = signals_after_preinsert_validation (35)
+  drop_customer_scope_total = scope_filter_input - stage_3_after_customer_scope_filter
+  failed_customer_filter   = same as drop_customer_scope_total when no breakdown
+
+So: signals_after_preinsert_validation = stage_3_after_customer_scope_filter + failed_customer_filter
+    35 = 0 + 35.
+
+--------------------------------------------------------------------------------
+5. DIAGNOSTIC: SCOPE FILTER INPUT CHECK
+--------------------------------------------------------------------------------
+
+To produce the distribution of the exact signals entering the scope filter:
+
+  python development/scope_filter_input_check.py <run_id>
+
+Output: Live Results/Scope Filter Input Check.txt
+  - Total signals entering scope filter
+  - CATEGORY DISTRIBUTION
+  - REGION DISTRIBUTION
+  - VALUE_CHAIN_LINK DISTRIBUTION
+
+================================================================================

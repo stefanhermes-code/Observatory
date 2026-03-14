@@ -161,11 +161,9 @@ def build_run_audit(
     # Drop reason counts (always include standard keys; values are counts)
     no_mapped = _int(customer_filter_drop_counts.get("no_mapped_category")) or _int(report_metrics.get("drop_no_mapped_category"))
     below_strength = _int(report_metrics.get("drop_below_minimum_strength"))
-    # Derived safeguard: total lost at customer scope stage, even if detailed stats are missing.
-    drop_customer_scope_total = (
-        _int(audit["steps"].get("candidates_after_date_filter_count"))
-        - _int(audit["steps"].get("candidates_after_customer_filter_count"))
-    )
+    # Scope filter input = signals that survived pre-insert only. Total lost at scope = input - stage_3.
+    scope_filter_input = _int(audit.get("signals_after_preinsert_validation")) or _int(audit["steps"].get("candidates_after_date_filter_count"))
+    drop_customer_scope_total = scope_filter_input - _int(audit["steps"].get("candidates_after_customer_filter_count"))
     drop_reason_counts: Dict[str, int] = {
         DROP_OUTSIDE_LOOKBACK: _int(drop_buckets.get("date")),
         "failed_category_mapping": no_mapped,
