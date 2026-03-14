@@ -398,7 +398,7 @@ elif page == "📰 Generate Report":
     
     st.markdown("---")
     
-    # Builder-only: lookback period (1/7/30/60/90/120/150/180 days) and unlimited runs (stefan.hermes@htcglobal.asia)
+    # Builder-only: lookback period. Only these values are ever sent; 2-day etc. cannot originate from this UI.
     override_cadence = None
     lookback_override = None
     if st.session_state.user_email.lower() == "stefan.hermes@htcglobal.asia":

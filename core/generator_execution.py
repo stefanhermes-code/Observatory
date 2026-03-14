@@ -318,6 +318,7 @@ def execute_generator(
             user_email or "generator",
             {
                 "run_id": run_id,
+                "user_email": user_email or "generator",
                 "spec_id": spec_id,
                 "workspace_id": workspace_id,
                 "lookback_override_param": lookback_override,
