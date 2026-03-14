@@ -1,0 +1,28 @@
+Run ID: 292fb71c-1645-48a7-b92b-81c51c985c5f
+(resolved from: 292fb71c)
+
+Total signals entering scope filter: 35
+
+1. CATEGORY DISTRIBUTION
+category | count
+----------------------------------------
+regional_monitoring | 20
+industry_context | 5
+value_chain | 5
+value_chain_link | 4
+m_and_a | 1
+
+2. REGION DISTRIBUTION
+region | count
+----------------------------------------
+EMEA | 16
+South America | 6
+North America | 5
+Middle East | 4
+SEA | 4
+
+3. VALUE_CHAIN_LINK DISTRIBUTION
+value_chain_link | count
+----------------------------------------
+raw_materials | 31
+end_use | 4
