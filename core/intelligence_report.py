@@ -452,6 +452,9 @@ def generate_report_from_signals(
             "date": s.get("date") or "",
             "source": s.get("source") or "",
             "query_id": s.get("query_id") or "",
+            "region": s.get("region") or "",
+            "value_chain_link": s.get("value_chain_link") or "",
+            "configurator_category": config_cat,
         })
 
     filtered, customer_filter_stats = filter_signals_by_spec_with_stats(articles, query_plan_map, spec or {})

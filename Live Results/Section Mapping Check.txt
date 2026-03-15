@@ -1,0 +1,63 @@
+================================================================================
+SECTION MAPPING CHECK (CHARLIEC)
+================================================================================
+Run ID: (pass run_id to development/section_mapping_check.py to fill)
+Specification ID: (from run)
+Total records entering section mapping: 31 (from your latest run)
+
+--------------------------------------------------------------------------------
+ROOT CAUSE (31 -> 0 at section mapping)
+--------------------------------------------------------------------------------
+Phase 5 report uses filter_signals_by_spec_with_stats(articles, query_plan_map, spec).
+The filter looks up each signal's query_id in query_plan_map to get region,
+configurator_category, and value_chain_link. When query_id is missing or not in
+the plan (e.g. source-ingested candidates have query_id = None), meta = {} and
+all checks fail, so every such record is dropped. The 31 records that survived
+the scope filter (stage 3) were then dropped in Phase 5 before section mapping
+because their query_ids were missing or not present in the plan built from spec.
+
+Field used for mapping:
+  - category (configurator from candidate_articles) -> CONFIGURATOR_TO_CLASSIFIER
+    -> classifier_category; then CATEGORY_TO_SECTION[classifier_category] -> section.
+  - included_sections: only signals mapping to a section in this list are kept.
+
+Mapping table: core/intelligence_report.py
+  CATEGORY_TO_SECTION: classifier -> section
+  CONFIGURATOR_TO_CLASSIFIER: configurator -> classifier
+
+--------------------------------------------------------------------------------
+FIX APPLIED
+--------------------------------------------------------------------------------
+1. customer_filter.filter_signals_by_spec_with_stats: when query_id is missing
+   or not in query_plan_map, use the signal's own region, configurator_category,
+   and value_chain_link (from candidate_articles) so source-ingested and
+   plan-mismatch candidates are still evaluated against the spec.
+
+2. intelligence_report.generate_report_from_signals: add region, value_chain_link,
+   and configurator_category to each article so the filter can use them as
+   fallback.
+
+3. run_audit: added drop_section_mapping_total so that
+   stage_3_after_customer_scope_filter = stage_4_after_section_mapping + drop_section_mapping_total.
+   Surfaces in drop_reason_counts: drop_section_mapping_total, DROP_FAILED_SECTION_FILTER.
+
+--------------------------------------------------------------------------------
+REGENERATE FULL DIAGNOSTIC
+--------------------------------------------------------------------------------
+Run with your run_id (the one with 31 records after scope filter):
+
+  python development/section_mapping_check.py <run_id>
+
+This produces per-record table, SECTION MAPPING SUMMARY, and UNMAPPED REASONS SUMMARY
+in this file (overwrites). Requires Supabase configured (.env or Streamlit secrets).
+
+--------------------------------------------------------------------------------
+VERIFICATION AFTER FIX (Task 5)
+--------------------------------------------------------------------------------
+Run a new generation and confirm:
+  - Records map into sections (stage_4_after_section_mapping > 0)
+  - Clusters are formed (stage_5_clusters_formed > 0)
+  - Developments extracted (stage_6_developments_extracted > 0)
+  - Report content appears
+
+================================================================================

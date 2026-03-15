@@ -164,13 +164,19 @@ def build_run_audit(
     # Scope filter input = signals that survived pre-insert only. Total lost at scope = input - stage_3.
     scope_filter_input = _int(audit.get("signals_after_preinsert_validation")) or _int(audit["steps"].get("candidates_after_date_filter_count"))
     drop_customer_scope_total = scope_filter_input - _int(audit["steps"].get("candidates_after_customer_filter_count"))
+    # Section mapping: stage_3 = stage_4 + drop_section_mapping_total
+    stage_3_count = _int(audit["steps"].get("candidates_after_customer_filter_count"))
+    stage_4_count = _int(audit["steps"].get("candidates_after_section_filter_count"))
+    drop_section_mapping_total = max(0, stage_3_count - stage_4_count)
+    drop_failed_section_filter = _int(report_metrics.get("drop_failed_section_filter"))
     drop_reason_counts: Dict[str, int] = {
         DROP_OUTSIDE_LOOKBACK: _int(drop_buckets.get("date")),
         "failed_category_mapping": no_mapped,
         DROP_NO_MAPPED_CATEGORY: no_mapped,
         DROP_FAILED_REGION_FILTER: _int(customer_filter_drop_counts.get("failed_region_filter")) or _int(report_metrics.get("drop_failed_region_filter")),
         DROP_FAILED_VALUE_CHAIN_FILTER: _int(customer_filter_drop_counts.get("failed_value_chain_filter")) or _int(report_metrics.get("drop_failed_value_chain_filter")),
-        DROP_FAILED_SECTION_FILTER: _int(report_metrics.get("drop_failed_section_filter")),
+        DROP_FAILED_SECTION_FILTER: drop_failed_section_filter,
+        "drop_section_mapping_total": drop_section_mapping_total,
         DROP_NO_CLUSTER_FORMED: _int(report_metrics.get("drop_no_cluster_formed")),
         "below_strength_threshold": below_strength,
         DROP_BELOW_MINIMUM_STRENGTH: below_strength,

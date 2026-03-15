@@ -126,6 +126,7 @@ def filter_signals_by_spec_with_stats(
     """
     Same as filter_signals_by_spec but also returns drop counts for audit.
     Returns (filtered_list, {"dropped_total", "failed_region_filter", "failed_value_chain_filter", "no_mapped_category"}).
+    When query_id is missing or not in query_plan_map, uses signal's own region, configurator_category, value_chain_link.
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
@@ -139,10 +140,16 @@ def filter_signals_by_spec_with_stats(
     filtered: List[Dict[str, Any]] = []
     for s in signals:
         qid = (s.get("query_id") or "").strip()
-        meta = query_plan_map.get(qid) or {}
-        region = (meta.get("region") or "").strip()
-        config_cat = (meta.get("configurator_category") or "").strip()
-        vcl = (meta.get("value_chain_link") or "").strip()
+        meta = query_plan_map.get(qid) if qid else None
+        if meta:
+            region = (meta.get("region") or "").strip()
+            config_cat = (meta.get("configurator_category") or "").strip()
+            vcl = (meta.get("value_chain_link") or "").strip()
+        else:
+            # Fallback: use signal's own metadata (e.g. candidate_articles have region, category, value_chain_link)
+            region = (s.get("region") or "").strip()
+            config_cat = (s.get("configurator_category") or s.get("category") or "").strip()
+            vcl = (s.get("value_chain_link") or "").strip()
 
         ok_region = (not regions) or (region in regions)
         ok_category = (not categories) or (config_cat in categories)
