@@ -504,6 +504,10 @@ elif page == "📰 Generate Report":
         run_id = st.session_state.get("gen_run_id")
         run_spec = st.session_state.get("gen_run_spec")
         params = st.session_state.get("gen_params", {})
+        if not run_id or not run_spec:
+            st.error("❌ Session was reset. Please start again by clicking Generate Report.")
+            st.session_state.gen_phase = 0
+            st.stop()
         with st.status("Step 2: Validating and verifying intelligence", expanded=True) as status:
             st.write("This step can also take a few minutes; the page will refresh automatically when it is done.")
             try:
@@ -536,26 +540,43 @@ elif page == "📰 Generate Report":
     # Phase 2 done: render and save, then show result
     if st.session_state.gen_phase == 2:
         params = st.session_state.get("gen_params", {})
+        run_id = st.session_state.get("gen_run_id")
+        run_spec = st.session_state.get("gen_run_spec")
+        writer_output = st.session_state.get("gen_writer_output")
+        evidence_summary = st.session_state.get("gen_evidence_summary")
+        gen_spec = st.session_state.get("gen_spec")
+        if not run_id or not run_spec or not writer_output:
+            st.error("❌ Session was reset after Step 2. Please start again by clicking Generate Report.")
+            st.session_state.gen_phase = 0
+            st.stop()
         with st.status("Step 3: Writing the Intelligence Report", expanded=True) as status:
             st.write("Once the report is finished you can download it.")
             st.write("This step is usually quick (seconds), and then your report preview will appear below.")
-            result_data = run_phase_render_and_save(
-                run_id=st.session_state.get("gen_run_id"),
-                workspace_id=params.get("workspace_id"),
-                spec_id=params.get("spec_id"),
-                user_email=params.get("user_email"),
-                spec=st.session_state.get("gen_spec"),
-                run_specification=st.session_state.get("gen_run_spec"),
-                writer_output=st.session_state.get("gen_writer_output"),
-                extraction_result=st.session_state.get("gen_extraction_result"),
-                evidence_summary=st.session_state.get("gen_evidence_summary"),
-                signal_extraction_result=st.session_state.get("gen_signal_extraction_result"),
-                signal_clustering_result=st.session_state.get("gen_signal_clustering_result"),
-                signal_classification_result=st.session_state.get("gen_signal_classification_result"),
-                doctrine_result=st.session_state.get("gen_doctrine_result"),
-                cadence_override=params.get("cadence_override"),
-                audit_counts=st.session_state.get("gen_audit_counts"),
-            )
+            try:
+                result_data = run_phase_render_and_save(
+                    run_id=run_id,
+                    workspace_id=params.get("workspace_id"),
+                    spec_id=params.get("spec_id"),
+                    user_email=params.get("user_email"),
+                    spec=gen_spec or {},
+                    run_specification=run_spec,
+                    writer_output=writer_output,
+                    extraction_result=st.session_state.get("gen_extraction_result") or {},
+                    evidence_summary=evidence_summary or {},
+                    signal_extraction_result=st.session_state.get("gen_signal_extraction_result"),
+                    signal_clustering_result=st.session_state.get("gen_signal_clustering_result"),
+                    signal_classification_result=st.session_state.get("gen_signal_classification_result"),
+                    doctrine_result=st.session_state.get("gen_doctrine_result"),
+                    cadence_override=params.get("cadence_override"),
+                    audit_counts=st.session_state.get("gen_audit_counts"),
+                )
+            except Exception as e:
+                from core.generator_db import update_run_status
+                update_run_status(run_id, "failed", error_message=str(e))
+                st.session_state.gen_error = str(e)
+                st.session_state.gen_phase = 0
+                status.update(label="Failed", state="error")
+                st.rerun()
             status.update(label="Done", state="complete")
 
         st.session_state.gen_result_data = result_data
@@ -572,6 +593,11 @@ elif page == "📰 Generate Report":
     # Phase 3: show result and clear for next time
     if st.session_state.gen_phase == 3:
         result_data = st.session_state.get("gen_result_data")
+        if not result_data or not result_data.get("html_content"):
+            st.error("❌ Report was not generated. Please try again. If it persists, check run status in History.")
+            st.session_state.gen_phase = 0
+            st.session_state.gen_result_data = None
+            st.stop()
         if result_data:
             html_content = result_data["html_content"]
             metadata = result_data.get("metadata", {})
