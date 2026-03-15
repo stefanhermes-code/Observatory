@@ -507,7 +507,7 @@ elif page == "📰 Generate Report":
         with st.status("Step 2: Validating and verifying intelligence", expanded=True) as status:
             st.write("This step can also take a few minutes; the page will refresh automatically when it is done.")
             try:
-                writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result = run_phase_extract_and_write(
+                writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result, audit_counts = run_phase_extract_and_write(
                     run_id=run_id,
                     workspace_id=params.get("workspace_id"),
                     spec_id=params.get("spec_id"),
@@ -529,6 +529,7 @@ elif page == "📰 Generate Report":
         st.session_state.gen_signal_clustering_result = signal_clustering_result
         st.session_state.gen_signal_classification_result = signal_classification_result
         st.session_state.gen_doctrine_result = doctrine_result
+        st.session_state.gen_audit_counts = audit_counts
         st.session_state.gen_phase = 2
         st.rerun()
 
@@ -553,6 +554,7 @@ elif page == "📰 Generate Report":
                 signal_classification_result=st.session_state.get("gen_signal_classification_result"),
                 doctrine_result=st.session_state.get("gen_doctrine_result"),
                 cadence_override=params.get("cadence_override"),
+                audit_counts=st.session_state.get("gen_audit_counts"),
             )
             status.update(label="Done", state="complete")
 

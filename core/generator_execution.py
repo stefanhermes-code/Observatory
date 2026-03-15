@@ -75,6 +75,22 @@ def _flag_from_secrets_or_env(name: str) -> bool:
     return str(val).strip().lower() == "true"
 
 
+def _execution_spec_snapshot(run_specification: Dict) -> Dict:
+    """
+    Build a snapshot of the effective run spec used at execution time for persistence.
+    Used so we can compare stored spec vs runtime spec when debugging scope filter issues.
+    """
+    spec = run_specification or {}
+    return {
+        "report_period_days": spec.get("report_period_days"),
+        "categories": list(spec.get("categories") or []),
+        "regions": list(spec.get("regions") or []),
+        "value_chain_links": list(spec.get("value_chain_links") or []),
+        "included_sections": list(spec.get("included_sections") or []),
+        "minimum_signal_strength_in_report": spec.get("minimum_signal_strength_in_report"),
+    }
+
+
 def _build_run_usage_metadata(evidence_summary: Optional[Dict], writer_output: Optional[Dict]) -> Dict:
     """
     Aggregate token usage from Executive Summary (Chat Completions) and web search (Responses API).
@@ -756,6 +772,7 @@ def execute_generator(
             "error_message": f"audit_build_failed: {str(e)[:300]}",
         }
     metadata_with_html["run_audit"] = run_audit
+    metadata_with_html["execution_spec"] = _execution_spec_snapshot(run_specification)
     duration = None
     if isinstance(evidence_summary, dict):
         timing = evidence_summary.get("timing_seconds") or {}
@@ -897,18 +914,36 @@ def run_phase_extract_and_write(
     run_specification: Dict,
     cadence_override: Optional[str] = None,
     lookback_override: Optional[int] = None,
-) -> Tuple[Dict, Dict]:
+) -> Tuple[Dict, Dict, Dict, Dict, Dict, Dict, Dict]:
     """
-    Phase 2: Get candidates, run extraction, run writer. Returns (writer_output, extraction_result).
+    Phase 2: Get candidates, run extraction, run writer.
+    Returns (writer_output, extraction_result, signal_extraction_result, signal_clustering_result,
+             signal_classification_result, doctrine_result, audit_counts).
+    audit_counts: candidates_count, candidates_after_customer_filter, customer_filter_drop_counts
+    for truthful stage-3 audit in run_phase_render_and_save.
     When lookback_override is set (builder only, 1/7/30 days), use it; else use spec frequency.
     Applies customer filter to candidates before extraction (plan §7–8: filter before clustering).
     """
     candidates = get_candidate_articles_for_run(run_id)
+    candidates_count_before_filter = len(candidates)
+    customer_filter_drop_counts: Dict = {}
     try:
-        from core.customer_filter import filter_candidates_by_spec
-        candidates = filter_candidates_by_spec(candidates, run_specification)
+        from core.customer_filter import filter_candidates_by_spec_with_stats
+        filtered_candidates, customer_filter_drop_counts = filter_candidates_by_spec_with_stats(
+            candidates, run_specification
+        )
+        candidates = filtered_candidates
     except Exception:
-        pass
+        try:
+            from core.customer_filter import filter_candidates_by_spec
+            candidates = filter_candidates_by_spec(candidates, run_specification)
+        except Exception:
+            pass
+    audit_counts = {
+        "candidates_count": candidates_count_before_filter,
+        "candidates_after_customer_filter": len(candidates),
+        "customer_filter_drop_counts": customer_filter_drop_counts,
+    }
     ref_date = datetime.utcnow()
     # Use run_spec from Phase 1: builder already has chosen lookback there; others have spec/frequency.
     report_period_days = run_specification.get("report_period_days")
@@ -1018,7 +1053,7 @@ def run_phase_extract_and_write(
             run_id=run_id,
         )
 
-    return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result
+    return writer_output, extraction_result, signal_extraction_result, signal_clustering_result, signal_classification_result, doctrine_result, audit_counts
 
 
 def run_phase_render_and_save(
@@ -1036,6 +1071,7 @@ def run_phase_render_and_save(
     signal_classification_result: Optional[Dict] = None,
     doctrine_result: Optional[Dict] = None,
     cadence_override: Optional[str] = None,
+    audit_counts: Optional[Dict] = None,
 ) -> Dict:
     """
     Phase 3: Render HTML, update run status, return result_data for UI.
@@ -1122,6 +1158,7 @@ def run_phase_render_and_save(
         report_period_days = base_days
     else:
         report_period_days = get_lookback_days(run_specification.get("frequency", "monthly"))
+    ac = audit_counts or {}
     try:
         run_audit = build_run_audit(
             run_id=run_id,
@@ -1130,10 +1167,10 @@ def run_phase_render_and_save(
             report_period_days=report_period_days,
             use_phase5_report=use_phase5_report,
             evidence_summary=evidence_summary if isinstance(evidence_summary, dict) else {},
-            candidates_count=0,
-            candidates_after_customer_filter=0,
+            candidates_count=ac.get("candidates_count", 0),
+            candidates_after_customer_filter=ac.get("candidates_after_customer_filter", 0),
             report_metrics={},
-            customer_filter_drop_counts={},
+            customer_filter_drop_counts=ac.get("customer_filter_drop_counts") or {},
             workspace_id=workspace_id,
         )
         run_audit["status"] = "success"
@@ -1147,6 +1184,7 @@ def run_phase_render_and_save(
             "error_message": f"audit_build_failed: {str(e)[:300]}",
         }
     metadata_with_html["run_audit"] = run_audit
+    metadata_with_html["execution_spec"] = _execution_spec_snapshot(run_specification)
     try:
         persist_run_audit(run_id, user_email or "generator", run_audit)
     except Exception:

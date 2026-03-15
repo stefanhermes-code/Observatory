@@ -1,0 +1,193 @@
+================================================================================
+EFFECTIVE RUN SPEC CHECK
+Run ID: 292fb71c-1645-48a7-b92b-81c51c985c5f
+================================================================================
+Verification of effective run spec at execution time and stage-3 audit source.
+
+--------------------------------------------------------------------------------
+1. SOURCES OF RUN SPEC AT EXECUTION TIME
+--------------------------------------------------------------------------------
+
+(1) Stored specification (loaded from get_specification_detail(spec_id)):
+    - Source: newsletter_specifications table, spec_id = 5a965135-a927-4e5c-88d2-651f7275deb7.
+    - Merged with DEFAULT_REPORT_SPEC; report_options flattened into top-level.
+    - When we inspected this spec we got: categories (11), regions (8), value_chain_links (0).
+
+(2) Generator UI / runtime overrides (phased path):
+    - generator_app.py builds run_spec = spec.copy() then:
+      run_spec["categories"] = selected_categories
+      run_spec["regions"] = selected_regions
+      run_spec["value_chain_links"] = value_chain_links_override (if spec_has_value_chain)
+    - So the "runtime merged spec" is the same object passed from UI to run_phase_evidence
+      and then to run_phase_extract_and_write and run_phase_render_and_save.
+    - No separate override parameters are applied in execute_generator for the phased path;
+      the phased path does not call execute_generator. It calls run_phase_evidence then
+      run_phase_extract_and_write then run_phase_render_and_save with run_spec from the UI.
+
+(3) Final merged spec used by the scope filter:
+    - In run_phase_extract_and_write: filter_candidates_by_spec(candidates, run_specification)
+      uses the run_specification passed in (the UI-built run_spec from Phase 1).
+    - So the effective run spec at execution time is exactly that run_specification.
+    - It is NOT persisted anywhere; only run_audit is stored in metadata.
+
+--------------------------------------------------------------------------------
+2. STORED SPEC VS RUNTIME SPEC (COMPARISON)
+--------------------------------------------------------------------------------
+
+We cannot reconstruct the exact runtime merged spec for a past run because:
+  - The run does not persist an execution-time spec snapshot.
+  - Stored spec = current get_specification_detail(spec_id) (may have been updated since the run).
+  - Runtime merged spec = at run time was run_spec from the UI (stored spec + UI selection).
+  - If the UI sent the same categories/regions/value_chain_links as in the stored spec,
+    then runtime merged spec would match stored spec. If the UI sent different or empty
+    selections, they would differ.
+
+Comparison structure (for future runs, once execution_spec is persisted):
+
+  Stored spec (current DB):
+    categories = spec.get("categories")  [from get_specification_detail today]
+    regions = spec.get("regions")
+    value_chain_links = spec.get("value_chain_links")
+
+  Runtime merged spec (at execution):
+    Not persisted for run 292fb71c. For new runs, will be in metadata.execution_spec.
+
+  Differences:
+    Unknown for this run; system did not store execution-time spec.
+
+--------------------------------------------------------------------------------
+3. SPEC SNAPSHOT PERSISTED WITH THE RUN?
+--------------------------------------------------------------------------------
+
+  NO. The run record currently does NOT persist an execution-time spec snapshot.
+
+  - newsletter_runs.metadata is updated with: html_content, run_audit, evidence_summary,
+    extraction_result, etc. There is no metadata.execution_spec or metadata.run_spec.
+  - So we cannot know after the fact which exact scope (categories, regions,
+    value_chain_links) was used when the scope filter ran.
+
+  FIX (Task 5): Add persistence of execution_spec snapshot (see code changes below).
+
+--------------------------------------------------------------------------------
+4. HOW STAGE-3 AUDIT WAS COMPUTED (ROOT CAUSE OF 35 → 0)
+--------------------------------------------------------------------------------
+
+  Code path for PHASED runs (Generator UI):
+
+  - run_phase_extract_and_write() applies the scope filter and gets filtered_candidates
+    but does NOT return candidates_count or candidates_after_customer_filter.
+  - run_phase_render_and_save() builds the run_audit by calling build_run_audit() with
+    HARDCODED values:
+
+      candidates_count=0,
+      candidates_after_customer_filter=0,
+      customer_filter_drop_counts={},
+
+  So for phased runs:
+  - Which object was counted: N/A — the phased path never passes the actual
+    len(candidates) or len(filtered_candidates) into build_run_audit.
+  - At what point: When run_phase_render_and_save runs, it builds the audit with 0, 0, {}.
+  - Which spec: build_run_audit receives spec=run_specification (the merged UI spec),
+    but the counts are not derived from the filter; they are hardcoded to 0.
+  - Result: stage_3_after_customer_scope_filter and failed_customer_filter are wrong:
+    they always show 0 and (scope_filter_input - 0) for phased runs, regardless of
+    how many candidates actually passed the scope filter.
+
+  CONCLUSION: The audit stage-3 counters for run 292fb71c are not truthful. They
+  reflect a bug in the phased path (hardcoded 0), not the real outcome of the
+  scope filter. The 35 records that entered the scope filter were filtered using
+  the real run_specification; the count that passed was never passed to the audit.
+  So "0 surviving" is an artifact of the missing audit counts, not of the filter
+  rejecting all 35.
+
+--------------------------------------------------------------------------------
+5. FIELDS REQUESTED (STORED SPEC – FROM GET_SPECIFICATION_DETAIL)
+--------------------------------------------------------------------------------
+
+  report_period_days     = (from spec or frequency default)
+  categories             = list from DB / DEFAULT_REPORT_SPEC
+  regions                = list from DB / DEFAULT_REPORT_SPEC
+  value_chain_links      = list from DB / DEFAULT_REPORT_SPEC
+  included_sections      = list from spec
+  minimum_signal_strength_in_report = spec.get("minimum_signal_strength_in_report")
+
+  Runtime merged spec (for phased run) = same keys, with values overwritten by
+  UI selection (run_spec["categories"] = selected_categories, etc.). Not persisted.
+
+--------------------------------------------------------------------------------
+6. SUMMARY
+--------------------------------------------------------------------------------
+
+  A. Effective run spec at execution: For phased runs, it is the run_specification
+     built in the UI (stored spec + selected categories/regions/value_chain_links).
+     It is not persisted.
+
+  B. Generator UI does inject runtime scope: Yes. run_spec is spec.copy() then
+     overwritten with selected_categories, selected_regions, value_chain_links_override.
+
+  C. Stage-3 audit truthfulness: For PHASED runs, the stage-3 counters are wrong:
+     they are hardcoded to 0 in run_phase_render_and_save. The real filtered count
+     is never passed to build_run_audit.
+
+  D. Run does not persist execution-time spec: Confirmed. No execution_spec in
+     metadata. Adding it in code (see Task 5).
+
+  Fixes applied in code:
+  - Phased path now passes actual candidates_count, candidates_after_customer_filter,
+    and customer_filter_drop_counts from run_phase_extract_and_write to
+    run_phase_render_and_save and into build_run_audit.
+  - Run metadata now includes execution_spec snapshot (report_period_days, categories,
+    regions, value_chain_links, included_sections, minimum_signal_strength_in_report)
+    so future runs can be audited against the exact spec used at execution time.
+  - Monolithic path (run_report) also persists execution_spec in metadata.
+
+--------------------------------------------------------------------------------
+7. SUPABASE – MANUAL SQL (Stefan must run in Supabase)
+--------------------------------------------------------------------------------
+
+To confirm run 292fb71c has no execution_spec and to inspect stored metadata:
+
+  SELECT id, status, specification_id,
+         metadata->'run_audit' AS run_audit,
+         metadata->'execution_spec' AS execution_spec,
+         metadata->'run_audit'->'steps'->'stage_3_after_customer_scope_filter' AS stage_3_count
+  FROM newsletter_runs
+  WHERE id = '292fb71c-1645-48a7-b92b-81c51c985c5f';
+
+Expected for this run: execution_spec will be NULL (run predates the fix).
+stage_3_count will be 0 due to the phased-path bug (hardcoded 0). Future runs
+will have execution_spec populated and stage_3_count reflecting the real value.
+
+--------------------------------------------------------------------------------
+8. SQL RESULT (Run 292fb71c) – CONFIRMED
+--------------------------------------------------------------------------------
+
+Query was run in Supabase. Summary:
+
+  id:           292fb71c-1645-48a7-b92b-81c51c985c5f
+  status:       success
+  specification_id: 5a965135-a927-4e5c-88d2-651f7275deb7
+
+  execution_spec:   null   (run predates persistence of execution-time spec)
+  stage_3_count:    0      (phased-path hardcoded 0, or monolithic path reported 0 passed)
+
+  run_audit (relevant parts):
+    steps.stage_3_after_customer_scope_filter:  0
+    steps.candidates_after_customer_filter_count: 0
+    signals_after_preinsert_validation: 35
+    signals_after_date_filter: 265
+    drop_reason_counts.failed_customer_filter: 265
+    drop_reason_counts.drop_customer_scope_total: 265
+    lookback_days / report_period_days: 60
+    use_phase5_report: true
+    included_sections: [Market Developments, Technology and Innovation, ...]
+
+Conclusion: No execution-time spec was stored for this run. Stage-3 audit shows 0
+passed customer scope filter and 265 failed; the 35 in candidate_articles (and
+checked in the scope filter logic report) are consistent with pre-insert validation
+count. The exact scope (categories, regions, value_chain_links) used at execution
+cannot be recovered from the DB for this run. Future runs will store execution_spec.
+
+================================================================================
+End of Effective Run Spec Check.
+================================================================================
