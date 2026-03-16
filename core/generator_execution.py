@@ -544,121 +544,46 @@ def execute_generator(
     except Exception:
         pass
 
-    use_phase5_report = bool(
-        _flag_from_secrets_or_env("USE_PHASE5_REPORT")
-        or run_specification.get("use_phase5_report") is True
-    )
-    use_structural_pipeline = bool(
-        _flag_from_secrets_or_env("USE_STRUCTURAL_PIPELINE")
-        or run_specification.get("use_structural_pipeline") is True
-    )
+    # CharlieC: Phase 5 is the only supported report path.
+    # We always use the Phase 5 report pipeline (generate_report_from_signals)
+    # and do not fall back to structural or legacy writers.
+    use_phase5_report = True
     run_audit_metrics: Optional[Dict] = None
 
-    if use_phase5_report:
-        try:
-            from core.query_planner import build_query_plan_map
-            from core.intelligence_report import generate_report_from_signals
+    try:
+        from core.query_planner import build_query_plan_map
+        from core.intelligence_report import generate_report_from_signals
 
-            query_plan_map = build_query_plan_map(run_specification)
-            signals = get_master_signals_for_run(run_id)
-            report_result = generate_report_from_signals(
-                signals,
-                query_plan_map,
-                run_specification,
-                write_metrics=False,
-                write_html=True,
-                report_period_days=run_specification.get("report_period_days"),
-            )
-            run_audit_metrics = report_result.get("run_audit_metrics")
-            writer_output = {
-                "content": report_result.get("report_text", ""),
-                "coverage_low": False,
-            }
-            if report_result.get("html"):
-                writer_output["html"] = report_result["html"]
-        except Exception as e:
-            try:
-                from core.performance_logger import end_run, log_error
-                log_error("synthesis", str(e)[:500])
-                end_run("fail")
-            except Exception:
-                pass
-            run_bundle["status"] = "failed"
-            run_bundle["error_message"] = f"Phase 5 report failed: {str(e)}"
-            if isinstance(run_bundle.get("run_audit"), dict):
-                run_bundle["run_audit"]["status"] = "failed"
-                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
-            raise RunFailedError(f"Phase 5 report failed: {str(e)}")
-    elif use_structural_pipeline:
+        query_plan_map = build_query_plan_map(run_specification)
+        signals = get_master_signals_for_run(run_id)
+        report_result = generate_report_from_signals(
+            signals,
+            query_plan_map,
+            run_specification,
+            write_metrics=False,
+            write_html=True,
+            report_period_days=run_specification.get("report_period_days"),
+        )
+        run_audit_metrics = report_result.get("run_audit_metrics")
+        writer_output = {
+            "content": report_result.get("report_text", ""),
+            "coverage_low": False,
+        }
+        if report_result.get("html"):
+            writer_output["html"] = report_result["html"]
+    except Exception as e:
         try:
-            from core.structural_pipeline import run_structural_pipeline
-
-            structural_output = run_structural_pipeline(
-                run_id=run_id,
-                spec=run_specification,
-                candidates=candidates,
-                lookback_date=lookback_date,
-                reference_date=reference_date,
-            )
-            writer_output = {
-                "content": structural_output.get("report_content", ""),
-                "coverage_low": False,
-                "structural_diagnostics": structural_output.get("diagnostics") or {},
-            }
-        except Exception as e:
-            try:
-                from core.performance_logger import end_run, log_error
-                log_error("synthesis", str(e)[:500])
-                end_run("fail")
-            except Exception:
-                pass
-            # E: Write diagnostics for every run, including failed (so zero-output runs are visible).
-            try:
-                diag_dir = Path("development/outputs")
-                diag_dir.mkdir(parents=True, exist_ok=True)
-                diag_path = diag_dir / f"run_{run_id}_diagnostics.json"
-                funnel = evidence_summary.get("funnel") if isinstance(evidence_summary, dict) else None
-                diag_payload = {
-                    "run_id": run_id,
-                    "timestamp_utc": datetime.utcnow().isoformat() + "Z",
-                    "success": False,
-                    "error": str(e)[:500],
-                    "evidence_summary": evidence_summary if isinstance(evidence_summary, dict) else None,
-                    "funnel": funnel,
-                    "candidates_total": funnel.get("combined") if isinstance(funnel, dict) else (len(candidates) if candidates else None),
-                }
-                diag_path.write_text(json.dumps(diag_payload, indent=2, default=str), encoding="utf-8")
-            except Exception:
-                pass
-            run_bundle["status"] = "failed"
-            run_bundle["error_message"] = f"Structural pipeline failed: {str(e)}"
-            if isinstance(run_bundle.get("run_audit"), dict):
-                run_bundle["run_audit"]["status"] = "failed"
-                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
-            raise RunFailedError(f"Structural pipeline failed: {str(e)}")
-    else:
-        try:
-            from core.intelligence_writer import write_report_from_evidence
-            writer_output = write_report_from_evidence(
-                spec=run_specification,
-                candidates=candidates,
-                lookback_date=lookback_date,
-                reference_date=reference_date,
-                run_id=run_id,
-            )
-        except Exception as e:
-            try:
-                from core.performance_logger import end_run, log_error
-                log_error("synthesis", str(e)[:500])
-                end_run("fail")
-            except Exception:
-                pass
-            run_bundle["status"] = "failed"
-            run_bundle["error_message"] = f"Report generation failed: {str(e)}"
-            if isinstance(run_bundle.get("run_audit"), dict):
-                run_bundle["run_audit"]["status"] = "failed"
-                run_bundle["run_audit"]["error_message"] = (str(e))[:500]
-            raise RunFailedError(f"Report generation failed: {str(e)}")
+            from core.performance_logger import end_run, log_error
+            log_error("synthesis", str(e)[:500])
+            end_run("fail")
+        except Exception:
+            pass
+        run_bundle["status"] = "failed"
+        run_bundle["error_message"] = f"Phase 5 report failed: {str(e)}"
+        if isinstance(run_bundle.get("run_audit"), dict):
+            run_bundle["run_audit"]["status"] = "failed"
+            run_bundle["run_audit"]["error_message"] = (str(e))[:500]
+        raise RunFailedError(f"Phase 5 report failed: {str(e)}")
 
     # Use writer content as report body (evidence-only; no Assistant)
     report_content = writer_output["content"]
