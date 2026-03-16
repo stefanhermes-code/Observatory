@@ -98,7 +98,7 @@ if not st.session_state.authenticated:
 # Sidebar: logo at top, then deploy, then rest
 _sidebar_logo = "Background Documentation/PU Observatory logo V3.png"
 if Path(_sidebar_logo).exists():
-    st.sidebar.image(_sidebar_logo, use_container_width=True)
+    st.sidebar.image(_sidebar_logo, width="stretch")
 st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 st.sidebar.markdown("---")
 st.sidebar.title("📰 Report Generator")
@@ -630,10 +630,10 @@ elif page == "📰 Generate Report":
                     file_name=f"{spec.get('newsletter_name', 'report')}_{datetime.utcnow().strftime('%Y%m%d')}.html",
                     mime="text/html",
                     key=f"dl_report_{result_data.get('run_id', '')}",
-                    use_container_width=True
+                    width="stretch"
                 )
             with col2:
-                print_clicked = st.button("🖨️ Print Report", type="primary", key="print_report", use_container_width=True)
+                print_clicked = st.button("🖨️ Print Report", type="primary", key="print_report", width="stretch")
                 if print_clicked:
                     st.markdown("""
                         <script>
@@ -641,7 +641,7 @@ elif page == "📰 Generate Report":
                         </script>
                     """, unsafe_allow_html=True)
             with col3:
-                if st.button("🔄 Generate Next", key="generate_next", use_container_width=True):
+                if st.button("🔄 Generate Next", key="generate_next", width="stretch"):
                     st.session_state.gen_phase = 0
                     st.session_state.gen_result_data = None
                     st.rerun()

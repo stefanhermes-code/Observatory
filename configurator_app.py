@@ -143,7 +143,7 @@ if "request_id" not in st.session_state:
 # Sidebar: logo at top, then deploy (visible when sidebar is expanded)
 _sidebar_logo = "Background Documentation/PU Observatory logo V3.png"
 if Path(_sidebar_logo).exists():
-    st.sidebar.image(_sidebar_logo, use_container_width=True)
+    st.sidebar.image(_sidebar_logo, width="stretch")
 st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 
 # Header with logo

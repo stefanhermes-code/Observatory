@@ -177,7 +177,7 @@ except:
 # Sidebar: logo at top, then deploy, then nav
 _sidebar_logo = "Logo in blue steel no BG.png"
 if Path(_sidebar_logo).exists():
-    st.sidebar.image(_sidebar_logo, use_container_width=True)
+    st.sidebar.image(_sidebar_logo, width="stretch")
 st.sidebar.caption(f"Deploy: {get_deploy_version()}")
 st.sidebar.markdown("---")
 st.sidebar.title("⚙️ Admin Control Tower")
