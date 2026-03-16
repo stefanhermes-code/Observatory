@@ -2120,7 +2120,13 @@ elif page == "📈 Reporting":
         if not runs_with_duration:
             st.info("No runs with generation duration yet. New successful runs will have duration and scope stored.")
         else:
-            runs_with_duration = sorted(runs_with_duration, key=lambda r: float(r["generation_duration_seconds"]), reverse=True)
+            def _created_at_sort_key(r):
+                try:
+                    s = r.get("created_at") or ""
+                    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+                except Exception:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+            runs_with_duration = sorted(runs_with_duration, key=_created_at_sort_key, reverse=True)
             durations = [float(r["generation_duration_seconds"]) for r in runs_with_duration]
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -2167,7 +2173,8 @@ elif page == "📈 Reporting":
                     row["Links"] = r["links_count"]
                 rows.append(row)
             df = pd.DataFrame(rows)
-            st.dataframe(df, width="stretch", hide_index=True)
+            st.caption("Table is ordered by date (newest first). Column sorting is disabled so the date column is not sorted as text.")
+            st.table(df)
             st.markdown("---")
             gen_time_csv = "Intelligence Source,Frequency,Created,Duration (seconds),Duration/Links,Categories,Regions,Links\n"
             for r in runs_with_duration:
