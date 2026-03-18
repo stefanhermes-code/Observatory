@@ -207,16 +207,36 @@ def build_run_audit(
 
     # Validation-stage breakdown and pass-strength counters.
     validation_counters = evidence_summary.get("validation_counters") or {}
+
+    # Hard rejected at validation (relaxed model)
+    audit["validation_region_mismatch"] = _int(validation_counters.get("validation_region_mismatch"))
+    audit["validation_other_hard_reject"] = _int(validation_counters.get("validation_other_hard_reject"))
+
+    # Soft-kept at validation (relaxed model)
+    audit["pu_anchor_missing_soft_kept"] = _int(validation_counters.get("pu_anchor_missing_soft_kept"))
+    audit["weak_content_soft_kept"] = _int(validation_counters.get("weak_content_soft_kept"))
+    audit["missing_category_soft_kept"] = _int(validation_counters.get("missing_category_soft_kept"))
+    audit["missing_value_chain_soft_kept"] = _int(validation_counters.get("missing_value_chain_soft_kept"))
+
+    # Pass strength (relaxed model)
+    audit["strong_pass_count"] = _int(validation_counters.get("strong_pass_count")) or _int(
+        validation_counters.get("validation_strong_pass_count")
+    )
+    audit["borderline_pass_count"] = _int(validation_counters.get("borderline_pass_count")) or _int(
+        validation_counters.get("validation_borderline_pass_count")
+    )
+
+    # Backwards-compatible object for existing readers (now reflects hard rejects only).
     audit["validation_breakdown"] = {
         "validation_pu_anchor_missing": _int(validation_counters.get("validation_pu_anchor_missing")),
-        "validation_region_mismatch": _int(validation_counters.get("validation_region_mismatch")),
+        "validation_region_mismatch": audit["validation_region_mismatch"],
         "validation_value_chain_mismatch": _int(validation_counters.get("validation_value_chain_mismatch")),
         "validation_missing_category": _int(validation_counters.get("validation_missing_category")),
         "validation_weak_content_signal": _int(validation_counters.get("validation_weak_content_signal")),
-        "validation_other": _int(validation_counters.get("validation_other")),
+        "validation_other": _int(validation_counters.get("validation_other")) or audit["validation_other_hard_reject"],
     }
-    audit["validation_strong_pass_count"] = _int(validation_counters.get("validation_strong_pass_count"))
-    audit["validation_borderline_pass_count"] = _int(validation_counters.get("validation_borderline_pass_count"))
+    audit["validation_strong_pass_count"] = _int(validation_counters.get("validation_strong_pass_count")) or audit["strong_pass_count"]
+    audit["validation_borderline_pass_count"] = _int(validation_counters.get("validation_borderline_pass_count")) or audit["borderline_pass_count"]
 
     # Representative validation-rejected examples (per-run sample).
     validation_examples_in = evidence_summary.get("top_validation_rejected_examples") or []

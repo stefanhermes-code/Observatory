@@ -346,10 +346,12 @@ def run_evidence_engine(
             drop_buckets[DROP_URL] += 1
             dropped_list.append((_snap(c), DROP_URL))
             continue
-        if is_meta_snippet((c.get("title") or "").strip()) or is_meta_snippet((c.get("snippet") or "").strip()):
+        # Weak content: previously a hard drop. Controlled relaxation: keep unless clearly unusable.
+        # We still track this as a diagnostic bucket, but we do NOT reject early.
+        weak_content_signal = is_meta_snippet((c.get("title") or "").strip()) or is_meta_snippet((c.get("snippet") or "").strip())
+        if weak_content_signal:
             drop_buckets[DROP_META_SNIPPET] += 1
-            dropped_list.append((_snap(c), DROP_META_SNIPPET))
-            continue
+            c["_weak_content_signal"] = True
         # B3: If date missing or unparseable, allow through with date_confidence=low and proxy for sorting.
         parsed_date = parse_published_at(c.get("published_at"))
         if not is_in_date_range(c.get("published_at"), lookback_date, ref_date):
@@ -393,8 +395,9 @@ def run_evidence_engine(
         enriched_len = enrichment.get("enriched_text_length") or 0
         jsonld_has_proof = enrichment.get("jsonld_found") is True and enriched_len >= 200
 
-        # Hard PU anchor gate (Phase X material identity) BEFORE region/PU logic.
-        # B4: Company-lane items are exempt from PU anchor (match_reason company_hit).
+        # Controlled relaxation:
+        # PU anchor missing is no longer a hard rejection. We keep the signal and flag it.
+        # Company-lane items are still exempt (match_reason company_hit).
         is_company_hit = any(
             (x.get("query_id") or "").strip().startswith("company_")
             for x in list_c
@@ -408,10 +411,10 @@ def run_evidence_engine(
             anchor_text = f"{title_for_anchor} {snippet_for_anchor} {enriched_text}".strip()
             source_domain = _get_domain_from_url(url)
             pu_anchor_reason = _compute_pu_anchor_reason(anchor_text, source_domain)
+        pu_anchor_missing_soft_kept = False
         if not pu_anchor_reason:
+            pu_anchor_missing_soft_kept = True
             drop_buckets[DROP_PU_ANCHOR_MISSING] += 1
-            dropped_list.append((_snap(c), DROP_PU_ANCHOR_MISSING))
-            continue
 
         # Merge criteria from all query_ids that returned this (canonical, title)
         category_val, region_val, vcl_val = None, None, None
@@ -430,10 +433,18 @@ def run_evidence_engine(
 
         if region_val is None and regions:
             region_val = regions[0]
-        if vcl_val is None and value_chain_links:
-            vcl_val = value_chain_links[0]
-        if category_val is None and categories:
-            category_val = categories[0]
+        missing_value_chain_soft_kept = False
+        if vcl_val is None:
+            missing_value_chain_soft_kept = True
+            # Keep the signal; assign a stable fallback so downstream scope filters can still operate.
+            # When the spec constrains value_chain_links, prefer a deterministic in-spec default.
+            vcl_val = value_chain_links[0] if value_chain_links else "unknown"
+        missing_category_soft_kept = False
+        if category_val is None:
+            missing_category_soft_kept = True
+            # Keep the signal; assign a stable fallback so downstream scope filters can still operate.
+            # When the spec constrains categories, prefer a deterministic in-spec default.
+            category_val = categories[0] if categories else "unknown"
 
         # Region: hard gate only when JSON-LD provides proof (enriched_text >= 200 chars)
         if jsonld_has_proof and region_val and regions:
@@ -455,6 +466,7 @@ def run_evidence_engine(
         else:
             pu_confidence = "low"
 
+        weak_content_soft_kept = any(bool(x.get("_weak_content_signal")) for x in list_c)
         rec = {
             "url": url,
             "canonical_url": canonical,
@@ -482,6 +494,10 @@ def run_evidence_engine(
             "region_proof": region_proof,
             "pu_confidence": pu_confidence,
             "pu_anchor_reason": pu_anchor_reason,
+            "pu_anchor_missing": pu_anchor_missing_soft_kept,
+            "weak_content_signal": weak_content_soft_kept,
+            "missing_category": missing_category_soft_kept,
+            "missing_value_chain_link": missing_value_chain_soft_kept,
         }
         to_insert.append(rec)
     summary["timing_seconds"]["validate_dedupe"] = round(time.perf_counter() - t_validate_start, 1)
@@ -490,35 +506,39 @@ def run_evidence_engine(
     # Pre-insert drop breakdown: EXCLUSIVE counts for the stage between after_first_pass (265) and insert (35).
     # Only second-loop drops belong here; first-loop drops (url, meta_snippet, date, canonical, other) already
     # happened before after_first_pass, so they must not be counted in pre-insert counters.
-    drop_validation = (
-        drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
-        + drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
-        + drop_buckets.get(DROP_PU_PROVEN_JSONLD, 0)
-        + drop_buckets.get(DROP_URL_VALIDATION, 0)
-    )
-    # Validation breakdown for diagnostics (reason-level counters and pass strength).
-    validation_pu_anchor_missing = drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
-    validation_region_mismatch = drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
-    # At this stage, there is no explicit value_chain mismatch bucket; keep placeholder for future wiring.
+    # Hard validation drops (minimal rejects only).
+    hard_reject_region_mismatch = drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
+    hard_reject_pu_not_relevant = drop_buckets.get(DROP_PU_PROVEN_JSONLD, 0)
+    hard_reject_url_validation = drop_buckets.get(DROP_URL_VALIDATION, 0)
+    drop_validation = hard_reject_region_mismatch + hard_reject_pu_not_relevant + hard_reject_url_validation
+
+    # Soft-kept diagnostics (kept, not rejected).
+    pu_anchor_missing_soft_kept_count = drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
+    weak_content_soft_kept_count = drop_buckets.get(DROP_META_SNIPPET, 0)
+    missing_category_soft_kept_count = sum(1 for r in to_insert if r.get("missing_category") is True)
+    missing_value_chain_soft_kept_count = sum(1 for r in to_insert if r.get("missing_value_chain_link") is True)
+
+    # Backwards-compatible validation breakdown fields (now reflect true hard rejects only).
+    validation_pu_anchor_missing = 0
+    validation_region_mismatch = hard_reject_region_mismatch
     validation_value_chain_mismatch = 0
     validation_missing_category = 0
-    # Treat meta_snippet drops as weak-content signals that fail pre-insert validation.
-    validation_weak_content_signal = drop_buckets.get(DROP_META_SNIPPET, 0)
-    # "Other" covers URL validation and any future buckets not mapped above.
-    mapped_validation_drops = (
-        validation_pu_anchor_missing
-        + validation_region_mismatch
-        + validation_value_chain_mismatch
-        + validation_missing_category
-        + validation_weak_content_signal
-    )
-    validation_other = max(0, drop_validation - mapped_validation_drops)
+    validation_weak_content_signal = 0
+    validation_other_hard_reject = hard_reject_pu_not_relevant + hard_reject_url_validation
 
     # Strong vs borderline passes among records that survive pre-insert validation.
     strong_pass = 0
     borderline_pass = 0
     for rec in to_insert:
-        if rec.get("pu_confidence") == "high" and rec.get("region_confidence") == "high":
+        is_strong = (
+            rec.get("pu_confidence") == "high"
+            and rec.get("region_confidence") == "high"
+            and rec.get("weak_content_signal") is not True
+            and rec.get("pu_anchor_missing") is not True
+            and rec.get("missing_category") is not True
+            and rec.get("missing_value_chain_link") is not True
+        )
+        if is_strong:
             strong_pass += 1
         else:
             borderline_pass += 1
@@ -538,12 +558,23 @@ def run_evidence_engine(
         "drop_other": 0,
     }
     summary["validation_counters"] = {
-        "validation_pu_anchor_missing": validation_pu_anchor_missing,
+        # Hard rejects (validation)
         "validation_region_mismatch": validation_region_mismatch,
+        "validation_other_hard_reject": validation_other_hard_reject,
+        # Soft-kept (validation)
+        "pu_anchor_missing_soft_kept": pu_anchor_missing_soft_kept_count,
+        "weak_content_soft_kept": weak_content_soft_kept_count,
+        "missing_category_soft_kept": missing_category_soft_kept_count,
+        "missing_value_chain_soft_kept": missing_value_chain_soft_kept_count,
+        # Pass strength
+        "strong_pass_count": strong_pass,
+        "borderline_pass_count": borderline_pass,
+        # Backwards-compatible keys (kept for existing consumers)
+        "validation_pu_anchor_missing": validation_pu_anchor_missing,
         "validation_value_chain_mismatch": validation_value_chain_mismatch,
         "validation_missing_category": validation_missing_category,
         "validation_weak_content_signal": validation_weak_content_signal,
-        "validation_other": validation_other,
+        "validation_other": validation_other_hard_reject,
         "validation_strong_pass_count": strong_pass,
         "validation_borderline_pass_count": borderline_pass,
     }
@@ -566,14 +597,22 @@ def run_evidence_engine(
         }
         for snap, reason in dropped_list[:10]
     ]
-    summary["top_validation_rejected_examples"] = [
-        {
-            "title": r.get("title"),
-            "canonical_url": r.get("url"),
-            "reason": r.get("reason"),
-        }
-        for r in summary["top10_dropped"]
-    ]
+    # Validation rejected examples: only true hard rejects at validation (not date-window drops).
+    hard_reject_reasons = {DROP_REGION_PROVEN_JSONLD, DROP_PU_PROVEN_JSONLD, DROP_URL_VALIDATION}
+    validation_rejected_examples = []
+    for snap, reason in dropped_list:
+        if reason not in hard_reject_reasons:
+            continue
+        validation_rejected_examples.append(
+            {
+                "title": snap.get("title"),
+                "canonical_url": snap.get("url"),
+                "reason": reason,
+            }
+        )
+        if len(validation_rejected_examples) >= 30:
+            break
+    summary["top_validation_rejected_examples"] = validation_rejected_examples[:10]
     summary["all_dropped"] = [
         {"title": snap.get("title"), "url": snap.get("url"), "reason": reason}
         for snap, reason in dropped_list
