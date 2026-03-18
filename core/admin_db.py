@@ -369,8 +369,10 @@ def override_frequency_limit(spec_id: str, reason: str) -> Dict:
 _RUN_LIST_COLUMNS = "id, specification_id, workspace_id, user_email, status, artifact_path, error_message, created_at, completed_at, generation_duration_seconds, categories_count, regions_count, links_count, frequency"
 
 # Single place for run-fetch limits (change here to affect Dashboard, Reporting, Generation History, Source Usage)
-RECENT_RUNS_LIMIT = 100
-RECENT_RUNS_WITH_METADATA_LIMIT = 50
+# For Generation History we no longer want an artificial 100-run cap, so set this very high.
+# Supabase will still enforce any server-side maximum rows per query.
+RECENT_RUNS_LIMIT = 100000
+RECENT_RUNS_WITH_METADATA_LIMIT = 5000
 
 
 def get_recent_runs(limit: int = RECENT_RUNS_LIMIT) -> Tuple[List[Dict], Optional[str]]:
