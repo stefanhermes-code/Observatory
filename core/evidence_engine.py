@@ -369,6 +369,8 @@ def run_evidence_engine(
 
     to_insert: List[Dict[str, Any]] = []
     jsonld_found_count = 0
+    # Second-pass validation and enrichment; records that survive this block are
+    # "valid_for_spec" for the purposes of downstream diagnostics.
     for (canonical, title_norm), list_c in grouped.items():
         c = list_c[0]
         url = (c.get("url") or "").strip()
@@ -494,6 +496,33 @@ def run_evidence_engine(
         + drop_buckets.get(DROP_PU_PROVEN_JSONLD, 0)
         + drop_buckets.get(DROP_URL_VALIDATION, 0)
     )
+    # Validation breakdown for diagnostics (reason-level counters and pass strength).
+    validation_pu_anchor_missing = drop_buckets.get(DROP_PU_ANCHOR_MISSING, 0)
+    validation_region_mismatch = drop_buckets.get(DROP_REGION_PROVEN_JSONLD, 0)
+    # At this stage, there is no explicit value_chain mismatch bucket; keep placeholder for future wiring.
+    validation_value_chain_mismatch = 0
+    validation_missing_category = 0
+    # Treat meta_snippet drops as weak-content signals that fail pre-insert validation.
+    validation_weak_content_signal = drop_buckets.get(DROP_META_SNIPPET, 0)
+    # "Other" covers URL validation and any future buckets not mapped above.
+    mapped_validation_drops = (
+        validation_pu_anchor_missing
+        + validation_region_mismatch
+        + validation_value_chain_mismatch
+        + validation_missing_category
+        + validation_weak_content_signal
+    )
+    validation_other = max(0, drop_validation - mapped_validation_drops)
+
+    # Strong vs borderline passes among records that survive pre-insert validation.
+    strong_pass = 0
+    borderline_pass = 0
+    for rec in to_insert:
+        if rec.get("pu_confidence") == "high" and rec.get("region_confidence") == "high":
+            strong_pass += 1
+        else:
+            borderline_pass += 1
+
     summary["funnel"] = {
         "from_sources": summary["candidates_from_sources"],
         "from_search": summary["candidates_from_search"],
@@ -507,6 +536,16 @@ def run_evidence_engine(
         "drop_empty_url": 0,
         "drop_dedup": 0,
         "drop_other": 0,
+    }
+    summary["validation_counters"] = {
+        "validation_pu_anchor_missing": validation_pu_anchor_missing,
+        "validation_region_mismatch": validation_region_mismatch,
+        "validation_value_chain_mismatch": validation_value_chain_mismatch,
+        "validation_missing_category": validation_missing_category,
+        "validation_weak_content_signal": validation_weak_content_signal,
+        "validation_other": validation_other,
+        "validation_strong_pass_count": strong_pass,
+        "validation_borderline_pass_count": borderline_pass,
     }
     summary["top10_kept"] = [
         {
@@ -526,6 +565,14 @@ def run_evidence_engine(
             "jsonld_used": snap.get("jsonld_used", reason in (DROP_REGION_PROVEN_JSONLD, DROP_PU_PROVEN_JSONLD)),
         }
         for snap, reason in dropped_list[:10]
+    ]
+    summary["top_validation_rejected_examples"] = [
+        {
+            "title": r.get("title"),
+            "canonical_url": r.get("url"),
+            "reason": r.get("reason"),
+        }
+        for r in summary["top10_dropped"]
     ]
     summary["all_dropped"] = [
         {"title": snap.get("title"), "url": snap.get("url"), "reason": reason}

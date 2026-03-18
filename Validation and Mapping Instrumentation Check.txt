@@ -1,0 +1,103 @@
+Validation and Mapping Instrumentation Check
+===========================================
+
+Two-layer model
+---------------
+
+Specification validity (Layer A)
+- Each run now classifies signals at the pre-insert stage into:
+  - valid_for_spec: signals that survive the full pre-insert validation pipeline (PU anchor, JSON-LD region/PU checks, URL validation, etc.). In the audit these are counted as `signals_valid_for_spec` and numerically equal to `signals_after_preinsert_validation`.
+  - invalid_for_spec: signals that fail pre-insert validation and are removed before insertion. In the audit these are counted as `signals_invalid_for_spec` and are derived as `signals_after_query_plan - signals_valid_for_spec`.
+
+Run selection status (Layer B)
+- Among signals that are valid_for_spec, run selection splits them into:
+  - included_in_run: signals that pass the strict customer scope filter (regions, categories, value_chain_links) and enter section mapping. In the audit these are counted as `signals_included_in_run` and numerically equal to `stage_3_after_customer_scope_filter`.
+  - excluded_by_run_scope: signals that are valid_for_spec but excluded by the current run’s scope. In the audit these are counted as `signals_excluded_by_run_scope` and are derived as `signals_valid_for_spec - signals_included_in_run`.
+- Important: signals excluded by the current run scope remain valid_for_spec and are not treated as invalid signals.
+
+New audit counters added
+------------------------
+
+Specification validity and run selection
+- signals_valid_for_spec
+- signals_invalid_for_spec
+- signals_included_in_run
+- signals_excluded_by_run_scope
+
+Validation-stage breakdown
+- validation_breakdown (object grouping reason-level counters):
+  - validation_pu_anchor_missing
+  - validation_region_mismatch
+  - validation_value_chain_mismatch
+  - validation_missing_category
+  - validation_weak_content_signal
+  - validation_other
+- validation_strong_pass_count
+- validation_borderline_pass_count
+
+Section-mapping instrumentation
+- mapping_attempts_total
+- mapping_success_by_section
+- mapping_fail_no_matching_section_rule
+- mapping_fail_category_not_linked_to_section
+- mapping_fail_value_chain_not_linked
+- mapping_fail_multi_match_conflict
+- mapping_fail_other
+- signals_unmapped_but_categorized
+
+Samples and examples
+--------------------
+
+Validation samples
+- top_validation_rejected_examples
+  - For each example (up to 10 per run):
+    - title
+    - canonical_url
+    - reason (short rejection reason derived from validation/drop buckets)
+
+Section-mapping near-miss samples
+- top_unmapped_signals_sample
+  - For each example (up to 10 per run):
+    - title
+    - category (configurator_category)
+    - value_chain_link
+    - reason not mapped (e.g. section_not_in_included_sections)
+
+Flow ratios added
+-----------------
+
+- validation_pass_rate
+  - Defined as: signals_after_preinsert_validation / stage_2_after_date_filter
+- mapping_pass_rate
+  - Defined as: stage_4_after_section_mapping / stage_3_after_customer_scope_filter
+- overall_yield
+  - Defined as: stage_8_developments_written_to_report / signals_after_query_plan
+
+These ratios are computed per run and written into the run_audit payload so they are visible without manual calculation.
+
+Confirmation: no filter logic changed
+-------------------------------------
+
+- Pre-insert validation logic in the evidence engine is unchanged:
+  - PU anchor rules
+  - JSON-LD region relevance rules
+  - PU relevance rules
+  - URL validation behavior
+  - Date-window handling
+- Customer scope filters are unchanged:
+  - filter_candidates_by_spec / filter_candidates_by_spec_with_stats
+  - filter_signals_by_spec / filter_signals_by_spec_with_stats
+  - Region, category, and value_chain_link matching rules
+- Section-mapping rules are unchanged:
+  - CATEGORY_TO_SECTION mapping
+  - Included_sections behavior
+  - Grouping and clustering logic
+- Strength and threshold logic is unchanged:
+  - minimum_signal_strength_in_report
+  - Strength thresholds and associated drops
+
+All additions in this step are instrumentation-only:
+- New counters and derived ratios
+- New per-run diagnostic structures for validation and mapping near-misses
+- No thresholds, scopes, or filter decision paths were modified.
+

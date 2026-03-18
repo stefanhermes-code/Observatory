@@ -459,17 +459,51 @@ def generate_report_from_signals(
 
     filtered, customer_filter_stats = filter_signals_by_spec_with_stats(articles, query_plan_map, spec or {})
 
-    # Section filter: count signals that map to included_sections
+    # Section filter: count signals that map to included_sections and capture mapping diagnostics
     included_sections = (spec or {}).get("included_sections")
     section_list = list(included_sections) if included_sections else None
     after_section_count = 0
     drop_section_count = 0
+
+    # Mapping instrumentation: attempts, per-section success, and unmapped-but-categorized samples.
+    from collections import defaultdict as _defaultdict
+
+    mapping_attempts_total = len(filtered)
+    mapping_success_by_section: Dict[str, int] = _defaultdict(int)
+    mapping_fail_no_matching_section_rule = 0
+    mapping_fail_category_not_linked_to_section = 0
+    mapping_fail_value_chain_not_linked = 0
+    mapping_fail_multi_match_conflict = 0
+    mapping_fail_other = 0
+    signals_unmapped_but_categorized = 0
+    top_unmapped_signals_sample: List[Dict[str, Any]] = []
+
     for a in filtered:
         sec = CATEGORY_TO_SECTION.get(a.get("category") or "", "Market Developments")
         if section_list is None or sec in section_list:
             after_section_count += 1
+            mapping_success_by_section[sec] += 1
         else:
             drop_section_count += 1
+            # Current live path rejects because section is not in included_sections.
+            reason = "section_not_in_included_sections"
+            mapping_fail_no_matching_section_rule += 1
+
+            config_cat = (a.get("configurator_category") or "").strip()
+            vcl = (a.get("value_chain_link") or "").strip()
+            has_category = bool(config_cat)
+            has_vcl = bool(vcl)
+            if has_category and has_vcl:
+                signals_unmapped_but_categorized += 1
+                if len(top_unmapped_signals_sample) < 10:
+                    top_unmapped_signals_sample.append(
+                        {
+                            "title": a.get("title") or "",
+                            "category": config_cat,
+                            "value_chain_link": vcl,
+                            "reason": reason,
+                        }
+                    )
 
     clusters = group_signals(filtered)
     developments_before_strength = build_developments(clusters)
@@ -518,6 +552,17 @@ def generate_report_from_signals(
         "drop_no_cluster_formed": no_cluster_count,
         "drop_below_minimum_strength": drop_strength_count,
         "drop_missing_classifier_category": missing_classifier_count,
+        "mapping_stats": {
+            "mapping_attempts_total": mapping_attempts_total,
+            "mapping_success_by_section": dict(mapping_success_by_section),
+            "mapping_fail_no_matching_section_rule": mapping_fail_no_matching_section_rule,
+            "mapping_fail_category_not_linked_to_section": mapping_fail_category_not_linked_to_section,
+            "mapping_fail_value_chain_not_linked": mapping_fail_value_chain_not_linked,
+            "mapping_fail_multi_match_conflict": mapping_fail_multi_match_conflict,
+            "mapping_fail_other": mapping_fail_other,
+            "signals_unmapped_but_categorized": signals_unmapped_but_categorized,
+            "top_unmapped_signals_sample": top_unmapped_signals_sample,
+        },
     }
 
     out: Dict[str, Any] = {"report_text": report_text, "run_audit_metrics": run_audit_metrics}

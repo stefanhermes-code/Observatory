@@ -190,6 +190,77 @@ def build_run_audit(
             drop_reason_counts[f"evidence_{key}"] = _int(drop_buckets[key])
     audit["drop_reason_counts"] = drop_reason_counts
 
+    # ------------------------------------------------------------------
+    # Specification validity vs run selection (two-layer model)
+    # ------------------------------------------------------------------
+    # Layer A – specification validity: signals that survive pre-insert validation.
+    signals_valid_for_spec = _int(audit.get("signals_after_preinsert_validation"))
+    signals_invalid_for_spec = max(0, signals_after_query_plan - signals_valid_for_spec)
+    audit["signals_valid_for_spec"] = signals_valid_for_spec
+    audit["signals_invalid_for_spec"] = signals_invalid_for_spec
+
+    # Layer B – run selection: among spec-valid signals, which are included vs excluded by this run scope.
+    signals_included_in_run = _int(audit["steps"].get("candidates_after_customer_filter_count"))
+    signals_excluded_by_run_scope = max(0, signals_valid_for_spec - signals_included_in_run)
+    audit["signals_included_in_run"] = signals_included_in_run
+    audit["signals_excluded_by_run_scope"] = signals_excluded_by_run_scope
+
+    # Validation-stage breakdown and pass-strength counters.
+    validation_counters = evidence_summary.get("validation_counters") or {}
+    audit["validation_breakdown"] = {
+        "validation_pu_anchor_missing": _int(validation_counters.get("validation_pu_anchor_missing")),
+        "validation_region_mismatch": _int(validation_counters.get("validation_region_mismatch")),
+        "validation_value_chain_mismatch": _int(validation_counters.get("validation_value_chain_mismatch")),
+        "validation_missing_category": _int(validation_counters.get("validation_missing_category")),
+        "validation_weak_content_signal": _int(validation_counters.get("validation_weak_content_signal")),
+        "validation_other": _int(validation_counters.get("validation_other")),
+    }
+    audit["validation_strong_pass_count"] = _int(validation_counters.get("validation_strong_pass_count"))
+    audit["validation_borderline_pass_count"] = _int(validation_counters.get("validation_borderline_pass_count"))
+
+    # Representative validation-rejected examples (per-run sample).
+    validation_examples_in = evidence_summary.get("top_validation_rejected_examples") or []
+    top_examples = []
+    for ex in validation_examples_in:
+        if len(top_examples) >= 10:
+            break
+        if not isinstance(ex, dict):
+            continue
+        top_examples.append(
+            {
+                "title": ex.get("title") or "",
+                "canonical_url": ex.get("canonical_url") or ex.get("url") or "",
+                "reason": ex.get("reason") or "",
+            }
+        )
+    audit["top_validation_rejected_examples"] = top_examples
+
+    # Section-mapping instrumentation (mapping attempts, outcomes, and near-misses).
+    mapping_stats = report_metrics.get("mapping_stats") or {}
+    audit["mapping_attempts_total"] = _int(mapping_stats.get("mapping_attempts_total")) or _int(
+        audit["steps"].get("candidates_after_customer_filter_count")
+    )
+    audit["mapping_success_by_section"] = mapping_stats.get("mapping_success_by_section") or {}
+    audit["mapping_fail_no_matching_section_rule"] = _int(mapping_stats.get("mapping_fail_no_matching_section_rule"))
+    audit["mapping_fail_category_not_linked_to_section"] = _int(
+        mapping_stats.get("mapping_fail_category_not_linked_to_section")
+    )
+    audit["mapping_fail_value_chain_not_linked"] = _int(mapping_stats.get("mapping_fail_value_chain_not_linked"))
+    audit["mapping_fail_multi_match_conflict"] = _int(mapping_stats.get("mapping_fail_multi_match_conflict"))
+    audit["mapping_fail_other"] = _int(mapping_stats.get("mapping_fail_other"))
+    audit["signals_unmapped_but_categorized"] = _int(mapping_stats.get("signals_unmapped_but_categorized"))
+    audit["top_unmapped_signals_sample"] = mapping_stats.get("top_unmapped_signals_sample") or []
+
+    # Flow ratios for quick visibility on choke-point strength.
+    stage_2_after_date = _int(audit["steps"].get("stage_2_after_date_filter"))
+    stage_3_after_scope = _int(audit["steps"].get("stage_3_after_customer_scope_filter"))
+    stage_4_after_mapping = _int(audit["steps"].get("stage_4_after_section_mapping"))
+    stage_8_written = _int(audit["steps"].get("stage_8_developments_written_to_report"))
+
+    audit["validation_pass_rate"] = (signals_valid_for_spec / stage_2_after_date) if stage_2_after_date > 0 else None
+    audit["mapping_pass_rate"] = (stage_4_after_mapping / stage_3_after_scope) if stage_3_after_scope > 0 else None
+    audit["overall_yield"] = (stage_8_written / signals_after_query_plan) if signals_after_query_plan > 0 else None
+
     return audit
 
 
