@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 # -----------------------------------------------------------------------------
 # Section and theme configuration (report structure)
@@ -516,217 +516,65 @@ def generate_report_from_signals(
     spec: regions, categories, value_chain_links (filter); included_sections, minimum_signal_strength_in_report,
     report_title (for HTML).
     """
-    from core.customer_filter import filter_signals_by_spec_with_stats
+    from collections import Counter
 
-    # Normalize to article format.
-    # Run 9: classification is light/neutral and returns one of:
-    # Capacity, Technology, Market, Corporate, Sustainability, Other
-    # and MUST NOT return "Unknown".
+    from core.customer_filter import filter_signals_by_spec_with_stats
+    from core.intelligence_layer import build_intelligence_report
+
     articles: List[Dict[str, Any]] = []
-    missing_classifier_count = 0
-    for s in signals:
-        config_cat = (s.get("category") or "").strip()
-        base: Dict[str, Any] = {
-            "title": s.get("title") or "",
-            "url": s.get("url") or "",
-            "date": s.get("date") or "",
-            "source": s.get("source") or "",
-            "query_id": s.get("query_id") or "",
-            "region": s.get("region") or "",
-            "value_chain_link": s.get("value_chain_link") or "",
+    for signal in signals:
+        config_cat = (signal.get("category") or "").strip()
+        article: Dict[str, Any] = {
+            "signal_id": signal.get("signal_id") or signal.get("id"),
+            "title": signal.get("title") or "",
+            "url": signal.get("url") or "",
+            "date": signal.get("date") or "",
+            "source": signal.get("source") or "",
+            "query_id": signal.get("query_id") or "",
+            "region": signal.get("region") or "",
+            "value_chain_link": signal.get("value_chain_link") or "",
             "configurator_category": config_cat,
-            # Evidence-engine flags for neutral classification
-            "pu_anchor_missing": bool(s.get("pu_anchor_missing")),
-            "weak_content_signal": bool(s.get("weak_content_signal")),
-            "missing_category": bool(s.get("missing_category")),
-            "missing_value_chain_link": bool(s.get("missing_value_chain_link")),
+            "category": _infer_allowed_category(
+                {
+                    "title": signal.get("title") or "",
+                    "configurator_category": config_cat,
+                    "pu_anchor_missing": bool(signal.get("pu_anchor_missing")),
+                    "weak_content_signal": bool(signal.get("weak_content_signal")),
+                    "missing_category": bool(signal.get("missing_category")),
+                }
+            ),
         }
-        base["category"] = _infer_allowed_category(base)
-        articles.append(base)
+        articles.append(article)
 
     filtered, customer_filter_stats = filter_signals_by_spec_with_stats(articles, query_plan_map, spec or {})
-
-    # Section filter: count signals that map to included_sections and capture mapping diagnostics
-    included_sections = (spec or {}).get("included_sections")
-    section_list = list(included_sections) if included_sections else None
-    after_section_count = 0
-    drop_section_count = 0
-
-    # Run 9 mapping:
-    # - decouple category from section
-    # - assign a primary section from keyword theme
-    # - rebalance section distribution so no single section exceeds 60%
-    from collections import defaultdict as _defaultdict, Counter as _Counter
-
-    category_distribution: Dict[str, int] = dict(_Counter(a.get("category") for a in filtered if a.get("category")))
-
-    mapping_attempts_total = len(filtered)
-    mapping_success_by_section: Dict[str, int] = _defaultdict(int)
-    mapping_fail_no_matching_section_rule = 0
-    mapping_fail_category_not_linked_to_section = 0
-    mapping_fail_value_chain_not_linked = 0
-    mapping_fail_multi_match_conflict = 0
-    mapping_fail_other = 0
-    signals_unmapped_but_categorized = 0
-    top_unmapped_signals_sample: List[Dict[str, Any]] = []
-
-    # 1) Primary section assignment (keyword-based)
-    section_counts: Dict[str, int] = _defaultdict(int)
-    buckets: Dict[str, List[int]] = _defaultdict(list)
-    for idx, a in enumerate(filtered):
-        primary_section, theme_id, theme_label = _infer_theme_and_primary_section(a)
-        a["_theme_id"] = theme_id
-        a["_theme_label"] = theme_label
-        a["_balanced_section"] = primary_section
-        section_counts[primary_section] += 1
-        buckets[primary_section].append(idx)
-
-    # 2) Rebalance section dominance (>60%)
-    total_mapped = max(1, len(filtered))
-    max_allowed_per_section = int(0.6 * total_mapped)
-    if max_allowed_per_section < 1:
-        max_allowed_per_section = 1
-
-    included_set = set(section_list) if section_list is not None else set(section_counts.keys())
-    included_set = included_set or set(section_counts.keys())
-    # Yield optimization: we avoid pushing signals into "Strategic Implications" during rebalance,
-    # because downstream development extraction currently skips that section.
-    included_set.discard("Strategic Implications")
-
-    # Deterministic order: iterate until counts are within target.
-    while True:
-        dominant = None
-        dominant_count = 0
-        for sec, cnt in section_counts.items():
-            if sec in included_set and cnt > dominant_count:
-                dominant, dominant_count = sec, cnt
-        if dominant is None or dominant_count <= max_allowed_per_section:
-            break
-
-        # Pick the least-filled alternative section that can accept more.
-        target = None
-        for sec in sorted(included_set):
-            if sec == dominant:
-                continue
-            if section_counts.get(sec, 0) < max_allowed_per_section:
-                if target is None or section_counts.get(sec, 0) < section_counts.get(target, 0):
-                    target = sec
-        if not target:
-            break
-
-        # Reassign one deterministic item from the dominant bucket.
-        if not buckets.get(dominant):
-            break
-        idx_to_move = buckets[dominant].pop(0)
-        filtered[idx_to_move]["_balanced_section"] = target
-        section_counts[dominant] -= 1
-        section_counts[target] += 1
-        buckets[target].append(idx_to_move)
-
-    # 3) Count final mapped-to-section outcomes
-    for a in filtered:
-        sec = a.get("_balanced_section") or "Market Developments"
-        if section_list is None or sec in section_list:
-            after_section_count += 1
-            mapping_success_by_section[sec] += 1
-        else:
-            drop_section_count += 1
-            reason = "section_not_in_included_sections"
-            mapping_fail_no_matching_section_rule += 1
-
-            config_cat = (a.get("configurator_category") or "").strip()
-            vcl = (a.get("value_chain_link") or "").strip()
-            if config_cat and vcl:
-                signals_unmapped_but_categorized += 1
-                if len(top_unmapped_signals_sample) < 10:
-                    top_unmapped_signals_sample.append(
-                        {
-                            "title": a.get("title") or "",
-                            "category": config_cat,
-                            "value_chain_link": vcl,
-                            "reason": reason,
-                        }
-                    )
-
-    clusters = group_signals(filtered)
-    developments_before_strength = build_developments(clusters)
-
-    # No cluster formed: signals in Strategic Implications (we skip that section in build_developments)
-    no_cluster_count = sum(len(sigs) for (sec, _), sigs in clusters.items() if sec == "Strategic Implications")
-
-    included_sections_set = set(included_sections or [])
-    min_strength = (spec or {}).get("minimum_signal_strength_in_report")
-    order = {"Weak": 0, "Moderate": 1, "Strong": 2}
-    if min_strength and isinstance(min_strength, str):
-        threshold = order.get(min_strength, 0)
-        developments_after_strength = [d for d in developments_before_strength if order.get(d.signal_strength, 0) >= threshold]
-        drop_strength_count = len(developments_before_strength) - len(developments_after_strength)
-    else:
-        developments_after_strength = list(developments_before_strength)
-        drop_strength_count = 0
-
-    developments_written = [d for d in developments_after_strength if not included_sections_set or d.section in included_sections_set]
-    written_count = len(developments_written)
-
-    developments = developments_after_strength
-    signal_map_enabled = (spec or {}).get("signal_map_enabled", True)
-    evidence_appendix_enabled = (spec or {}).get("evidence_appendix_enabled", True)
-    report_text = render_report(
-        developments,
-        included_sections=included_sections,
-        signal_map_enabled=signal_map_enabled,
-        evidence_appendix_enabled=evidence_appendix_enabled,
-        report_period_days=report_period_days,
+    intelligence_result = build_intelligence_report(
+        filtered_signals=filtered,
+        query_plan_map=query_plan_map,
         spec=spec,
+        report_period_days=report_period_days,
     )
+    report_text = intelligence_result.get("report_text", "")
+    intelligence_metrics = intelligence_result.get("metrics") or {}
 
     run_audit_metrics: Dict[str, Any] = {
         "master_signals_loaded_count": len(signals),
         "candidates_after_customer_filter_count": len(filtered),
-        "candidates_after_section_filter_count": after_section_count,
-        "category_distribution": category_distribution,
-        "grouped_clusters_count": len(clusters),
-        "extracted_developments_count": len(developments_before_strength),
-        "developments_after_strength_threshold_count": len(developments_after_strength),
-        "developments_written_to_report_count": written_count,
+        "category_distribution": dict(Counter(a.get("category") for a in filtered if a.get("category"))),
         "drop_failed_region_filter": customer_filter_stats.get("failed_region_filter", 0),
         "drop_failed_value_chain_filter": customer_filter_stats.get("failed_value_chain_filter", 0),
         "drop_no_mapped_category": customer_filter_stats.get("no_mapped_category", 0),
-        "drop_failed_section_filter": drop_section_count,
-        "drop_no_cluster_formed": no_cluster_count,
-        "drop_below_minimum_strength": drop_strength_count,
-        "drop_missing_classifier_category": missing_classifier_count,
-        "mapping_stats": {
-            "mapping_attempts_total": mapping_attempts_total,
-            "mapping_success_by_section": dict(mapping_success_by_section),
-            "mapping_fail_no_matching_section_rule": mapping_fail_no_matching_section_rule,
-            "mapping_fail_category_not_linked_to_section": mapping_fail_category_not_linked_to_section,
-            "mapping_fail_value_chain_not_linked": mapping_fail_value_chain_not_linked,
-            "mapping_fail_multi_match_conflict": mapping_fail_multi_match_conflict,
-            "mapping_fail_other": mapping_fail_other,
-            "signals_unmapped_but_categorized": signals_unmapped_but_categorized,
-            "top_unmapped_signals_sample": top_unmapped_signals_sample,
-        },
     }
+    run_audit_metrics.update(intelligence_metrics)
 
-    out: Dict[str, Any] = {"report_text": report_text, "run_audit_metrics": run_audit_metrics}
+    out: Dict[str, Any] = {
+        "report_text": report_text,
+        "run_audit_metrics": run_audit_metrics,
+        "facts": intelligence_result.get("facts") or [],
+        "intelligence_objects": intelligence_result.get("intelligence_objects") or [],
+        "blueprint": intelligence_result.get("blueprint") or {},
+    }
     if write_html:
         title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
-        # Build pie chart for signal map (§11)
-        signal_map_sections = [
-            "Market Developments",
-            "Technology and Innovation",
-            "Capacity and Investment Activity",
-            "Corporate Developments",
-            "Sustainability and Circular Economy",
-            "Regulatory Developments",
-        ]
-        if (spec or {}).get("included_sections"):
-            signal_map_sections = [s for s in signal_map_sections if s in (spec or {}).get("included_sections", [])]
-        by_sec: Dict[str, int] = defaultdict(int)
-        for d in developments:
-            by_sec[d.section] += 1
-        pie_html = _signal_map_pie_svg(by_sec, len(developments), signal_map_sections)
         try:
             from core.app_version import get_deploy_version
             _deploy = get_deploy_version()
@@ -735,12 +583,12 @@ def generate_report_from_signals(
         out["html"] = markdown_to_simple_html(
             report_text,
             title=title,
-            signal_map_pie_html=pie_html if pie_html else None,
+            signal_map_pie_html=None,
             deploy_version=_deploy,
             run_id=run_id,
         )
     if write_metrics:
-        out["metrics"] = build_report_metrics(len(filtered), developments)
+        out["metrics"] = intelligence_metrics
     return out
 
 
@@ -1454,34 +1302,37 @@ def generate_report(
     if signals_path.exists() and query_plan_path.exists():
         signals = load_signals(signals_path)
         query_plan_map = load_query_plan(query_plan_path)
-        articles = apply_customer_filter(signals, query_plan_map, spec)
-        # Clustering and development extraction run only on filtered signals
     elif classified_path.exists():
-        articles = load_classified_articles(classified_path)
+        signals = [
+            {
+                "signal_id": f"legacy-{index}",
+                "title": article.get("title") or "",
+                "url": article.get("url") or "",
+                "date": article.get("date") or "",
+                "source": article.get("source") or "",
+                "query_id": article.get("query_id") or "",
+                "category": article.get("category") or "",
+                "region": "",
+                "value_chain_link": "",
+            }
+            for index, article in enumerate(load_classified_articles(classified_path), start=1)
+        ]
+        query_plan_map = {}
     else:
         raise FileNotFoundError(f"Missing input: need signals.csv+query_plan.csv or {classified_path}")
 
     if counts_path.exists():
         load_category_counts(counts_path)
 
-    clusters = group_signals(articles)
-    developments = build_developments(clusters)
-
-    included_sections = spec.get("included_sections") if spec else None
-    min_strength = spec.get("minimum_signal_strength_in_report") if spec else None
-    if min_strength and isinstance(min_strength, str):
-        order = {"Weak": 0, "Moderate": 1, "Strong": 2}
-        threshold = order.get(min_strength, 0)
-        developments = [d for d in developments if order.get(d.signal_strength, 0) >= threshold]
-    signal_map_enabled = spec.get("signal_map_enabled", True) if spec else True
-    evidence_appendix_enabled = spec.get("evidence_appendix_enabled", True) if spec else True
-    report_text = render_report(
-        developments,
-        included_sections=included_sections,
-        signal_map_enabled=signal_map_enabled,
-        evidence_appendix_enabled=evidence_appendix_enabled,
-        spec=spec,
+    report_result = generate_report_from_signals(
+        signals,
+        query_plan_map,
+        spec or {},
+        write_metrics=write_metrics,
+        write_html=write_html,
+        report_period_days=(spec or {}).get("report_period_days"),
     )
+    report_text = report_result.get("report_text", "")
 
     if output_path is None:
         out_dir = input_dir
@@ -1499,13 +1350,15 @@ def generate_report(
     report_path.write_text(report_text, encoding="utf-8")
 
     if write_metrics:
-        metrics = build_report_metrics(len(articles), developments)
+        metrics = report_result.get("metrics") or report_result.get("run_audit_metrics") or {}
         metrics_path = out_dir / "intelligence_report_metrics.json"
         metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
     if write_html:
-        title = spec.get("report_title") or "Polyurethane Industry Intelligence Briefing"
-        html_text = markdown_to_simple_html(report_text, title=title)
+        html_text = report_result.get("html")
+        if not html_text:
+            title = spec.get("report_title") or "Polyurethane Industry Intelligence Briefing"
+            html_text = markdown_to_simple_html(report_text, title=title)
         html_path = out_dir / report_filename.replace(".md", ".html")
         html_path.write_text(html_text, encoding="utf-8")
 

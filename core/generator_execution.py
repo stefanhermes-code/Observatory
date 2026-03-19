@@ -563,6 +563,7 @@ def execute_generator(
             write_metrics=False,
             write_html=True,
             report_period_days=run_specification.get("report_period_days"),
+            run_id=run_id,
         )
         run_audit_metrics = report_result.get("run_audit_metrics")
         writer_output = {
@@ -945,6 +946,7 @@ def run_phase_extract_and_write(
             write_metrics=False,
             write_html=True,
             report_period_days=report_period_days,
+            run_id=run_id,
         )
         writer_output = {
             "content": report_result.get("report_text", ""),
