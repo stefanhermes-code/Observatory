@@ -45,6 +45,17 @@ PRODUCT_PATTERNS: List[Tuple[str, Optional[str], List[str]]] = [
     ("isocyanates", None, ["isocyanate", "isocyanates", "diisocyanate", "diisocyanates"]),
 ]
 
+SEGMENT_TO_PRODUCT = {
+    "flexible_foam": ("flexible foam", ""),
+    "rigid_foam": ("rigid foam", ""),
+    "tpu": ("TPU", "thermoplastic polyurethane"),
+    "case": ("CASE", ""),
+    "elastomers": ("elastomers", ""),
+    "raw_materials": ("", ""),
+    "mixed": ("", ""),
+    "unknown": ("", ""),
+}
+
 END_USE_PATTERNS: List[Tuple[str, List[str]]] = [
     ("automotive", ["automotive", "vehicle", "vehicles"]),
     ("construction", ["construction", "building", "insulation"]),
@@ -195,6 +206,10 @@ class NormalizedFact:
     theme: str
     confidence: float
     raw_signal_id: str
+    cluster_key: str = ""
+    cluster_classification: str = ""
+    cluster_materiality_flag: bool = False
+    cluster_size: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -286,6 +301,8 @@ def _dedupe_keep_order(values: Iterable[str]) -> List[str]:
         cleaned = _normalize_text(value)
         if not cleaned:
             continue
+        if cleaned.lower() in {"unknown", "unspecified", "global/unspecified", "—"}:
+            continue
         key = cleaned.lower()
         if key in seen:
             continue
@@ -354,12 +371,40 @@ def _extract_product(title_text: str) -> Tuple[str, str]:
     return "", ""
 
 
+def _segment_product(segment: str) -> Tuple[str, str]:
+    return SEGMENT_TO_PRODUCT.get((segment or "unknown").strip().lower(), ("", ""))
+
+
 def _extract_end_use_segment(title_text: str) -> str:
     return _first_pattern_match(title_text, END_USE_PATTERNS)
 
 
 def _extract_event_type(title_text: str) -> str:
     return _first_pattern_match(title_text, EVENT_PATTERNS) or "market movement"
+
+
+def _event_type_from_cluster_signal(cluster_signal_type: str, title_text: str, numeric_value: Optional[float]) -> str:
+    title_event = _extract_event_type(title_text)
+    if title_event != "market movement":
+        return title_event
+    signal_type = (cluster_signal_type or "").strip().lower()
+    if signal_type == "capacity":
+        if numeric_value is not None and float(numeric_value) < 0:
+            return "capacity reduction"
+        return "capacity addition"
+    if signal_type == "demand":
+        if numeric_value is not None and float(numeric_value) < 0:
+            return "market decline"
+        return "market growth"
+    if signal_type == "regulation":
+        return "regulation / standards"
+    if signal_type == "mna":
+        return "acquisition / corporate move"
+    if signal_type == "sustainability":
+        return "sustainability / circularity"
+    if signal_type == "investment":
+        return "launch / innovation" if "technology" in title_text or "innovation" in title_text else "capacity addition"
+    return "market movement"
 
 
 def _extract_direction(title_text: str, event_type: str) -> str:
@@ -378,6 +423,21 @@ def _extract_direction(title_text: str, event_type: str) -> str:
     if event_type == "market decline":
         return "down"
     return "unknown"
+
+
+def _direction_from_cluster_member(title_text: str, event_type: str, numeric_value: Optional[float]) -> str:
+    direction = _extract_direction(title_text, event_type)
+    if direction != "unknown":
+        return direction
+    if numeric_value is not None:
+        try:
+            if float(numeric_value) > 0:
+                return "up"
+            if float(numeric_value) < 0:
+                return "down"
+        except (TypeError, ValueError):
+            pass
+    return "structural" if event_type in STRUCTURAL_EVENT_TYPES else "unknown"
 
 
 def _extract_magnitude_and_unit(title: str) -> Tuple[str, str]:
@@ -405,6 +465,19 @@ def _extract_time_horizon(title: str) -> str:
         match = pattern.search(title or "")
         if match:
             return _normalize_text(match.group(0))
+    return ""
+
+
+def _time_horizon_from_cluster(title: str, cluster_classification: str, member_time_horizon: str) -> str:
+    title_horizon = _extract_time_horizon(title)
+    if title_horizon:
+        return title_horizon
+    member = _normalize_text(member_time_horizon)
+    if member and member != "unknown":
+        return member
+    classification = (cluster_classification or "").strip().lower()
+    if classification in {"structural", "transformational", "cyclical", "tactical"}:
+        return classification
     return ""
 
 
@@ -492,7 +565,19 @@ def _strength_from_evidence_count(evidence_count: int) -> str:
 
 
 def _primary_focus(fact: NormalizedFact) -> str:
-    return fact.product_family or fact.end_use_segment or fact.theme or "polyurethane markets"
+    if fact.product_family:
+        return fact.product_family
+    if fact.end_use_segment:
+        return fact.end_use_segment
+    if fact.theme == "capacity and supply":
+        return "polyurethane capacity"
+    if fact.theme == "technology and product development":
+        return "polyurethane technology"
+    if fact.theme == "sustainability and circularity":
+        return "polyurethane sustainability"
+    if fact.theme == "regulation and standards":
+        return "polyurethane regulation"
+    return "polyurethane markets"
 
 
 def _object_type_for_fact(fact: NormalizedFact) -> str:
@@ -549,8 +634,8 @@ def _object_title(object_type: str, direction: str, facts: Sequence[NormalizedFa
         return f"{focus} supply position shifts in {region_label}"
     if object_type == "Capacity Move":
         if direction == "down":
-            return f"{focus} capacity contracts in {region_label}"
-        return f"{focus} capacity expands in {region_label}"
+            return f"{focus} contracts in {region_label}" if focus.lower().endswith("capacity") else f"{focus} capacity contracts in {region_label}"
+        return f"{focus} expands in {region_label}" if focus.lower().endswith("capacity") else f"{focus} capacity expands in {region_label}"
     if object_type == "Competitive Move":
         return f"Competitive positioning shifts around {focus} in {region_label}"
     if object_type == "Technology Move":
@@ -560,6 +645,18 @@ def _object_title(object_type: str, direction: str, facts: Sequence[NormalizedFa
     if object_type == "Sustainability Shift":
         return f"Sustainability pressure rises around {focus} in {region_label}"
     return f"{focus} intelligence object in {region_label}"
+
+
+def _object_focus_label(obj: IntelligenceObject) -> str:
+    if obj.related_products:
+        return ", ".join(obj.related_products[:2])
+    if obj.object_type in {"Capacity Move", "Supply Shift"} and obj.core_theme == "capacity and supply":
+        return "polyurethane capacity"
+    if obj.object_type == "Technology Move" and obj.core_theme == "technology and product development":
+        return "polyurethane technology"
+    if obj.object_type in {"Regulatory Shift", "Sustainability Shift"} and obj.core_theme in {"sustainability and circularity", "regulation and standards"}:
+        return "polyurethane sustainability"
+    return obj.core_theme or "polyurethane markets"
 
 
 def _draft_implication_for_object(object_type: str, direction: str, facts: Sequence[NormalizedFact]) -> str:
@@ -664,6 +761,71 @@ def extract_normalized_facts(signals: Sequence[Dict[str, Any]], query_plan_map: 
         )
         fact.confidence = _fact_confidence(fact)
         facts.append(fact)
+    return facts
+
+
+def extract_normalized_facts_from_clusters(cluster_inputs: Sequence[Dict[str, Any]]) -> List[NormalizedFact]:
+    facts: List[NormalizedFact] = []
+    seen_fact_ids = set()
+    for cluster in cluster_inputs:
+        cluster_key = _normalize_text(cluster.get("cluster_key") or "")
+        cluster_signal_type = _normalize_text(cluster.get("signal_type") or "")
+        cluster_classification = _normalize_text(cluster.get("final_classification") or cluster.get("classification") or "")
+        cluster_materiality = bool(cluster.get("materiality_flag"))
+        cluster_size = int(cluster.get("cluster_size") or 0)
+        cluster_region = _normalize_text(cluster.get("region") or "")
+        cluster_numeric_value = cluster.get("aggregated_numeric_value")
+        cluster_numeric_unit = _normalize_text(cluster.get("aggregated_numeric_unit") or "")
+        segment_family, segment_subtype = _segment_product(cluster.get("segment") or "")
+
+        for member in cluster.get("supporting_signals") or []:
+            title = _normalize_text(member.get("source_title") or "")
+            if not title:
+                continue
+            title_text = _normalize_lower(title)
+            raw_signal_id = str(member.get("signal_id") or member.get("article_id") or "")
+            fact_id = raw_signal_id or f"{cluster_key}:{len(facts) + 1}"
+            if fact_id in seen_fact_ids:
+                continue
+            seen_fact_ids.add(fact_id)
+            country = _extract_country(title_text)
+            region = _extract_region(title_text, member.get("region") or member.get("article_region") or cluster_region, country)
+            product_family, product_subtype = _extract_product(title_text)
+            if not product_family:
+                product_family, product_subtype = segment_family, segment_subtype
+            end_use_segment = _extract_end_use_segment(title_text)
+            event_type = _event_type_from_cluster_signal(cluster_signal_type, title_text, cluster_numeric_value)
+            direction = _direction_from_cluster_member(title_text, event_type, cluster_numeric_value)
+            magnitude, unit = _extract_magnitude_and_unit(title)
+            if not magnitude and cluster_numeric_value is not None:
+                magnitude = _normalize_text(str(cluster_numeric_value))
+                unit = cluster_numeric_unit or unit
+            fact = NormalizedFact(
+                fact_id=fact_id,
+                source_title=title,
+                source_name=_normalize_text(member.get("source_name") or ""),
+                publication_date=_display_date(member.get("publication_date") or cluster.get("cluster_pub_max") or ""),
+                company=_normalize_text(member.get("company_name") or _extract_company(title)),
+                region=region,
+                country=country,
+                product_family=product_family,
+                product_subtype=product_subtype,
+                end_use_segment=end_use_segment,
+                event_type=event_type,
+                movement_direction=direction,
+                magnitude=magnitude,
+                unit=unit,
+                time_horizon=_time_horizon_from_cluster(title, cluster_classification, member.get("time_horizon") or ""),
+                theme=_theme_from_fact(event_type, product_family, end_use_segment),
+                confidence=0.0,
+                raw_signal_id=raw_signal_id,
+                cluster_key=cluster_key,
+                cluster_classification=cluster_classification,
+                cluster_materiality_flag=cluster_materiality,
+                cluster_size=cluster_size,
+            )
+            fact.confidence = min(0.99, _fact_confidence(fact) + (0.08 if cluster_materiality else 0.0) + (0.04 if cluster_classification in {"structural", "transformational"} else 0.0))
+            facts.append(fact)
     return facts
 
 
@@ -853,6 +1015,13 @@ def rank_intelligence_objects(objects: Sequence[IntelligenceObject], facts_by_id
         value_chain = _value_chain_relevance(facts)
         impact = _impact_weight(obj.object_type)
         contradiction = 1.0 if obj.contradiction_flag else 0.0
+        materiality = 1.0 if any(fact.cluster_materiality_flag for fact in facts) else 0.0
+        cluster_classification = 1.0 if any(fact.cluster_classification in {"structural", "transformational"} for fact in facts) else 0.5 if any(fact.cluster_classification == "cyclical" for fact in facts) else 0.0
+        anchor_penalty = 0.0
+        if not obj.related_products:
+            anchor_penalty += 8.0
+        if not obj.related_regions:
+            anchor_penalty += 5.0
         total = (
             25 * evidence_density
             + 15 * source_quality
@@ -860,10 +1029,12 @@ def rank_intelligence_objects(objects: Sequence[IntelligenceObject], facts_by_id
             + 10 * quantitative
             + 10 * cross_region
             + 10 * value_chain
-            + 10 * impact
+            + 5 * impact
             + 5 * contradiction
+            + 3 * materiality
+            + 2 * cluster_classification
         )
-        obj.strategic_relevance_score = round(total, 2)
+        obj.strategic_relevance_score = round(max(total - anchor_penalty, 0), 2)
         obj.confidence_score = round(mean(fact.confidence for fact in facts), 2)
         ranked.append(obj)
     ranked.sort(
@@ -880,7 +1051,7 @@ def rank_intelligence_objects(objects: Sequence[IntelligenceObject], facts_by_id
 
 
 def _object_market_statement(obj: IntelligenceObject) -> str:
-    focus = ", ".join(obj.related_products[:2]) if obj.related_products else obj.core_theme
+    focus = _object_focus_label(obj)
     region = ", ".join(obj.related_regions[:2]) if obj.related_regions else "the referenced markets"
     if obj.object_type == "Demand Shift":
         if obj.direction == "down":
@@ -974,7 +1145,7 @@ def build_report_blueprint(
     exec_items: List[ExecutiveSummaryItem] = []
     used_sections = set()
     for obj in reportable_candidates:
-        if obj.draft_section in used_sections and len(exec_items) < 3:
+        if obj.draft_section in used_sections:
             continue
         exec_items.append(
             ExecutiveSummaryItem(
@@ -988,6 +1159,22 @@ def build_report_blueprint(
         used_sections.add(obj.draft_section)
         if len(exec_items) >= MAX_EXECUTIVE_SUMMARY_ITEMS:
             break
+    if len(exec_items) < MAX_EXECUTIVE_SUMMARY_ITEMS:
+        used_ids = {item.object_id for item in exec_items}
+        for obj in reportable_candidates:
+            if obj.object_id in used_ids:
+                continue
+            exec_items.append(
+                ExecutiveSummaryItem(
+                    object_id=obj.object_id,
+                    title=obj.title,
+                    statement=_executive_statement(obj),
+                    section=obj.draft_section,
+                    score=obj.strategic_relevance_score,
+                )
+            )
+            if len(exec_items) >= MAX_EXECUTIVE_SUMMARY_ITEMS:
+                break
 
     key_candidates = [
         obj for obj in reportable_candidates
@@ -1153,6 +1340,46 @@ def build_intelligence_report(
             ranked_objects=ranked_objects,
             blueprint=blueprint,
         ),
+    }
+
+
+def build_intelligence_report_from_cluster_inputs(
+    cluster_inputs: Sequence[Dict[str, Any]],
+    fallback_signals: Sequence[Dict[str, Any]],
+    query_plan_map: Dict[str, Dict[str, str]],
+    spec: Optional[Dict[str, Any]],
+    report_period_days: Optional[int],
+) -> Dict[str, Any]:
+    cluster_facts = extract_normalized_facts_from_clusters(cluster_inputs)
+    covered_signal_ids = {fact.raw_signal_id for fact in cluster_facts if fact.raw_signal_id}
+    fallback_candidates = [
+        signal for signal in fallback_signals
+        if str(signal.get("signal_id") or signal.get("id") or "") not in covered_signal_ids
+    ]
+    fallback_facts = extract_normalized_facts(fallback_candidates, query_plan_map)
+    facts = cluster_facts + fallback_facts
+    facts_by_id = {fact.fact_id: fact for fact in facts}
+    base_objects = build_intelligence_objects(facts)
+    resolved_objects = resolve_contradictions(base_objects, facts_by_id)
+    ranked_objects = rank_intelligence_objects(resolved_objects, facts_by_id)
+    blueprint = build_report_blueprint(ranked_objects, facts_by_id, spec, report_period_days)
+    report_text = render_report_blueprint(blueprint, ranked_objects)
+    metrics = build_report_metrics(
+        filtered_signals_count=len(fallback_signals),
+        facts=facts,
+        base_object_count=len(base_objects),
+        ranked_objects=ranked_objects,
+        blueprint=blueprint,
+    )
+    metrics["cluster_inputs_count"] = len(cluster_inputs)
+    metrics["cluster_fact_count"] = len(cluster_facts)
+    metrics["fallback_fact_count"] = len(fallback_facts)
+    return {
+        "report_text": report_text,
+        "facts": [fact.to_dict() for fact in facts],
+        "intelligence_objects": [obj.to_dict() for obj in ranked_objects],
+        "blueprint": blueprint.to_dict(),
+        "metrics": metrics,
     }
 
 

@@ -592,6 +592,53 @@ def generate_report_from_signals(
     return out
 
 
+def generate_report_from_clustered_inputs(
+    clustered_inputs: List[Dict[str, Any]],
+    fallback_signals: List[Dict[str, Any]],
+    query_plan_map: Dict[str, Dict[str, str]],
+    spec: Dict[str, Any],
+    write_metrics: bool = False,
+    write_html: bool = True,
+    report_period_days: Optional[int] = None,
+    run_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    from core.intelligence_layer import build_intelligence_report_from_cluster_inputs
+
+    intelligence_result = build_intelligence_report_from_cluster_inputs(
+        cluster_inputs=clustered_inputs,
+        fallback_signals=fallback_signals,
+        query_plan_map=query_plan_map,
+        spec=spec,
+        report_period_days=report_period_days,
+    )
+    report_text = intelligence_result.get("report_text", "")
+    intelligence_metrics = intelligence_result.get("metrics") or {}
+    out: Dict[str, Any] = {
+        "report_text": report_text,
+        "run_audit_metrics": intelligence_metrics,
+        "facts": intelligence_result.get("facts") or [],
+        "intelligence_objects": intelligence_result.get("intelligence_objects") or [],
+        "blueprint": intelligence_result.get("blueprint") or {},
+    }
+    if write_html:
+        title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
+        try:
+            from core.app_version import get_deploy_version
+            _deploy = get_deploy_version()
+        except Exception:
+            _deploy = None
+        out["html"] = markdown_to_simple_html(
+            report_text,
+            title=title,
+            signal_map_pie_html=None,
+            deploy_version=_deploy,
+            run_id=run_id,
+        )
+    if write_metrics:
+        out["metrics"] = intelligence_metrics
+    return out
+
+
 def load_category_counts(path: Path) -> Dict[str, int]:
     counts: Dict[str, int] = {}
     with path.open("r", encoding="utf-8") as f:

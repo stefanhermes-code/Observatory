@@ -21,6 +21,7 @@ from core.generator_db import (
     update_run_status,
     get_candidate_articles_for_run,
     get_master_signals_for_run,
+    get_clustered_report_inputs_for_run,
 )
 from core.token_tracking import compute_cost_for_usage
 
@@ -552,11 +553,13 @@ def execute_generator(
 
     try:
         from core.query_planner import build_query_plan_map
-        from core.intelligence_report import generate_report_from_signals
+        from core.intelligence_report import generate_report_from_clustered_inputs
 
         query_plan_map = build_query_plan_map(run_specification)
         signals = get_master_signals_for_run(run_id)
-        report_result = generate_report_from_signals(
+        clustered_inputs = get_clustered_report_inputs_for_run(run_id)
+        report_result = generate_report_from_clustered_inputs(
+            clustered_inputs,
             signals,
             query_plan_map,
             run_specification,
@@ -922,11 +925,12 @@ def run_phase_extract_and_write(
 
     if use_phase5_report:
         from core.query_planner import build_query_plan_map
-        from core.intelligence_report import generate_report_from_signals
+        from core.intelligence_report import generate_report_from_clustered_inputs
         from core.run_dates import get_lookback_days
 
         query_plan_map = build_query_plan_map(run_specification)
         signals = get_master_signals_for_run(run_id)
+        clustered_inputs = get_clustered_report_inputs_for_run(run_id)
 
         # Determine effective report period in days for this run (used for reporting period label).
         base_days = (run_specification or {}).get("report_period_days")
@@ -939,7 +943,8 @@ def run_phase_extract_and_write(
         else:
             report_period_days = default_days
 
-        report_result = generate_report_from_signals(
+        report_result = generate_report_from_clustered_inputs(
+            clustered_inputs,
             signals,
             query_plan_map,
             run_specification,

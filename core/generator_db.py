@@ -7,6 +7,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 import json
+from collections import defaultdict
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -516,6 +517,107 @@ def get_signal_clusters_for_run(run_id: str) -> List[Dict]:
         return result.data if result.data else []
     except Exception:
         return []
+
+
+def get_clustered_report_inputs_for_run(run_id: str) -> List[Dict[str, Any]]:
+    """
+    Build report inputs from persisted clustered pipeline data.
+
+    Returns one dict per stored cluster with:
+    - cluster metadata from signal_clusters
+    - supporting_signals: extracted_signals joined to candidate_articles metadata
+
+    This keeps the reporting layer aligned to:
+      candidate_articles -> extracted_signals -> signal_clusters -> doctrine
+    without changing the storage model.
+    """
+    from core.signal_clustering_v2 import _cluster_key
+
+    clusters = get_signal_clusters_for_run(run_id)
+    if not clusters:
+        return []
+
+    candidates = get_candidate_articles_for_run(run_id)
+    extracted_signals = get_extracted_signals_for_run(run_id)
+
+    article_by_id: Dict[str, Dict[str, Any]] = {}
+    for row in candidates:
+        article_id = row.get("id")
+        if article_id is None:
+            continue
+        article_by_id[str(article_id)] = {
+            "article_id": article_id,
+            "title": row.get("title") or "",
+            "source_name": row.get("source_name") or "",
+            "published_at": row.get("published_at") or "",
+            "region": row.get("region") or "",
+            "category": row.get("category") or "",
+            "value_chain_link": row.get("value_chain_link") or "",
+            "query_id": row.get("query_id") or "",
+            "url": row.get("url") or "",
+        }
+
+    grouped_members: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for signal in extracted_signals:
+        cluster_key = _cluster_key(
+            signal.get("company_name"),
+            signal.get("signal_type"),
+            signal.get("region"),
+            signal.get("segment"),
+        )
+        article = article_by_id.get(str(signal.get("article_id"))) or {}
+        grouped_members[cluster_key].append(
+            {
+                "signal_id": signal.get("id"),
+                "article_id": signal.get("article_id"),
+                "company_name": signal.get("company_name"),
+                "segment": signal.get("segment"),
+                "region": signal.get("region"),
+                "signal_type": signal.get("signal_type"),
+                "numeric_value": signal.get("numeric_value"),
+                "numeric_unit": signal.get("numeric_unit"),
+                "currency": signal.get("currency"),
+                "time_horizon": signal.get("time_horizon"),
+                "confidence_score": signal.get("confidence_score"),
+                "raw_json": signal.get("raw_json"),
+                "source_title": article.get("title") or "",
+                "source_name": article.get("source_name") or "",
+                "publication_date": article.get("published_at") or "",
+                "article_region": article.get("region") or "",
+                "category": article.get("category") or "",
+                "value_chain_link": article.get("value_chain_link") or "",
+                "query_id": article.get("query_id") or "",
+                "url": article.get("url") or "",
+            }
+        )
+
+    out: List[Dict[str, Any]] = []
+    for cluster in clusters:
+        cluster_key = cluster.get("cluster_key")
+        if not cluster_key:
+            continue
+        out.append(
+            {
+                "cluster_id": cluster.get("id"),
+                "cluster_key": cluster_key,
+                "signal_type": cluster.get("signal_type"),
+                "region": cluster.get("region"),
+                "segment": cluster.get("segment"),
+                "aggregated_numeric_value": cluster.get("aggregated_numeric_value"),
+                "aggregated_numeric_unit": cluster.get("aggregated_numeric_unit"),
+                "cluster_size": cluster.get("cluster_size"),
+                "structural_weight": cluster.get("structural_weight"),
+                "classification": cluster.get("classification"),
+                "final_classification": cluster.get("final_classification"),
+                "override_source": cluster.get("override_source"),
+                "materiality_flag": cluster.get("materiality_flag"),
+                "override_reason": cluster.get("override_reason"),
+                "cluster_pub_min": cluster.get("cluster_pub_min"),
+                "cluster_pub_max": cluster.get("cluster_pub_max"),
+                "supporting_signals": grouped_members.get(cluster_key, []),
+            }
+        )
+    return out
 
 
 def update_signal_cluster_classification(cluster_id: str, classification: str) -> bool:
