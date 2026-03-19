@@ -257,6 +257,7 @@ def build_run_audit(
 
     # Section-mapping instrumentation (mapping attempts, outcomes, and near-misses).
     mapping_stats = report_metrics.get("mapping_stats") or {}
+    audit["category_distribution"] = report_metrics.get("category_distribution") or {}
     audit["mapping_attempts_total"] = _int(mapping_stats.get("mapping_attempts_total")) or _int(
         audit["steps"].get("candidates_after_customer_filter_count")
     )

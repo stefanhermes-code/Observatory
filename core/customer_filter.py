@@ -22,6 +22,7 @@ def filter_candidates_by_spec(
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
+    # Ultra-relaxed: value_chain_link is optional and must not influence filtering outcome.
     value_chain_links = spec.get("value_chain_links") or []
 
     if not regions and not categories and not value_chain_links:
@@ -35,9 +36,11 @@ def filter_candidates_by_spec(
 
         ok_region = (not regions) or (region in regions)
         ok_category = (not categories) or (category in categories)
-        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+        # Ignore vcl completely for Run 9 philosophy.
+        ok_vcl = True
 
-        if ok_region and ok_category and ok_vcl:
+        # Ultra-relaxed: missing category should not be rejected.
+        if ok_region and (ok_category or not category) and ok_vcl:
             filtered.append(c)
     return filtered
 
@@ -52,6 +55,7 @@ def filter_candidates_by_spec_with_stats(
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
+    # Ultra-relaxed: value_chain_link is optional and must not influence filtering outcome.
     value_chain_links = spec.get("value_chain_links") or []
 
     stats: Dict[str, int] = {"dropped_total": 0, "failed_region_filter": 0, "failed_value_chain_filter": 0, "no_mapped_category": 0}
@@ -67,19 +71,22 @@ def filter_candidates_by_spec_with_stats(
 
         ok_region = (not regions) or (region in regions)
         ok_category = (not categories) or (category in categories)
-        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+        # Ignore vcl completely for Run 9 philosophy.
+        ok_vcl = True
 
-        if ok_region and ok_category and ok_vcl:
+        # Allow missing category through when categories are constrained.
+        ok_category_relaxed = ok_category or (categories and not category)
+
+        if ok_region and ok_category_relaxed and ok_vcl:
             filtered.append(c)
         else:
             stats["dropped_total"] += 1
             if not ok_region:
                 stats["failed_region_filter"] += 1
-            if not ok_category:
-                if categories and not category:
-                    stats["no_mapped_category"] += 1
-            if not ok_vcl:
-                stats["failed_value_chain_filter"] += 1
+            # Ultra-relaxed: missing category is not a drop reason.
+            if not ok_category_relaxed:
+                stats["no_mapped_category"] += 1
+            # Ultra-relaxed: value_chain filtering disabled.
     return filtered, stats
 
 
@@ -96,6 +103,7 @@ def filter_signals_by_spec(
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
+    # Ultra-relaxed: value_chain_link is optional and must not influence filtering outcome.
     value_chain_links = spec.get("value_chain_links") or []
 
     if not regions and not categories and not value_chain_links:
@@ -111,9 +119,11 @@ def filter_signals_by_spec(
 
         ok_region = (not regions) or (region in regions)
         ok_category = (not categories) or (config_cat in categories)
-        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+        # Ignore vcl completely for Run 9 philosophy.
+        ok_vcl = True
 
-        if ok_region and ok_category and ok_vcl:
+        # Ultra-relaxed: missing category should not be rejected.
+        if ok_region and (ok_category or not config_cat) and ok_vcl:
             filtered.append(s)
     return filtered
 
@@ -130,6 +140,7 @@ def filter_signals_by_spec_with_stats(
     """
     regions = spec.get("regions") or []
     categories = spec.get("categories") or []
+    # Ultra-relaxed: value_chain_link is optional and must not influence filtering outcome.
     value_chain_links = spec.get("value_chain_links") or []
 
     stats: Dict[str, int] = {"dropped_total": 0, "failed_region_filter": 0, "failed_value_chain_filter": 0, "no_mapped_category": 0}
@@ -149,22 +160,25 @@ def filter_signals_by_spec_with_stats(
             # Fallback: use signal's own metadata (e.g. candidate_articles have region, category, value_chain_link)
             region = (s.get("region") or "").strip()
             config_cat = (s.get("configurator_category") or s.get("category") or "").strip()
-            vcl = (s.get("value_chain_link") or "").strip()
+        vcl = (s.get("value_chain_link") or "").strip()
 
         ok_region = (not regions) or (region in regions)
         ok_category = (not categories) or (config_cat in categories)
-        ok_vcl = (not value_chain_links) or (vcl in value_chain_links)
+        # Ignore vcl completely for Run 9 philosophy.
+        ok_vcl = True
 
-        if ok_region and ok_category and ok_vcl:
+        # Allow missing category through when categories are constrained.
+        ok_category_relaxed = ok_category or (categories and not config_cat)
+
+        if ok_region and ok_category_relaxed and ok_vcl:
             filtered.append(s)
         else:
             stats["dropped_total"] += 1
             if not ok_region:
                 stats["failed_region_filter"] += 1
-            if not ok_category:
-                if categories and not config_cat:
-                    stats["no_mapped_category"] += 1
-            if not ok_vcl:
-                stats["failed_value_chain_filter"] += 1
+            # Ultra-relaxed: missing category is not a drop reason.
+            if not ok_category_relaxed:
+                stats["no_mapped_category"] += 1
+            # Ultra-relaxed: value_chain filtering disabled.
     return filtered, stats
 

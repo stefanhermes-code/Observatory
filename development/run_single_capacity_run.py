@@ -62,6 +62,8 @@ MATRIX = [
     {"report_period_days": 60, "categories": ["capacity", "early_warning", "industry_context", "regional_monitoring", "value_chain_link"], "regions": ["China", "EMEA", "Middle East", "North America", "SEA"], "value_chain_links": ["raw_materials", "system_houses"]},
     {"report_period_days": 60, "categories": ["capacity", "competitive", "early_warning", "executive_briefings", "industry_context", "m_and_a", "regional_monitoring", "sustainability", "value_chain", "value_chain_link"], "regions": ["China", "EMEA", "India", "Middle East", "NE Asia", "North America", "SEA", "South America"], "value_chain_links": ["raw_materials", "system_houses", "foam_converters", "end_use"]},
     {"report_period_days": 120, "categories": ["capacity", "competitive", "early_warning", "executive_briefings", "industry_context", "m_and_a", "regional_monitoring", "sustainability", "value_chain", "value_chain_link"], "regions": ["China", "EMEA", "India", "Middle East", "NE Asia", "North America", "SEA", "South America"], "value_chain_links": ["raw_materials", "system_houses", "foam_converters", "end_use"]},
+    # Run 9 (ultra-relaxed + fixed classification)
+    {"report_period_days": 120, "categories": ["capacity", "competitive", "early_warning", "executive_briefings", "industry_context", "m_and_a", "regional_monitoring", "sustainability", "value_chain", "value_chain_link"], "regions": ["China", "EMEA", "India", "Middle East", "NE Asia", "North America", "SEA", "South America"], "value_chain_links": ["raw_materials", "system_houses", "foam_converters", "end_use"]},
 ]
 
 
@@ -80,8 +82,8 @@ def main():
         out = {"error": "SPEC_ID and WORKSPACE_ID must be set", "run_number": run_number}
         print(json.dumps(out))
         sys.exit(1)
-    if run_number < 1 or run_number > 8:
-        out = {"error": "RUN_NUMBER must be 1..8", "run_number": run_number}
+    if run_number < 1 or run_number > 9:
+        out = {"error": "RUN_NUMBER must be 1..9", "run_number": run_number}
         print(json.dumps(out))
         sys.exit(1)
 
@@ -111,6 +113,13 @@ def main():
         "stage_5_clusters_formed": None,
         "stage_6_developments_extracted": None,
         "stage_8_developments_written_to_report": None,
+        # Extra audit fields for run 9
+        "validation_pass_rate": None,
+        "mapping_pass_rate": None,
+        "overall_yield": None,
+        "category_distribution": None,
+        "section_distribution": None,
+        "mapped_signals_count": None,
         "last_completed_stage": None,
         "failure_mode": None,
         "error_message": None,
@@ -154,6 +163,14 @@ def main():
                 result["stage_5_clusters_formed"] = steps.get("grouped_clusters_count")
                 result["stage_6_developments_extracted"] = steps.get("extracted_developments_count")
                 result["stage_8_developments_written_to_report"] = steps.get("developments_written_to_report_count")
+
+                # New fields for CharlieC / Run 9 reporting
+                result["validation_pass_rate"] = run_audit.get("validation_pass_rate")
+                result["mapping_pass_rate"] = run_audit.get("mapping_pass_rate")
+                result["overall_yield"] = run_audit.get("overall_yield")
+                result["category_distribution"] = run_audit.get("category_distribution")
+                result["section_distribution"] = run_audit.get("mapping_success_by_section")
+                result["mapped_signals_count"] = run_audit.get("mapping_attempts_total")
             result["status"] = "success" if success else "failure"
         else:
             result["status"] = "failure"

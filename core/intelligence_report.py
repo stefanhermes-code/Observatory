@@ -31,7 +31,11 @@ REPORT_SECTIONS = [
     "Strategic Implications",
 ]
 
-# Classifier category -> report section
+#
+# NOTE: Run 9 changes decouple category from report section.
+# The legacy CATEGORY_TO_SECTION / CONFIGURATOR_TO_CLASSIFIER mappings are kept for compatibility
+# with older code paths, but this run uses flexible keyword-based mapping instead.
+#
 CATEGORY_TO_SECTION = {
     "Market Intelligence": "Market Developments",
     "Technology and Innovation": "Technology and Innovation",
@@ -39,11 +43,6 @@ CATEGORY_TO_SECTION = {
     "Sustainability and Circularity": "Sustainability and Circular Economy",
 }
 
-# Configurator category (from harvest/evidence) -> classifier category for Phase 5 sectioning.
-# TEMPORARY FALLBACK (live path): Plan §9 requires per-candidate classifier_category (Phase 2e or
-# cluster propagation) as the final target. This mapping is not acceptable as the final implementation.
-# Final replacement: wire classifier_category from classification/doctrine output per candidate, or
-# run Phase 2e-equivalent classification in live and persist classifier_category on candidate_articles.
 CONFIGURATOR_TO_CLASSIFIER = {
     "capacity": "Capacity Expansion",
     "sustainability": "Sustainability and Circularity",
@@ -110,30 +109,115 @@ def _normalize_text(t: str) -> str:
     return " ".join(re.sub(r"\s+", " ", (t or "").lower().strip()).split())
 
 
-def _assign_theme_and_section(article: Dict[str, Any]) -> Tuple[str, str, str]:
-    """Returns (section, theme_id, theme_label). Corporate and capacity override category."""
+def _section_from_theme_id(theme_id: str) -> str:
+    if theme_id == "corporate":
+        return "Corporate Developments"
+    if theme_id == "capacity":
+        return "Capacity and Investment Activity"
+    if theme_id == "regulatory":
+        return "Sustainability and Circular Economy"
+    if theme_id == "technology":
+        return "Technology and Innovation"
+    if theme_id in ("recycling_circular", "bio_based"):
+        return "Sustainability and Circular Economy"
+    if theme_id in ("demand_outlook", "applications", "pricing"):
+        return "Market Developments"
+    return "Market Developments"
+
+
+def _infer_theme_and_primary_section(article: Dict[str, Any]) -> Tuple[str, str, str]:
+    """Returns (primary_section, theme_id, theme_label). Keyword-based, decoupled from category."""
     title = _normalize_text(article.get("title") or "")
-    category = (article.get("category") or "").strip()
-    section = CATEGORY_TO_SECTION.get(category, "Market Developments")
 
+    best: Tuple[int, str, str] = (0, DEFAULT_THEME[0], DEFAULT_THEME[1])
     for theme_id, theme_label, keywords in THEME_KEYWORDS:
-        if any(kw in title for kw in keywords):
-            if theme_id == "corporate":
-                return ("Corporate Developments", theme_id, theme_label)
-            if theme_id == "capacity":
-                return ("Capacity and Investment Activity", theme_id, theme_label)
-            if theme_id == "regulatory":
-                return ("Sustainability and Circular Economy", theme_id, theme_label)
-            if section in CATEGORY_TO_SECTION.values():
-                return (section, theme_id, theme_label)
+        score = sum(1 for kw in keywords if kw in title)
+        if score > best[0]:
+            best = (score, theme_id, theme_label)
 
-    theme_id, theme_label = DEFAULT_THEME
-    return (section, theme_id, theme_label)
+    _score, theme_id, theme_label = best
+    if _score <= 0:
+        theme_id, theme_label = DEFAULT_THEME
+    primary_section = _section_from_theme_id(theme_id)
+    return primary_section, theme_id, theme_label
+
+
+def _assign_theme_and_section(article: Dict[str, Any]) -> Tuple[str, str, str]:
+    """
+    Returns (section, theme_id, theme_label).
+    Run 9: category is NOT mapped to section; sections are keyword-derived and may be rebalanced.
+    """
+    if article.get("_balanced_section"):
+        section = article.get("_balanced_section")
+        theme_id = article.get("_theme_id")
+        theme_label = article.get("_theme_label")
+        if theme_id and theme_label:
+            return section, theme_id, theme_label
+
+    section, theme_id, theme_label = _infer_theme_and_primary_section(article)
+    return section, theme_id, theme_label
 
 
 def _cluster_key(article: Dict[str, Any]) -> Tuple[str, str]:
     section, theme_id, _ = _assign_theme_and_section(article)
     return (section, theme_id)
+
+
+ALLOWED_RUN9_CATEGORIES = ["Capacity", "Technology", "Market", "Corporate", "Sustainability", "Other"]
+
+
+def _infer_allowed_category(article: Dict[str, Any]) -> str:
+    """
+    Run 9 classification:
+    - category is neutral and MUST NOT leak into section mapping
+    - allowed categories: Capacity, Technology, Market, Corporate, Sustainability, Other
+    - "Unknown" must not appear anywhere: use "Other" as neutral fallback.
+    """
+    title = _normalize_text(article.get("title") or "")
+    config_cat = (article.get("configurator_category") or "").strip()
+
+    # Ultra-relaxed signals: if evidence is weak/ambiguous, default to Other
+    weak_content = bool(article.get("weak_content_signal"))
+    pu_anchor_missing = bool(article.get("pu_anchor_missing"))
+    missing_category = bool(article.get("missing_category"))
+    category_ambiguous = weak_content or pu_anchor_missing or missing_category
+
+    # Dominant signal: infer a primary theme and map it to an allowed category.
+    primary_section, theme_id, _theme_label = _infer_theme_and_primary_section(article)
+    if theme_id == "capacity":
+        inferred = "Capacity"
+    elif theme_id == "technology":
+        inferred = "Technology"
+    elif theme_id == "corporate":
+        inferred = "Corporate"
+    elif theme_id == "regulatory" or theme_id in ("recycling_circular", "bio_based"):
+        inferred = "Sustainability"
+    elif theme_id in ("demand_outlook", "applications", "pricing"):
+        inferred = "Market"
+    else:
+        inferred = ""
+
+    # If theme inference failed (general), use configurator category.
+    if not inferred:
+        if config_cat == "capacity":
+            inferred = "Capacity"
+        elif config_cat == "sustainability":
+            inferred = "Sustainability"
+        elif config_cat in ("m_and_a", "executive_briefings", "competitive", "company_news"):
+            inferred = "Corporate"
+        elif config_cat in ("industry_context", "regional_monitoring", "early_warning", "value_chain", "value_chain_link", "value_chain_link"):
+            inferred = "Market"
+        else:
+            inferred = "Other"
+
+    # Neutral fallback when evidence is weak.
+    if category_ambiguous and inferred not in ("Capacity", "Technology", "Corporate", "Sustainability"):
+        return "Other"
+
+    # Final guardrail: never return "Unknown".
+    if not inferred or inferred == "unknown":
+        return "Other"
+    return inferred if inferred in ALLOWED_RUN9_CATEGORIES else "Other"
 
 
 # -----------------------------------------------------------------------------
@@ -434,28 +518,31 @@ def generate_report_from_signals(
     """
     from core.customer_filter import filter_signals_by_spec_with_stats
 
-    # Normalize to article format: group_signals expects title, category (classifier), url, date, source, query_id
-    # Prefer per-signal classifier_category when present (§9); else use CONFIGURATOR_TO_CLASSIFIER fallback.
+    # Normalize to article format.
+    # Run 9: classification is light/neutral and returns one of:
+    # Capacity, Technology, Market, Corporate, Sustainability, Other
+    # and MUST NOT return "Unknown".
     articles: List[Dict[str, Any]] = []
     missing_classifier_count = 0
     for s in signals:
         config_cat = (s.get("category") or "").strip()
-        classifier_cat = (s.get("classifier_category") or "").strip()
-        if not classifier_cat:
-            classifier_cat = CONFIGURATOR_TO_CLASSIFIER.get(config_cat, "Market Intelligence")
-            if not config_cat:
-                missing_classifier_count += 1
-        articles.append({
+        base: Dict[str, Any] = {
             "title": s.get("title") or "",
             "url": s.get("url") or "",
-            "category": classifier_cat,
             "date": s.get("date") or "",
             "source": s.get("source") or "",
             "query_id": s.get("query_id") or "",
             "region": s.get("region") or "",
             "value_chain_link": s.get("value_chain_link") or "",
             "configurator_category": config_cat,
-        })
+            # Evidence-engine flags for neutral classification
+            "pu_anchor_missing": bool(s.get("pu_anchor_missing")),
+            "weak_content_signal": bool(s.get("weak_content_signal")),
+            "missing_category": bool(s.get("missing_category")),
+            "missing_value_chain_link": bool(s.get("missing_value_chain_link")),
+        }
+        base["category"] = _infer_allowed_category(base)
+        articles.append(base)
 
     filtered, customer_filter_stats = filter_signals_by_spec_with_stats(articles, query_plan_map, spec or {})
 
@@ -465,8 +552,13 @@ def generate_report_from_signals(
     after_section_count = 0
     drop_section_count = 0
 
-    # Mapping instrumentation: attempts, per-section success, and unmapped-but-categorized samples.
-    from collections import defaultdict as _defaultdict
+    # Run 9 mapping:
+    # - decouple category from section
+    # - assign a primary section from keyword theme
+    # - rebalance section distribution so no single section exceeds 60%
+    from collections import defaultdict as _defaultdict, Counter as _Counter
+
+    category_distribution: Dict[str, int] = dict(_Counter(a.get("category") for a in filtered if a.get("category")))
 
     mapping_attempts_total = len(filtered)
     mapping_success_by_section: Dict[str, int] = _defaultdict(int)
@@ -478,22 +570,73 @@ def generate_report_from_signals(
     signals_unmapped_but_categorized = 0
     top_unmapped_signals_sample: List[Dict[str, Any]] = []
 
+    # 1) Primary section assignment (keyword-based)
+    section_counts: Dict[str, int] = _defaultdict(int)
+    buckets: Dict[str, List[int]] = _defaultdict(list)
+    for idx, a in enumerate(filtered):
+        primary_section, theme_id, theme_label = _infer_theme_and_primary_section(a)
+        a["_theme_id"] = theme_id
+        a["_theme_label"] = theme_label
+        a["_balanced_section"] = primary_section
+        section_counts[primary_section] += 1
+        buckets[primary_section].append(idx)
+
+    # 2) Rebalance section dominance (>60%)
+    total_mapped = max(1, len(filtered))
+    max_allowed_per_section = int(0.6 * total_mapped)
+    if max_allowed_per_section < 1:
+        max_allowed_per_section = 1
+
+    included_set = set(section_list) if section_list is not None else set(section_counts.keys())
+    included_set = included_set or set(section_counts.keys())
+    # Yield optimization: we avoid pushing signals into "Strategic Implications" during rebalance,
+    # because downstream development extraction currently skips that section.
+    included_set.discard("Strategic Implications")
+
+    # Deterministic order: iterate until counts are within target.
+    while True:
+        dominant = None
+        dominant_count = 0
+        for sec, cnt in section_counts.items():
+            if sec in included_set and cnt > dominant_count:
+                dominant, dominant_count = sec, cnt
+        if dominant is None or dominant_count <= max_allowed_per_section:
+            break
+
+        # Pick the least-filled alternative section that can accept more.
+        target = None
+        for sec in sorted(included_set):
+            if sec == dominant:
+                continue
+            if section_counts.get(sec, 0) < max_allowed_per_section:
+                if target is None or section_counts.get(sec, 0) < section_counts.get(target, 0):
+                    target = sec
+        if not target:
+            break
+
+        # Reassign one deterministic item from the dominant bucket.
+        if not buckets.get(dominant):
+            break
+        idx_to_move = buckets[dominant].pop(0)
+        filtered[idx_to_move]["_balanced_section"] = target
+        section_counts[dominant] -= 1
+        section_counts[target] += 1
+        buckets[target].append(idx_to_move)
+
+    # 3) Count final mapped-to-section outcomes
     for a in filtered:
-        sec = CATEGORY_TO_SECTION.get(a.get("category") or "", "Market Developments")
+        sec = a.get("_balanced_section") or "Market Developments"
         if section_list is None or sec in section_list:
             after_section_count += 1
             mapping_success_by_section[sec] += 1
         else:
             drop_section_count += 1
-            # Current live path rejects because section is not in included_sections.
             reason = "section_not_in_included_sections"
             mapping_fail_no_matching_section_rule += 1
 
             config_cat = (a.get("configurator_category") or "").strip()
             vcl = (a.get("value_chain_link") or "").strip()
-            has_category = bool(config_cat)
-            has_vcl = bool(vcl)
-            if has_category and has_vcl:
+            if config_cat and vcl:
                 signals_unmapped_but_categorized += 1
                 if len(top_unmapped_signals_sample) < 10:
                     top_unmapped_signals_sample.append(
@@ -541,6 +684,7 @@ def generate_report_from_signals(
         "master_signals_loaded_count": len(signals),
         "candidates_after_customer_filter_count": len(filtered),
         "candidates_after_section_filter_count": after_section_count,
+        "category_distribution": category_distribution,
         "grouped_clusters_count": len(clusters),
         "extracted_developments_count": len(developments_before_strength),
         "developments_after_strength_threshold_count": len(developments_after_strength),

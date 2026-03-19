@@ -151,6 +151,67 @@ def _compute_pu_anchor_reason(anchor_text: str, domain: str) -> Optional[str]:
     return None
 
 
+def _looks_industrial_adjacent(text: str) -> bool:
+    """
+    Ultra-relaxed relevance gate:
+    keep when content is plausibly in the industrial/chemical/materials/adjacent space,
+    even if explicit PU anchoring or region proof is weak.
+    """
+    t = (text or "").lower()
+    if not t.strip():
+        return False
+
+    material_terms = [
+        "polyurethane",
+        "polyurethanes",
+        "polyol",
+        "polyester polyol",
+        "polyether",
+        "isocyanate",
+        "mdi",
+        "tdi",
+        "tpu",
+        "foam",
+        "elastomer",
+        "mattress",
+        "insulation",
+        "adhesive",
+        "sealant",
+    ]
+    activity_terms = [
+        "capacity",
+        "expansion",
+        "plant",
+        "facility",
+        "ground",
+        "manufacturing",
+        "production",
+        "break ground",
+        "inaugurate",
+        "new facility",
+    ]
+    adjacent_terms = [
+        "automotive",
+        "construction",
+        "furniture",
+        "recycling",
+        "circular",
+        "chemical",
+        "materials",
+        "technology",
+        "innovation",
+    ]
+
+    score = 0
+    if any(x in t for x in material_terms):
+        score += 1
+    if any(x in t for x in activity_terms):
+        score += 1
+    if any(x in t for x in adjacent_terms):
+        score += 1
+    return score >= 2
+
+
 def _company_aliases_from_spec(spec: Dict) -> List[str]:
     """Extract company names/aliases for query plan. Prefer DB (tracked_companies), else company_list.json."""
     aliases: List[str] = []
@@ -396,19 +457,22 @@ def run_evidence_engine(
         jsonld_has_proof = enrichment.get("jsonld_found") is True and enriched_len >= 200
 
         # Controlled relaxation:
-        # PU anchor missing is no longer a hard rejection. We keep the signal and flag it.
+        # - PU anchor missing is soft-kept.
+        # - Region mismatch is soft-kept when the content looks industrial/chemical/adjacent.
         # Company-lane items are still exempt (match_reason company_hit).
         is_company_hit = any(
             (x.get("query_id") or "").strip().startswith("company_")
             for x in list_c
         )
+        # Always compute an anchor-text proxy for relevance gating.
+        title_for_anchor = (c.get("title") or "").strip()
+        snippet_for_anchor = (c.get("snippet") or "").strip()
+        anchor_text = f"{title_for_anchor} {snippet_for_anchor} {enriched_text}".strip()
+        looks_industrial = _looks_industrial_adjacent(anchor_text)
+
         if is_company_hit:
             pu_anchor_reason = "company_hit"
         else:
-            # enriched_text is metadata-derived text; anchor_text = title + snippet + enriched_text_body.
-            title_for_anchor = (c.get("title") or "").strip()
-            snippet_for_anchor = (c.get("snippet") or "").strip()
-            anchor_text = f"{title_for_anchor} {snippet_for_anchor} {enriched_text}".strip()
             source_domain = _get_domain_from_url(url)
             pu_anchor_reason = _compute_pu_anchor_reason(anchor_text, source_domain)
         pu_anchor_missing_soft_kept = False
@@ -436,23 +500,26 @@ def run_evidence_engine(
         missing_value_chain_soft_kept = False
         if vcl_val is None:
             missing_value_chain_soft_kept = True
-            # Keep the signal; assign a stable fallback so downstream scope filters can still operate.
-            # When the spec constrains value_chain_links, prefer a deterministic in-spec default.
-            vcl_val = value_chain_links[0] if value_chain_links else "unknown"
+            # Ultra-relaxed: value_chain is optional; do not force a placeholder string.
+            vcl_val = ""
         missing_category_soft_kept = False
         if category_val is None:
             missing_category_soft_kept = True
-            # Keep the signal; assign a stable fallback so downstream scope filters can still operate.
-            # When the spec constrains categories, prefer a deterministic in-spec default.
-            category_val = categories[0] if categories else "unknown"
+            # Ultra-relaxed: category decided later; do not force a placeholder string.
+            category_val = ""
 
-        # Region: hard gate only when JSON-LD provides proof (enriched_text >= 200 chars)
+        # Region: hard gate only when JSON-LD provides proof (enriched_text >= 200 chars),
+        # but ultra-relaxed mode may soft-keep when content looks industrial/adjacent.
         if jsonld_has_proof and region_val and regions:
             if not passes_region_relevance(c.get("title"), c.get("snippet"), region_val, body=enriched_text):
-                drop_buckets[DROP_REGION_PROVEN_JSONLD] += 1
-                dropped_list.append(({**_snap(c), "jsonld_used": True}, DROP_REGION_PROVEN_JSONLD))
-                continue
-            region_confidence, region_proof = "high", "jsonld"
+                if looks_industrial:
+                    region_confidence, region_proof = "low", "soft_jsonld_mismatch"
+                else:
+                    drop_buckets[DROP_REGION_PROVEN_JSONLD] += 1
+                    dropped_list.append(({**_snap(c), "jsonld_used": True}, DROP_REGION_PROVEN_JSONLD))
+                    continue
+            else:
+                region_confidence, region_proof = "high", "jsonld"
         else:
             region_confidence, region_proof = "low", "none"
 
@@ -475,7 +542,7 @@ def run_evidence_engine(
             "published_at": c.get("published_at") if parsed_date is not None else (ref_date.isoformat() if hasattr(ref_date, "isoformat") else str(ref_date)),
             "date_inferred": parsed_date is None and (c.get("published_at") is None or not str(c.get("published_at") or "").strip()),
             "source_id": c.get("source_id"),
-            "source_name": c.get("source_name") or "unknown",
+            "source_name": c.get("source_name") or "",
             "source_domain": source_domain,
             "query_id": c.get("query_id"),
             "query_text": c.get("query_text"),
