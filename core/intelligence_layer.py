@@ -790,7 +790,7 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
     for demand_obj in [obj for obj in objects if obj.object_type == "Demand Shift" and obj.direction == "up"]:
         same_region_capacity = [
             obj for obj in objects
-            if obj.object_type in {"Capacity Move", "Supply Shift"}
+            if obj.object_type == "Capacity Move"
             and set(obj.related_regions).intersection(set(demand_obj.related_regions))
             and (
                 not demand_obj.related_products
@@ -798,7 +798,7 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
                 or set(obj.related_products).intersection(set(demand_obj.related_products))
             )
         ]
-        if not same_region_capacity or all(obj.direction != "up" for obj in same_region_capacity):
+        if same_region_capacity and all(obj.direction != "up" for obj in same_region_capacity):
             focus = demand_obj.related_products[0] if demand_obj.related_products else demand_obj.core_theme
             region = demand_obj.related_regions[0] if demand_obj.related_regions else "key markets"
             title = f"Demand strengthens faster than supply signals for {focus} in {region}"
@@ -811,7 +811,7 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
             if obj.object_type == "Capacity Move"
             and set(obj.related_regions).intersection(set(sustain_obj.related_regions))
         ]
-        if not same_region_capacity:
+        if same_region_capacity and all(obj.direction != "up" for obj in same_region_capacity):
             focus = sustain_obj.related_products[0] if sustain_obj.related_products else "polyurethane markets"
             region = sustain_obj.related_regions[0] if sustain_obj.related_regions else "key markets"
             title = f"Sustainability pressure rises around {focus} while capacity moves remain limited in {region}"
@@ -960,13 +960,22 @@ def build_report_blueprint(
         if obj.draft_section in requested_sections and strength_order.get(obj.evidence_strength, 1) >= threshold
     ]
 
+    blueprint_candidates = [obj for obj in eligible_objects if _has_specific_anchor(obj)]
+    if not blueprint_candidates:
+        blueprint_candidates = list(eligible_objects)
+
+    reportable_candidates = [
+        obj for obj in blueprint_candidates
+        if obj.contradiction_flag or obj.evidence_count >= 2 or obj.strategic_relevance_score >= 55
+    ]
+    if not reportable_candidates:
+        reportable_candidates = list(blueprint_candidates)
+
     exec_items: List[ExecutiveSummaryItem] = []
-    used_ids = set()
-    for section in FIXED_REPORT_SECTIONS:
-        section_objects = [obj for obj in eligible_objects if obj.draft_section == section]
-        if not section_objects:
+    used_sections = set()
+    for obj in reportable_candidates:
+        if obj.draft_section in used_sections and len(exec_items) < 3:
             continue
-        obj = section_objects[0]
         exec_items.append(
             ExecutiveSummaryItem(
                 object_id=obj.object_id,
@@ -976,43 +985,23 @@ def build_report_blueprint(
                 score=obj.strategic_relevance_score,
             )
         )
-        used_ids.add(obj.object_id)
+        used_sections.add(obj.draft_section)
         if len(exec_items) >= MAX_EXECUTIVE_SUMMARY_ITEMS:
             break
-    if len(exec_items) < MAX_EXECUTIVE_SUMMARY_ITEMS:
-        for obj in eligible_objects:
-            if obj.object_id in used_ids:
-                continue
-            exec_items.append(
-                ExecutiveSummaryItem(
-                    object_id=obj.object_id,
-                    title=obj.title,
-                    statement=_executive_statement(obj),
-                    section=obj.draft_section,
-                    score=obj.strategic_relevance_score,
-                )
-            )
-            used_ids.add(obj.object_id)
-            if len(exec_items) >= MAX_EXECUTIVE_SUMMARY_ITEMS:
-                break
-
-    blueprint_candidates = [obj for obj in eligible_objects if _has_specific_anchor(obj)]
-    if not blueprint_candidates:
-        blueprint_candidates = list(eligible_objects)
 
     key_candidates = [
-        obj for obj in blueprint_candidates
+        obj for obj in reportable_candidates
         if obj.contradiction_flag or obj.evidence_count >= 2 or obj.strategic_relevance_score >= 60
     ]
     key_developments = [obj.object_id for obj in _limit_section_objects(key_candidates, max_items=MAX_KEY_DEVELOPMENTS)]
     section_allocations = {}
     for section in FIXED_REPORT_SECTIONS:
-        section_objects = [obj for obj in blueprint_candidates if obj.draft_section == section]
-        section_allocations[section] = [obj.object_id for obj in _limit_section_objects(section_objects, max_items=4)]
+        section_objects = [obj for obj in reportable_candidates if obj.draft_section == section]
+        section_allocations[section] = [obj.object_id for obj in _limit_section_objects(section_objects, max_items=3)]
 
     strategic_implications = [
         _strategic_implication_line(obj)
-        for obj in _limit_section_objects(blueprint_candidates, max_items=MAX_EXECUTIVE_SUMMARY_ITEMS)
+        for obj in _limit_section_objects(reportable_candidates, max_items=MAX_EXECUTIVE_SUMMARY_ITEMS)
     ]
 
     appendix_refs: List[AppendixReference] = []
