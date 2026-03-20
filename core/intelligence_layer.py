@@ -421,9 +421,66 @@ def _event_type_from_cluster_signal(cluster_signal_type: str, title_text: str, n
 
 
 def _extract_direction(title_text: str, event_type: str) -> str:
-    if _has_any_keyword(title_text, DOWN_PATTERNS):
+    explicit_up_verbs = (
+        "increase",
+        "increases",
+        "increased",
+        "expand",
+        "expands",
+        "expanded",
+        "launch",
+        "launches",
+        "launched",
+        "grow",
+        "grows",
+        "growth",
+        "rise",
+        "rises",
+        "rising",
+        "surge",
+        "surges",
+        "surging",
+    )
+    explicit_down_verbs = (
+        "decline",
+        "declines",
+        "declining",
+        "reduce",
+        "reduces",
+        "reduced",
+        "reduction",
+        "drop",
+        "drops",
+        "dropping",
+        "fall",
+        "falls",
+        "falling",
+    )
+    structural_up_signals = (
+        "capacity addition",
+        "new plant",
+        "new facility",
+        "plant expansion",
+        "facility expansion",
+        "investment",
+    )
+    structural_down_signals = (
+        "capacity reduction",
+        "shutdown",
+        "shut down",
+        "bankruptcy",
+        "bankrupt",
+        "closure",
+        "closures",
+    )
+
+    if _has_any_keyword(title_text, explicit_down_verbs):
         return "down"
-    if _has_any_keyword(title_text, UP_PATTERNS):
+    if _has_any_keyword(title_text, explicit_up_verbs):
+        return "up"
+    if _has_any_keyword(title_text, structural_down_signals):
+        return "down"
+    if _has_any_keyword(title_text, structural_up_signals):
         return "up"
     if event_type in STRUCTURAL_EVENT_TYPES:
         return "structural"
