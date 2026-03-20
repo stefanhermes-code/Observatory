@@ -206,6 +206,11 @@ class NormalizedFact:
     theme: str
     confidence: float
     raw_signal_id: str
+    signal_strength: int = 1
+    signal_specificity: int = 1
+    business_relevance: int = 1
+    direction_confidence: int = 1
+    overall_fact_score: float = 1.0
     cluster_key: str = ""
     cluster_classification: str = ""
     cluster_materiality_flag: bool = False
@@ -232,6 +237,9 @@ class IntelligenceObject:
     strategic_relevance_score: float
     draft_section: str
     draft_implication: str
+    average_fact_score: float = 0.0
+    max_fact_score: float = 0.0
+    summed_fact_score: float = 0.0
     evidence_strength: str = "Weak"
     sort_rank: int = 0
 
@@ -611,6 +619,174 @@ def _fact_confidence(fact: NormalizedFact) -> float:
     return round(min(score, 0.95), 2)
 
 
+def _is_generic_forecast_fact(fact: NormalizedFact) -> bool:
+    title_text = _normalize_lower(fact.source_title)
+    forecast_keywords = (
+        "market size",
+        "forecast",
+        "forecasts",
+        "outlook",
+        "report",
+        "analysis",
+        "trends",
+        "insights",
+        "share",
+        "industry analysis",
+        "strategic insights",
+    )
+    return (
+        fact.event_type in {"market growth", "market decline", "market movement"}
+        and _has_any_keyword(title_text, forecast_keywords)
+        and not fact.company
+        and not fact.magnitude
+    )
+
+
+def _is_low_information_fact(fact: NormalizedFact) -> bool:
+    title_text = _normalize_lower(fact.source_title)
+    low_information_keywords = (
+        "linkedin",
+        "wikipedia",
+        "technical papers",
+        "pdf",
+        "exhibition",
+        "expo",
+        "directory",
+        "news release",
+    )
+    anchors = sum(
+        1
+        for value in (fact.product_family, fact.region or fact.country, fact.company, fact.magnitude)
+        if value
+    )
+    return anchors == 0 or _has_any_keyword(title_text, low_information_keywords)
+
+
+def _score_signal_strength(fact: NormalizedFact) -> int:
+    title_text = _normalize_lower(fact.source_title)
+    if _has_any_keyword(title_text, ("shutdown", "shut down", "bankruptcy", "closure", "closures", "new plant", "new facility")):
+        return 5
+    if fact.event_type in {"capacity addition", "capacity reduction", "regulation / standards"}:
+        return 5
+    if fact.event_type == "acquisition / corporate move" and _has_any_keyword(title_text, ("investment", "asset", "acquisition", "acquires", "acquired")):
+        return 5
+    if fact.event_type in {"launch / innovation", "partnership / distribution", "acquisition / corporate move"}:
+        return 4
+    if _has_any_keyword(title_text, ("certified", "certification", "distribution agreement", "partners with")):
+        return 4
+    if fact.event_type in {"market growth", "market decline"} and fact.magnitude:
+        return 3
+    if _is_generic_forecast_fact(fact):
+        return 2
+    if _is_low_information_fact(fact):
+        return 1
+    if fact.event_type == "market movement":
+        return 2
+    return 3
+
+
+def _score_signal_specificity(fact: NormalizedFact) -> int:
+    has_product = bool(fact.product_family or fact.end_use_segment)
+    has_region = bool(fact.region or fact.country)
+    has_company = bool(fact.company)
+    has_number = bool(fact.magnitude)
+    if has_product and has_region and has_company and has_number:
+        return 5
+    if has_product and has_region and has_company:
+        return 4
+    if has_product and has_region:
+        return 3
+    if has_product or has_region or has_company:
+        return 2
+    return 1
+
+
+def _score_business_relevance(fact: NormalizedFact) -> int:
+    title_text = _normalize_lower(fact.source_title)
+    if fact.event_type in {"capacity addition", "capacity reduction", "regulation / standards"}:
+        return 5
+    if _has_any_keyword(title_text, ("shutdown", "shut down", "bankruptcy", "closure", "closures", "reduce workforce")):
+        return 5
+    if fact.event_type in {"launch / innovation", "partnership / distribution", "acquisition / corporate move", "sustainability / circularity"}:
+        return 4
+    if fact.event_type in {"market growth", "market decline"} and (fact.product_family or fact.end_use_segment or fact.magnitude):
+        return 3
+    if _is_generic_forecast_fact(fact):
+        return 2
+    if _is_low_information_fact(fact):
+        return 1
+    return 2
+
+
+def _score_direction_confidence(fact: NormalizedFact) -> int:
+    title_text = _normalize_lower(fact.source_title)
+    explicit_up_signals = (
+        "increase",
+        "increases",
+        "increased",
+        "expand",
+        "expands",
+        "expanded",
+        "growth",
+        "grow",
+        "grows",
+        "launch",
+        "launches",
+        "launched",
+        "new plant",
+        "investment",
+        "capacity addition",
+    )
+    explicit_down_signals = (
+        "decline",
+        "declines",
+        "declining",
+        "reduce",
+        "reduces",
+        "reduced",
+        "reduction",
+        "drop",
+        "drops",
+        "dropping",
+        "fall",
+        "falls",
+        "falling",
+        "shutdown",
+        "shut down",
+        "bankruptcy",
+        "capacity reduction",
+        "closure",
+        "closures",
+    )
+    if fact.movement_direction in {"up", "down"} and fact.magnitude:
+        return 5
+    if fact.movement_direction in {"up", "down"} and (
+        _has_any_keyword(title_text, explicit_up_signals) or _has_any_keyword(title_text, explicit_down_signals)
+    ):
+        return 4
+    if fact.movement_direction == "structural":
+        return 3
+    if fact.event_type in {"market growth", "market decline"}:
+        return 2
+    if fact.movement_direction == "unknown":
+        return 1
+    return 2
+
+
+def _score_fact_semantics(fact: NormalizedFact) -> None:
+    fact.signal_strength = _score_signal_strength(fact)
+    fact.signal_specificity = _score_signal_specificity(fact)
+    fact.business_relevance = _score_business_relevance(fact)
+    fact.direction_confidence = _score_direction_confidence(fact)
+    fact.overall_fact_score = round(
+        (0.35 * fact.signal_strength)
+        + (0.25 * fact.business_relevance)
+        + (0.20 * fact.signal_specificity)
+        + (0.20 * fact.direction_confidence),
+        2,
+    )
+
+
 def normalize_requested_sections(spec: Optional[Dict[str, Any]]) -> List[str]:
     included = list((spec or {}).get("included_sections") or [])
     if not included:
@@ -830,6 +1006,7 @@ def extract_normalized_facts(signals: Sequence[Dict[str, Any]], query_plan_map: 
             raw_signal_id=str(signal.get("signal_id") or signal.get("id") or ""),
         )
         fact.confidence = _fact_confidence(fact)
+        _score_fact_semantics(fact)
         facts.append(fact)
     return facts
 
@@ -895,6 +1072,7 @@ def extract_normalized_facts_from_clusters(cluster_inputs: Sequence[Dict[str, An
                 cluster_size=cluster_size,
             )
             fact.confidence = min(0.99, _fact_confidence(fact) + (0.08 if cluster_materiality else 0.0) + (0.04 if cluster_classification in {"structural", "transformational"} else 0.0))
+            _score_fact_semantics(fact)
             facts.append(fact)
     return facts
 
@@ -919,6 +1097,9 @@ def build_intelligence_objects(facts: Sequence[NormalizedFact]) -> List[Intellig
         related_regions = _dedupe_keep_order([fact.region for fact in grouped_facts] + [fact.country for fact in grouped_facts])
         related_companies = _dedupe_keep_order(fact.company for fact in grouped_facts)
         confidence_score = round(mean(fact.confidence for fact in grouped_facts), 2)
+        average_fact_score = round(mean(fact.overall_fact_score for fact in grouped_facts), 2)
+        max_fact_score = round(max(fact.overall_fact_score for fact in grouped_facts), 2)
+        summed_fact_score = round(sum(fact.overall_fact_score for fact in grouped_facts), 2)
         draft_section = _draft_section_for_object(object_type, grouped_facts)
         object_id = f"io-{index:03d}"
         obj = IntelligenceObject(
@@ -937,6 +1118,9 @@ def build_intelligence_objects(facts: Sequence[NormalizedFact]) -> List[Intellig
             strategic_relevance_score=0.0,
             draft_section=draft_section,
             draft_implication=_draft_implication_for_object(object_type, direction, grouped_facts),
+            average_fact_score=average_fact_score,
+            max_fact_score=max_fact_score,
+            summed_fact_score=summed_fact_score,
             evidence_strength=_strength_from_evidence_count(len(grouped_facts)),
         )
         objects.append(obj)
@@ -961,6 +1145,9 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
         related_companies = _dedupe_keep_order(company for obj in base_objects for company in obj.related_companies)
         confidence_score = round(mean([obj.confidence_score for obj in base_objects]) if base_objects else 0.5, 2)
         evidence_count = len(supporting_fact_ids)
+        average_fact_score = round(mean(fact.overall_fact_score for fact in base_facts), 2) if base_facts else 0.0
+        max_fact_score = round(max((fact.overall_fact_score for fact in base_facts), default=0.0), 2)
+        summed_fact_score = round(sum(fact.overall_fact_score for fact in base_facts), 2)
         resolved.append(
             IntelligenceObject(
                 object_id=f"io-{next_id:03d}",
@@ -978,6 +1165,9 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
                 strategic_relevance_score=0.0,
                 draft_section=section,
                 draft_implication=implication,
+                average_fact_score=average_fact_score,
+                max_fact_score=max_fact_score,
+                summed_fact_score=summed_fact_score,
                 evidence_strength=_strength_from_evidence_count(evidence_count),
             )
         )
@@ -1091,30 +1281,58 @@ def rank_intelligence_objects(objects: Sequence[IntelligenceObject], facts_by_id
         contradiction = 1.0 if obj.contradiction_flag else 0.0
         materiality = 1.0 if any(fact.cluster_materiality_flag for fact in facts) else 0.0
         cluster_classification = 1.0 if any(fact.cluster_classification in {"structural", "transformational"} for fact in facts) else 0.5 if any(fact.cluster_classification == "cyclical" for fact in facts) else 0.0
+        average_fact_score = round(mean(fact.overall_fact_score for fact in facts), 2)
+        max_fact_score = round(max(fact.overall_fact_score for fact in facts), 2)
+        summed_fact_score = round(sum(fact.overall_fact_score for fact in facts), 2)
+        semantic_average = average_fact_score / 5.0
+        semantic_peak = max_fact_score / 5.0
+        semantic_sum = min(summed_fact_score / 18.0, 1.0)
+        effective_evidence_density = evidence_density * (0.35 + (0.65 * semantic_average))
+        named_company_bonus = 2.0 if any(fact.company for fact in facts) else 0.0
+        quantified_bonus = 2.0 if quantitative else 0.0
+        structural_cluster_bonus = 1.5 if any(fact.cluster_classification in {"structural", "transformational"} for fact in facts) else 0.0
+        contradiction_bonus = 1.5 if obj.contradiction_flag and any(fact.movement_direction in {"up", "down"} for fact in facts) else 0.0
         anchor_penalty = 0.0
         if not obj.related_products:
             anchor_penalty += 8.0
         if not obj.related_regions:
             anchor_penalty += 5.0
-        total = (
-            25 * evidence_density
-            + 15 * source_quality
-            + 15 * specificity
-            + 10 * quantitative
-            + 10 * cross_region
-            + 10 * value_chain
+        base_total = (
+            12 * effective_evidence_density
+            + 12 * source_quality
+            + 10 * specificity
+            + 6 * quantitative
+            + 6 * cross_region
+            + 8 * value_chain
             + 5 * impact
-            + 5 * contradiction
+            + 4 * contradiction
             + 3 * materiality
-            + 2 * cluster_classification
+            + 3 * cluster_classification
         )
+        semantic_total = (
+            12 * semantic_average
+            + 8 * semantic_peak
+            + 6 * semantic_sum
+        )
+        total = (
+            base_total
+            + semantic_total
+            + named_company_bonus
+            + quantified_bonus
+            + structural_cluster_bonus
+            + contradiction_bonus
+        )
+        obj.average_fact_score = average_fact_score
+        obj.max_fact_score = max_fact_score
+        obj.summed_fact_score = summed_fact_score
         obj.strategic_relevance_score = round(max(total - anchor_penalty, 0), 2)
         obj.confidence_score = round(mean(fact.confidence for fact in facts), 2)
         ranked.append(obj)
     ranked.sort(
         key=lambda obj: (
             -obj.strategic_relevance_score,
-            -obj.evidence_count,
+            -obj.max_fact_score,
+            -obj.average_fact_score,
             -obj.confidence_score,
             obj.title.lower(),
         )
