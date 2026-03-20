@@ -33,9 +33,9 @@ MAX_APPENDIX_REFERENCES = 60
 PRODUCT_PATTERNS: List[Tuple[str, Optional[str], List[str]]] = [
     ("adhesives", None, ["adhesive", "adhesives"]),
     ("sealants", None, ["sealant", "sealants"]),
+    ("flexible foam", "PU flexible foam", ["pu flex foam", "flex foam", "flexible foam", "slabstock foam", "mattress foam"]),
     ("TPU", "thermoplastic polyurethane", ["thermoplastic polyurethane", "tpu"]),
-    ("CASE", None, ["case market", "case markets", "coatings adhesives sealants elastomers", "case "]),
-    ("flexible foam", None, ["flexible foam", "slabstock foam", "mattress foam"]),
+    ("CASE", None, ["case market", "case markets", "case industry", "case industries", "case and", "coatings adhesives sealants elastomers"]),
     ("rigid foam", None, ["rigid foam", "spray foam", "insulation foam"]),
     ("coatings", None, ["coating", "coatings"]),
     ("elastomers", None, ["elastomer", "elastomers"]),
@@ -366,9 +366,16 @@ def _extract_region(title_text: str, metadata_region: str, country: str) -> str:
 
 def _extract_product(title_text: str) -> Tuple[str, str]:
     for family, subtype, keywords in PRODUCT_PATTERNS:
-        if any(keyword in title_text for keyword in keywords):
+        if any(_keyword_in_text(title_text, keyword) for keyword in keywords):
             return family, subtype or ""
     return "", ""
+
+
+def _keyword_in_text(title_text: str, keyword: str) -> bool:
+    escaped = re.escape(keyword)
+    escaped = escaped.replace(r"\ ", r"\s+")
+    pattern = rf"(?<![a-z0-9]){escaped}(?![a-z0-9])"
+    return bool(re.search(pattern, title_text))
 
 
 def _segment_product(segment: str) -> Tuple[str, str]:
@@ -945,7 +952,11 @@ def resolve_contradictions(objects: Sequence[IntelligenceObject], facts_by_id: D
         ups = direction_map.get("up") or []
         downs = direction_map.get("down") or []
         if ups and downs:
-            title = f"Segment demand diverges in {region}: {ups[0].related_products[0] if ups[0].related_products else ups[0].core_theme} strengthens while {downs[0].related_products[0] if downs[0].related_products else downs[0].core_theme} softens"
+            up_focus = ups[0].related_products[0] if ups[0].related_products else ups[0].core_theme
+            down_focus = downs[0].related_products[0] if downs[0].related_products else downs[0].core_theme
+            if up_focus.lower() == down_focus.lower():
+                continue
+            title = f"Segment demand diverges in {region}: {up_focus} strengthens while {down_focus} softens"
             implication = f"Segment planning in {region} should separate the expanding and contracting lanes instead of using one aggregate demand assumption."
             add_object(title, "Segment Divergence", [ups[0], downs[0]], "Application & Segment Trends", implication)
 
