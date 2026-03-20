@@ -128,17 +128,17 @@ REGION_PATTERNS: List[Tuple[str, List[str]]] = [
 EVENT_PATTERNS: List[Tuple[str, List[str]]] = [
     ("capacity reduction", ["capacity cut", "capacity reduction", "shut down", "closure", "reduce capacity", "halt production"]),
     ("capacity addition", ["capacity expansion", "expand capacity", "new plant", "new facility", "plant expansion", "facility expansion", "increase capacity", "production capacity"]),
-    ("market decline", ["decline", "drop", "downturn", "slowdown", "softening", "decrease"]),
-    ("market growth", ["growth", "cagr", "market size", "forecast", "outlook", "demand rise", "demand growth", "expansion"]),
+    ("market decline", ["decline", "declines", "drop", "drops", "downturn", "slowdown", "soften", "softening", "decrease", "decreases"]),
+    ("market growth", ["growth", "cagr", "market size", "forecast", "forecasts", "outlook", "demand rise", "demand growth", "expansion"]),
     ("regulation / standards", ["regulation", "regulatory", "standards", "standard", "epa", "reach", "compliance", "restriction"]),
     ("partnership / distribution", ["partnership", "partners with", "distribution", "distributor", "collaboration", "alliance", "joint venture", "mou"]),
-    ("launch / innovation", ["launch", "innovation", "introduces", "unveils", "technology", "develops", "formulation", "catalyst", "additive"]),
+    ("launch / innovation", ["launch", "launches", "launched", "innovation", "introduces", "introduced", "unveils", "unveiled", "technology", "develops", "developed", "formulation", "catalyst", "additive"]),
     ("acquisition / corporate move", ["acquisition", "acquires", "acquired", "merger", "divest", "sale", "investment", "restructuring"]),
     ("sustainability / circularity", ["recycling", "circular", "bio-based", "renewable", "decarbonization", "sustainable", "low-carbon"]),
 ]
 
-UP_PATTERNS = ("growth", "increase", "expansion", "launch", "investment", "rises", "up", "surge")
-DOWN_PATTERNS = ("decline", "decrease", "cuts", "closure", "shut", "downturn", "falls", "drop", "softening")
+UP_PATTERNS = ("growth", "grow", "grows", "increase", "increases", "increased", "expansion", "expand", "expands", "expanded", "launch", "launches", "launched", "investment", "investments", "rise", "rises", "rising", "up", "surge", "surges")
+DOWN_PATTERNS = ("decline", "declines", "declining", "decrease", "decreases", "decreased", "cuts", "closure", "closures", "shut", "downturn", "falls", "falling", "drop", "drops", "dropping", "soften", "softens", "softening")
 STRUCTURAL_EVENT_TYPES = {
     "regulation / standards",
     "partnership / distribution",
@@ -344,9 +344,8 @@ def _sort_key_date(value: str) -> str:
 
 def _first_pattern_match(text: str, patterns: Sequence[Tuple[str, Sequence[str]]]) -> str:
     for label, keywords in patterns:
-        for keyword in keywords:
-            if keyword in text:
-                return label
+        if _has_any_keyword(text, keywords):
+            return label
     return ""
 
 
@@ -366,16 +365,23 @@ def _extract_region(title_text: str, metadata_region: str, country: str) -> str:
 
 def _extract_product(title_text: str) -> Tuple[str, str]:
     for family, subtype, keywords in PRODUCT_PATTERNS:
-        if any(_keyword_in_text(title_text, keyword) for keyword in keywords):
+        if _has_any_keyword(title_text, keywords):
             return family, subtype or ""
     return "", ""
 
 
 def _keyword_in_text(title_text: str, keyword: str) -> bool:
-    escaped = re.escape(keyword)
+    normalized_keyword = _normalize_text(keyword).lower()
+    if not normalized_keyword:
+        return False
+    escaped = re.escape(normalized_keyword)
     escaped = escaped.replace(r"\ ", r"\s+")
     pattern = rf"(?<![a-z0-9]){escaped}(?![a-z0-9])"
     return bool(re.search(pattern, title_text))
+
+
+def _has_any_keyword(title_text: str, keywords: Sequence[str]) -> bool:
+    return any(_keyword_in_text(title_text, keyword) for keyword in keywords)
 
 
 def _segment_product(segment: str) -> Tuple[str, str]:
@@ -415,9 +421,9 @@ def _event_type_from_cluster_signal(cluster_signal_type: str, title_text: str, n
 
 
 def _extract_direction(title_text: str, event_type: str) -> str:
-    if any(keyword in title_text for keyword in DOWN_PATTERNS):
+    if _has_any_keyword(title_text, DOWN_PATTERNS):
         return "down"
-    if any(keyword in title_text for keyword in UP_PATTERNS):
+    if _has_any_keyword(title_text, UP_PATTERNS):
         return "up"
     if event_type in STRUCTURAL_EVENT_TYPES:
         return "structural"
