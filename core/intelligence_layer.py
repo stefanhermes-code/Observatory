@@ -1521,7 +1521,121 @@ def build_report_blueprint(
     )
 
 
-def render_report_blueprint(blueprint: ReportBlueprint, ranked_objects: Sequence[IntelligenceObject]) -> str:
+def _publication_sentence(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", (text or "").strip())
+    if not cleaned:
+        return ""
+    if cleaned[0].islower():
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned if cleaned.endswith(".") else f"{cleaned}."
+
+
+def _publication_follow_up(obj: IntelligenceObject) -> str:
+    implication = re.sub(r"\s+", " ", (obj.draft_implication or "").strip())
+    if not implication:
+        return ""
+    implication = implication.rstrip(".")
+    if implication:
+        implication = implication[0].lower() + implication[1:]
+    return f"This matters because {implication}."
+
+
+def _publication_heading(text: str) -> str:
+    return _publication_sentence(text).rstrip(".")
+
+
+def _publication_section_groups() -> List[Tuple[str, List[str]]]:
+    return [
+        ("Market Developments", ["Demand & Market Dynamics", "Application & Segment Trends", "Corporate & Competitive Moves"]),
+        ("Supply, Capacity and Investment", ["Capacity & Supply Structure"]),
+        ("Technology and Product Developments", ["Technology & Innovation"]),
+        ("Regulation and Sustainability", ["Sustainability & Regulation"]),
+    ]
+
+
+def _publication_analysis_paragraph(obj: IntelligenceObject) -> str:
+    statement = _publication_sentence(_object_market_statement(obj))
+    follow_up = _publication_follow_up(obj)
+    return " ".join(part for part in [statement, follow_up] if part)
+
+
+def _what_to_watch_line(obj: IntelligenceObject) -> str:
+    focus = _object_focus_label(obj)
+    region = ", ".join(obj.related_regions[:2]) if obj.related_regions else "the current reporting window"
+    if obj.object_type in {"Supply Shift", "Capacity Move"} and obj.direction == "down":
+        return f"Watch whether tighter supply conditions around {focus} in {region} begin to affect availability or allocation decisions."
+    if obj.object_type in {"Supply Shift", "Capacity Move"}:
+        return f"Watch whether announced supply and capacity moves around {focus} in {region} translate into realized market availability."
+    if obj.object_type == "Technology Move":
+        return f"Watch whether innovation activity in {focus} across {region} converts into broader commercial scale-up."
+    if obj.object_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return f"Watch for tighter regulatory and sustainability requirements affecting {focus} in {region}."
+    if obj.object_type in {"Regional Divergence", "Segment Divergence"}:
+        return f"Watch whether the current split in {focus} across {region} widens or begins to converge."
+    if obj.direction == "down":
+        return f"Watch whether weaker demand conditions for {focus} in {region} begin to spill into pricing and order visibility."
+    return f"Watch whether current demand strength in {focus} across {region} broadens beyond the strongest lanes now visible."
+
+
+def _render_publication_report_blueprint(blueprint: ReportBlueprint, ranked_objects: Sequence[IntelligenceObject]) -> str:
+    object_map = {obj.object_id: obj for obj in ranked_objects}
+    lines: List[str] = [f"# {blueprint.report_title}", "", f"*Reporting period: {blueprint.reporting_period_label}*", ""]
+
+    exec_ids = [item.object_id for item in blueprint.executive_summary_items if item.object_id in object_map]
+    if exec_ids:
+        lines.extend(["## Executive Summary", ""])
+        for object_id in exec_ids[:4]:
+            obj = object_map[object_id]
+            lines.append(f"- {_publication_sentence(obj.title)}")
+        lines.append("")
+
+    for publication_section, internal_sections in _publication_section_groups():
+        section_ids: List[str] = []
+        seen = set()
+        for internal_section in internal_sections:
+            for object_id in blueprint.section_allocations.get(internal_section) or []:
+                if object_id in object_map and object_id not in seen:
+                    seen.add(object_id)
+                    section_ids.append(object_id)
+        if not section_ids:
+            continue
+        lines.extend([f"## {publication_section}", ""])
+        for object_id in section_ids:
+            obj = object_map[object_id]
+            lines.extend(
+                [
+                    f"### {_publication_heading(obj.title)}",
+                    "",
+                    _publication_analysis_paragraph(obj),
+                    "",
+                ]
+            )
+
+    watch_candidates: List[IntelligenceObject] = []
+    seen_watch = set()
+    for object_id in blueprint.key_development_ids + exec_ids:
+        obj = object_map.get(object_id)
+        if not obj or obj.object_id in seen_watch:
+            continue
+        seen_watch.add(obj.object_id)
+        watch_candidates.append(obj)
+        if len(watch_candidates) >= 5:
+            break
+    if watch_candidates:
+        lines.extend(["## What to Watch", ""])
+        for obj in watch_candidates[:5]:
+            lines.append(f"- {_what_to_watch_line(obj)}")
+        lines.append("")
+
+    if blueprint.appendix_references:
+        lines.extend(["## Source Notes", ""])
+        for item in blueprint.appendix_references:
+            lines.append(f"- {item.title} | {item.source_name} | {item.publication_date}")
+        lines.append("")
+    return "\n".join(lines).strip() + "\n"
+
+
+def _render_diagnostic_report_blueprint(blueprint: ReportBlueprint, ranked_objects: Sequence[IntelligenceObject]) -> str:
     object_map = {obj.object_id: obj for obj in ranked_objects}
     lines: List[str] = [
         f"# {blueprint.report_title}",
@@ -1604,6 +1718,16 @@ def render_report_blueprint(blueprint: ReportBlueprint, ranked_objects: Sequence
         lines.append("No appendix references were available.")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
+
+
+def render_report_blueprint(
+    blueprint: ReportBlueprint,
+    ranked_objects: Sequence[IntelligenceObject],
+    publication_mode: bool = True,
+) -> str:
+    if publication_mode:
+        return _render_publication_report_blueprint(blueprint, ranked_objects)
+    return _render_diagnostic_report_blueprint(blueprint, ranked_objects)
 
 
 def build_intelligence_report(

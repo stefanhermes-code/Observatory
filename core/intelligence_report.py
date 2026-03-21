@@ -575,6 +575,7 @@ def generate_report_from_signals(
     }
     if write_html:
         title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
+        reporting_period_label = ((intelligence_result.get("blueprint") or {}).get("reporting_period_label") or "")
         try:
             from core.app_version import get_deploy_version
             _deploy = get_deploy_version()
@@ -584,6 +585,8 @@ def generate_report_from_signals(
             report_text,
             title=title,
             signal_map_pie_html=None,
+            reporting_period_label=reporting_period_label,
+            publication_mode=True,
             deploy_version=_deploy,
             run_id=run_id,
         )
@@ -622,6 +625,7 @@ def generate_report_from_clustered_inputs(
     }
     if write_html:
         title = (spec or {}).get("report_title") or "Polyurethane Industry Intelligence Briefing"
+        reporting_period_label = ((intelligence_result.get("blueprint") or {}).get("reporting_period_label") or "")
         try:
             from core.app_version import get_deploy_version
             _deploy = get_deploy_version()
@@ -631,6 +635,8 @@ def generate_report_from_clustered_inputs(
             report_text,
             title=title,
             signal_map_pie_html=None,
+            reporting_period_label=reporting_period_label,
+            publication_mode=True,
             deploy_version=_deploy,
             run_id=run_id,
         )
@@ -1050,6 +1056,8 @@ def markdown_to_simple_html(
     md_text: str,
     title: str = "Intelligence Report",
     signal_map_pie_html: Optional[str] = None,
+    reporting_period_label: Optional[str] = None,
+    publication_mode: bool = True,
     deploy_version: Optional[str] = None,
     run_id: Optional[str] = None,
 ) -> str:
@@ -1063,8 +1071,7 @@ def markdown_to_simple_html(
     - Tables: GitHub-style pipe tables
     - Inline bold/italic: **bold**, *italic*
     - Signal map pie placeholder: <!-- SIGNAL_MAP_PIE --> replaced with provided HTML
-    - deploy_version: if set, shown in the report header for traceability.
-    - run_id: if set, shown in the report header so Admin History can be matched to the HTML file.
+    - publication_mode: when True, render the clean publication template without internal metadata.
     """
 
     lines = md_text.splitlines()
@@ -1169,124 +1176,149 @@ def markdown_to_simple_html(
 
     body_html = "\n".join(html_parts)
 
-    # Extract "Run Scope" block (if present) into a dedicated summary/meta panel
-    report_meta_html = ""
-    scope_match = re.search(
-        r"(<h2>Run Scope</h2>\\s*<ul>.*?</ul>)",
-        body_html,
-        flags=re.DOTALL,
-    )
-    if scope_match:
-        scope_block = scope_match.group(1)
-        report_meta_html = f'<div class="report-meta">{scope_block}</div>'
-        body_html = body_html[: scope_match.start()] + body_html[scope_match.end() :]
-
     # Remove the first <h1> from body_html (title now lives in the header block)
     body_html = re.sub(r"<h1>.*?</h1>", "", body_html, count=1, flags=re.DOTALL)
+    body_html = re.sub(r"^\s*<p><em>Reporting period:.*?</em></p>\s*", "", body_html, count=1, flags=re.DOTALL)
+    publication_date = datetime.utcnow().strftime("%B %d, %Y")
+    period_text = html.escape(reporting_period_label or "Current reporting window", quote=False)
+    title_text = html.escape(title, quote=False)
+    deploy_html = ""
+    if not publication_mode:
+        deploy_html = "".join(
+            [
+                f'<p class="masthead-meta-item">Deploy: {html.escape(deploy_version, quote=False)}</p>' if deploy_version else "",
+                f'<p class="masthead-meta-item">Run ID: {html.escape(run_id, quote=False)}</p>' if run_id else "",
+            ]
+        )
 
-    # Use styling and layout similar to the HTC HTML template (Calibri, header with logo, summary block)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{html.escape(title, quote=False)}</title>
+    <title>{title_text}</title>
     <style>
         @media print {{
-            .no-print {{ display: none !important; }}
-            body {{ margin: 0; padding: 20px; }}
+            body {{ margin: 0; background: #fff; }}
+            .report-shell {{ box-shadow: none; margin: 0; max-width: none; }}
             @page {{ margin: 1cm; }}
         }}
         body {{
-            font-family: Calibri, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            font-size: 10pt;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-            line-height: 1.6;
-        }}
-        .header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-        }}
-        .header-logo {{
-            max-width: 150px;
-            height: auto;
-        }}
-        .header-title {{
-            flex: 1;
-            text-align: center;
-        }}
-        .header h1 {{
             margin: 0;
-            font-size: 24px;
-            font-weight: bold;
+            background: #eef2f5;
+            color: #1d2733;
+            font-family: Calibri, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.65;
         }}
-        .header-deploy {{
-            margin: 4px 0 0 0;
-            font-size: 0.85em;
-            color: #666;
+        .report-shell {{
+            max-width: 1000px;
+            margin: 18px auto;
+            background: #ffffff;
+            padding: 28px 40px 40px;
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
         }}
-        .report-meta {{
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 30px;
-            font-size: 0.9em;
+        .masthead {{
+            display: grid;
+            grid-template-columns: 180px 1fr 240px;
+            gap: 20px;
+            align-items: center;
+            padding: 0 0 18px;
+            border-bottom: 3px solid #15395b;
+            margin-bottom: 24px;
         }}
-        .report-meta p {{
-            margin: 5px 0;
+        .masthead-logo-wrap {{
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }}
+        .masthead-logo {{
+            max-width: 150px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }}
+        .masthead-title h1 {{
+            margin: 0;
+            font-size: 28px;
+            line-height: 1.15;
+            color: #10263d;
+            border: 0;
+            padding: 0;
+        }}
+        .masthead-title p {{
+            margin: 8px 0 0;
+            color: #5c6773;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }}
+        .masthead-meta {{
+            text-align: right;
+            font-size: 13px;
+            color: #334155;
+        }}
+        .masthead-meta-label {{
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 2px;
+        }}
+        .masthead-meta-value {{
+            margin: 0 0 10px;
+            font-weight: 600;
+        }}
+        .masthead-meta-item {{
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 11px;
         }}
         h1 {{
-            color: #333;
-            padding-bottom: 10px;
-            margin-top: 30px;
-            font-size: 20px;
-            border-bottom: 1px solid #ddd;
+            font-size: 28px;
+            margin: 0 0 18px;
         }}
         h2 {{
-            color: #333;
-            margin-top: 30px;
-            font-size: 18px;
-            font-weight: bold;
+            margin: 32px 0 12px;
+            font-size: 21px;
+            color: #10263d;
         }}
         h3 {{
-            color: #555;
-            margin-top: 20px;
-            font-size: 16px;
+            margin: 22px 0 8px;
+            font-size: 17px;
+            color: #173a5c;
         }}
         p {{
-            margin: 10px 0;
+            margin: 0 0 14px;
+            font-size: 15px;
         }}
         ul {{
-            margin: 10px 0 10px 25px;
+            margin: 0 0 18px 22px;
+            padding: 0;
         }}
         li {{
-            margin-bottom: 4px;
+            margin: 0 0 10px;
+            font-size: 15px;
         }}
         table {{
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 18px 0;
             width: 100%;
         }}
         th, td {{
-            border: 1px solid #ccc;
-            padding: 4px 6px;
+            border: 1px solid #d8dee6;
+            padding: 8px 10px;
             text-align: left;
-            font-size: 9pt;
+            font-size: 13px;
         }}
         th {{
-            background-color: #f5f5f5;
+            background: #f8fafc;
         }}
-        .signal-map-pie {{
-            margin: 1em 0;
+        em {{
+            color: #5c6773;
         }}
         a {{
-            color: #1f77b4;
+            color: #1d5a96;
             text-decoration: none;
         }}
         a:hover {{
@@ -1295,18 +1327,25 @@ def markdown_to_simple_html(
     </style>
 </head>
 <body>
-    <div class="header">
-        <!-- Inline logo (same image as HTC Global Market Intelligence_20260217.html) -->
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAADiGGNhQlgAAOIYanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAANvpqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmRiMzU5MGYxLTJkZWEtNGE0Mi1iYjg3LTFkM2VjYWY1MjM3NwAAAAHBanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAA5Wp1bWIAAAApanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zLnYyAAAAALRjYm9yoWdhY3Rpb25zgqNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50v2RuYW1lZkdQVC00b/9xZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWGhZmFjdGlvbm5jMnBhLmNvbnZlcnRlZAAAAKtqdW1iAAAAKGp1bWRjYm9yABEAEIAAAKoAOJtxA2MycGEuaGFzaC5kYXRhAAAAAHtjYm9ypWpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZNyxkbmFtZW5qdW1iZiBtYW5pZmVzdGNhbGdmc2hhMjU2ZGhhc2hYIJereHhizg/H0mK/SB01vzCpI2wy35EoqksTMVitcmBxY3BhZEgAAAAAAAAAAAAAAe1qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAABvmNib3Kmamluc3RhbmNlSUR4LHhtcDppaWQ6Njk4YzI5NjMtNjkyYy00ZTRiLWI1MzQtYTUzMzMyNTY4M2M0" class="header-logo" alt="PU Observatory logo">
-        <div class="header-title">
-            <h1>{html.escape(title, quote=False)}</h1>
-            {f'<p class="header-deploy">Deploy: {html.escape(deploy_version, quote=False)}</p>' if deploy_version else ''}
-            {f'<p class="header-deploy">Run ID: {html.escape(run_id, quote=False)}</p>' if run_id else ''}
+    <div class="report-shell">
+        <div class="masthead">
+            <div class="masthead-logo-wrap">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAADiGGNhQlgAAOIYanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAANvpqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmRiMzU5MGYxLTJkZWEtNGE0Mi1iYjg3LTFkM2VjYWY1MjM3NwAAAAHBanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAA5Wp1bWIAAAApanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zLnYyAAAAALRjYm9yoWdhY3Rpb25zgqNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50v2RuYW1lZkdQVC00b/9xZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWGhZmFjdGlvbm5jMnBhLmNvbnZlcnRlZAAAAKtqdW1iAAAAKGp1bWRjYm9yABEAEIAAAKoAOJtxA2MycGEuaGFzaC5kYXRhAAAAAHtjYm9ypWpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZNyxkbmFtZW5qdW1iZiBtYW5pZmVzdGNhbGdmc2hhMjU2ZGhhc2hYIJereHhizg/H0mK/SB01vzCpI2wy35EoqksTMVitcmBxY3BhZEgAAAAAAAAAAAAAAe1qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAABvmNib3Kmamluc3RhbmNlSUR4LHhtcDppaWQ6Njk4YzI5NjMtNjkyYy00ZTRiLWI1MzQtYTUzMzMyNTY4M2M0" class="masthead-logo" alt="PU Observatory logo">
+            </div>
+            <div class="masthead-title">
+                <h1>{title_text}</h1>
+                <p>Polyurethane Observatory</p>
+            </div>
+            <div class="masthead-meta">
+                <span class="masthead-meta-label">Reporting Period</span>
+                <p class="masthead-meta-value">{period_text}</p>
+                <span class="masthead-meta-label">Publication Date</span>
+                <p class="masthead-meta-value">{publication_date}</p>
+                {deploy_html}
+            </div>
         </div>
-        <div style="width: 120px;"></div>
-    </div>
-    {report_meta_html}
 {body_html}
+    </div>
 </body>
 </html>
 """
