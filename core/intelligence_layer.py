@@ -1530,16 +1530,6 @@ def _publication_sentence(text: str) -> str:
     return cleaned if cleaned.endswith(".") else f"{cleaned}."
 
 
-def _publication_follow_up(obj: IntelligenceObject) -> str:
-    implication = re.sub(r"\s+", " ", (obj.draft_implication or "").strip())
-    if not implication:
-        return ""
-    implication = implication.rstrip(".")
-    if implication:
-        implication = implication[0].lower() + implication[1:]
-    return f"This matters because {implication}."
-
-
 def _publication_heading(text: str) -> str:
     return _publication_sentence(text).rstrip(".")
 
@@ -1553,82 +1543,444 @@ def _publication_section_groups() -> List[Tuple[str, List[str]]]:
     ]
 
 
-def _publication_analysis_paragraph(obj: IntelligenceObject) -> str:
-    statement = _publication_sentence(_object_market_statement(obj))
-    follow_up = _publication_follow_up(obj)
-    return " ".join(part for part in [statement, follow_up] if part)
+def _join_publication_list(values: Sequence[str], max_items: int = 3) -> str:
+    cleaned = _dedupe_keep_order(values)
+    if not cleaned:
+        return ""
+    limited = cleaned[:max_items]
+    if len(limited) == 1:
+        return limited[0]
+    if len(limited) == 2:
+        return f"{limited[0]} and {limited[1]}"
+    return ", ".join(limited[:-1]) + f", and {limited[-1]}"
 
 
-def _what_to_watch_line(obj: IntelligenceObject) -> str:
-    focus = _object_focus_label(obj)
-    region = ", ".join(obj.related_regions[:2]) if obj.related_regions else "the current reporting window"
-    if obj.object_type in {"Supply Shift", "Capacity Move"} and obj.direction == "down":
-        return f"Watch whether tighter supply conditions around {focus} in {region} begin to affect availability or allocation decisions."
-    if obj.object_type in {"Supply Shift", "Capacity Move"}:
-        return f"Watch whether announced supply and capacity moves around {focus} in {region} translate into realized market availability."
-    if obj.object_type == "Technology Move":
-        return f"Watch whether innovation activity in {focus} across {region} converts into broader commercial scale-up."
-    if obj.object_type in {"Regulatory Shift", "Sustainability Shift"}:
-        return f"Watch for tighter regulatory and sustainability requirements affecting {focus} in {region}."
-    if obj.object_type in {"Regional Divergence", "Segment Divergence"}:
-        return f"Watch whether the current split in {focus} across {region} widens or begins to converge."
-    if obj.direction == "down":
-        return f"Watch whether weaker demand conditions for {focus} in {region} begin to spill into pricing and order visibility."
-    return f"Watch whether current demand strength in {focus} across {region} broadens beyond the strongest lanes now visible."
+def _scope_selection_value(spec: Optional[Dict[str, Any]], field_name: str) -> str:
+    values = list((spec or {}).get(field_name) or [])
+    if not values:
+        return "All"
+    if field_name == "categories":
+        try:
+            from core.taxonomy import PU_CATEGORIES
+
+            name_map = {item["id"]: item["name"] for item in PU_CATEGORIES}
+            values = [name_map.get(value, value) for value in values]
+        except Exception:
+            pass
+    elif field_name == "value_chain_links":
+        try:
+            from core.taxonomy import VALUE_CHAIN_LINKS
+
+            name_map = {item["id"]: item["name"] for item in VALUE_CHAIN_LINKS}
+            values = [name_map.get(value, value) for value in values]
+        except Exception:
+            pass
+    return _join_publication_list(values, max_items=6) or "All"
 
 
-def _render_publication_report_blueprint(blueprint: ReportBlueprint, ranked_objects: Sequence[IntelligenceObject]) -> str:
+def _broad_region_anchor(region: str) -> str:
+    cleaned = _normalize_text(region).lower()
+    if not cleaned:
+        return ""
+    if "china" in cleaned:
+        return "China"
+    if cleaned in {"emea", "europe", "european union"} or "europe" in cleaned:
+        return "EMEA"
+    if "asia" in cleaned or cleaned in {"apac", "sea", "ne asia", "india"}:
+        return cleaned.upper() if len(cleaned) <= 4 else _publication_heading(cleaned)
+    if "north america" in cleaned:
+        return "North America"
+    if "south america" in cleaned or "latin america" in cleaned:
+        return "South America"
+    if "middle east" in cleaned:
+        return "Middle East"
+    return _publication_heading(cleaned)
+
+
+def _publication_regions_for_object(obj: IntelligenceObject) -> List[str]:
+    regions = [_broad_region_anchor(region) for region in obj.related_regions]
+    return _dedupe_keep_order(regions)
+
+
+def _collapse_publication_products(values: Sequence[str]) -> List[str]:
+    preferred = {
+        "thermoplastic polyurethane": "TPU",
+        "tpu": "TPU",
+        "toluene diisocyanate": "TDI",
+        "tdi": "TDI",
+        "methylene diphenyl diisocyanate": "MDI",
+        "mdi": "MDI",
+        "pu flexible foam": "flexible foam",
+        "flexible foam": "flexible foam",
+        "pu rigid foam": "rigid foam",
+        "rigid foam": "rigid foam",
+        "case": "CASE",
+    }
+    collapsed: List[str] = []
+    seen = set()
+    for value in values:
+        cleaned = _normalize_text(value)
+        if not cleaned:
+            continue
+        canonical = preferred.get(cleaned.lower(), cleaned)
+        key = canonical.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        collapsed.append(canonical)
+    return collapsed
+
+
+def _publication_products_for_object(obj: IntelligenceObject) -> List[str]:
+    products = _collapse_publication_products(_dedupe_keep_order(obj.related_products))
+    if products:
+        return products
+    if obj.object_type in {"Capacity Move", "Supply Shift"} and _normalize_text(obj.core_theme).lower() == "capacity and supply":
+        return ["polyurethane capacity"]
+    theme = _normalize_text(obj.core_theme)
+    return _collapse_publication_products([theme]) if theme else []
+
+
+def _publication_group_sort_key(group: Dict[str, Any]) -> Tuple[int, float, float]:
+    generic = 1 if group["generic"] else 0
+    return (generic, -group["max_score"], -group["avg_score"])
+
+
+def _publication_group_type(group: Dict[str, Any]) -> str:
+    priority = [
+        "Demand Shift",
+        "Capacity Move",
+        "Supply Shift",
+        "Technology Move",
+        "Regulatory Shift",
+        "Sustainability Shift",
+        "Regional Divergence",
+        "Segment Divergence",
+        "Competitive Move",
+    ]
+    types = group["object_types"]
+    for object_type in priority:
+        if object_type in types:
+            return object_type
+    return types[0] if types else "Market"
+
+
+def _publication_group_region_text(group: Dict[str, Any]) -> str:
+    return _join_publication_list(group["regions"], max_items=3) or "the selected markets"
+
+
+def _publication_group_focus_text(group: Dict[str, Any]) -> str:
+    products = _collapse_publication_products(group["products"])
+    if products:
+        return _join_publication_list(products, max_items=3)
+    if group["section"] == "Supply, Capacity and Investment":
+        return "broad supply and capacity activity"
+    if group["section"] == "Technology and Product Developments":
+        return "broader technology activity"
+    if group["section"] == "Regulation and Sustainability":
+        return "broader regulatory and sustainability activity"
+    return "the polyurethane market"
+
+
+def _publication_group_companies_text(group: Dict[str, Any]) -> str:
+    companies = _join_publication_list(group["companies"], max_items=3)
+    return companies
+
+
+def _publication_group_direction(group: Dict[str, Any]) -> str:
+    directions = set(group["directions"])
+    if "up" in directions and "down" in directions:
+        return "mixed"
+    if "up" in directions:
+        return "up"
+    if "down" in directions:
+        return "down"
+    return "mixed"
+
+
+def _publication_exec_bucket(group: Dict[str, Any]) -> str:
+    section = group["section"]
+    primary_type = _publication_group_type(group)
+    if section == "Supply, Capacity and Investment":
+        return "supply"
+    if section == "Technology and Product Developments":
+        return "technology"
+    if section == "Regulation and Sustainability":
+        return "regulation"
+    if primary_type in {"Demand Shift", "Regional Divergence", "Segment Divergence", "Competitive Move"}:
+        return "demand"
+    return "demand"
+
+
+def _publication_group_title(group: Dict[str, Any]) -> str:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    if group["generic"] and group["section"] == "Supply, Capacity and Investment":
+        return f"Broad supply and capacity activity in {region}"
+    if group["generic"] and group["section"] == "Technology and Product Developments":
+        return f"Broad technology activity in {region}"
+    if group["generic"] and group["section"] == "Regulation and Sustainability":
+        return f"Broad regulatory and sustainability activity in {region}"
+    if group["section"] == "Technology and Product Developments":
+        return f"Technology activity in {focus} in {region}"
+    if group["section"] == "Regulation and Sustainability":
+        return f"Regulation and sustainability in {focus} in {region}"
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        return f"{focus} supply and capacity in {region}"
+    if primary_type in {"Regional Divergence", "Segment Divergence"} or direction == "mixed":
+        return f"{focus} divergence in {region}"
+    return f"{focus} demand in {region}"
+
+
+def _publication_exec_statement(group: Dict[str, Any]) -> str:
+    title = _publication_group_title(group)
+    direction = _publication_group_direction(group)
+    primary_type = _publication_group_type(group)
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if direction == "down":
+            return _publication_sentence(f"{title} is tightening")
+        return _publication_sentence(f"{title} is increasing")
+    if primary_type == "Technology Move":
+        return _publication_sentence(f"{title} is increasing")
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return _publication_sentence(f"{title} is becoming more consequential")
+    if direction == "down":
+        return _publication_sentence(f"{title} is weakening")
+    if direction == "mixed":
+        return _publication_sentence(f"{title} is splitting by market")
+    return _publication_sentence(f"{title} is strengthening")
+
+
+def _publication_analysis_sentences(group: Dict[str, Any]) -> List[str]:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    companies = _publication_group_companies_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    contradiction = group["contradiction"]
+    generic = group["generic"]
+
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if generic and direction == "down":
+            sentence_1 = f"Broad supply and capacity conditions are tightening in {region}."
+            sentence_3 = "Availability is becoming more uneven, but the current signals remain broad rather than tightly anchored to one product lane."
+            sentence_4 = "Supply planning should therefore use this as supporting context while relying on more specific product and regional signals for front-line decisions."
+        elif generic:
+            sentence_1 = f"Broad supply and capacity activity is increasing in {region}."
+            sentence_3 = "The expansion points to wider supply-side movement, but the current signal remains broader than the lead section developments."
+            sentence_4 = "Supply planning should therefore treat this as supporting context and keep product-specific signals at the center of decision-making."
+        elif direction == "down":
+            sentence_1 = f"Supply and capacity conditions in {focus} are tightening in {region}."
+            sentence_3 = "Availability is therefore becoming more uneven, and buyers should not assume that regional supply will remain interchangeable."
+            sentence_4 = f"Supply planning should therefore focus on continuity, allocation risk, and alternative sourcing options in {region}."
+        elif direction == "mixed":
+            sentence_1 = f"Supply and capacity conditions in {focus} are diverging across {region}."
+            sentence_3 = "Expansion and tightening are developing at the same time, so the supply picture is no longer uniform across the affected markets."
+            sentence_4 = f"Supply planning should therefore be set by regional conditions rather than a single market-wide assumption for {focus}."
+        else:
+            sentence_1 = f"Supply and capacity activity in {focus} is increasing in {region}."
+            sentence_3 = "The expansion points to changing availability, cost positioning, and competitive intensity in the markets now adding capacity."
+            sentence_4 = f"Supply planning should therefore be updated for the capacity shifts now visible in {region}."
+    elif primary_type == "Technology Move":
+        sentence_1 = f"Technology activity in {focus} is increasing in {region}."
+        sentence_3 = "Product and formulation work is moving faster than broad commercialization, so technical progress is visible before full market rollout."
+        sentence_4 = f"Product and business teams should therefore track {region} closely as a live source of formulation, application, and commercialization signals."
+    elif primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        sentence_1 = f"Regulatory and sustainability pressure around {focus} is increasing in {region}."
+        sentence_3 = "The pressure is moving closer to practical decisions on compliance, sourcing, and product positioning in the affected markets."
+        sentence_4 = f"Producers and downstream users should therefore factor regulatory timing and sustainability positioning more directly into planning for {focus}."
+    else:
+        if direction == "down":
+            sentence_1 = f"Demand conditions in {focus} are weakening in {region}."
+            sentence_3 = "The softer direction points to weaker momentum and less consistent traction across the identified lanes."
+            sentence_4 = f"Commercial planning should therefore be more selective in {region} and avoid treating {focus} as a broad-based growth story."
+        elif direction == "mixed":
+            sentence_1 = f"Demand conditions in {focus} differ significantly across {region}."
+            sentence_3 = "Some markets are strengthening while others are losing momentum, so the demand picture is fragmented rather than uniform."
+            sentence_4 = f"Commercial planning should therefore be segmented by market and product lane rather than rolled into one headline view for {focus}."
+        else:
+            sentence_1 = f"Demand conditions in {focus} are strengthening in {region}."
+            sentence_3 = "The stronger direction points to firmer buyer activity and clearer commercial traction in the identified markets."
+            sentence_4 = f"Commercial planning should therefore prioritize the markets in {region} where demand for {focus} is showing the clearest momentum."
+
+    sentence_2 = f"The development is concentrated in {region} and centers on {focus}."
+    if companies:
+        sentence_2 = f"The development is concentrated in {region}, centers on {focus}, and includes activity from {companies}."
+    if generic and primary_type in {"Supply Shift", "Capacity Move"}:
+        sentence_2 = f"The development is concentrated in {region} and includes activity from {companies}." if companies else f"The development is concentrated in {region} and spans multiple supply-side signals."
+
+    if contradiction:
+        sentence_3 = "Signals do not all point in the same direction, so the development needs to be read as an uneven market shift rather than a clean one-way move."
+    if generic and primary_type not in {"Supply Shift", "Capacity Move"}:
+        sentence_4 = f"This item should be read as supporting context and not as the lead signal for {focus} because product or regional anchoring remains broad."
+
+    return [sentence_1, sentence_2, sentence_3, sentence_4]
+
+
+def _publication_analysis_paragraph(group: Dict[str, Any]) -> str:
+    return " ".join(_publication_sentence(sentence) for sentence in _publication_analysis_sentences(group))
+
+
+def _publication_monitoring_line(group: Dict[str, Any]) -> str:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    if primary_type in {"Supply Shift", "Capacity Move"} and direction == "down":
+        return f"Track whether tighter supply in {focus} across {region} begins to affect lead times, allocation, or sourcing flexibility."
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        return f"Track whether announced capacity moves in {focus} across {region} translate into realized availability and competitive pressure."
+    if primary_type == "Technology Move":
+        return f"Track whether current technology activity in {focus} across {region} converts into broader commercial scale-up."
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return f"Track whether regulatory and sustainability requirements in {region} begin to alter product decisions or supplier positioning in {focus}."
+    if direction == "down":
+        return f"Track whether weaker demand in {focus} across {region} begins to affect pricing discipline and order visibility."
+    if direction == "mixed":
+        return f"Track whether the current split in {focus} across {region} widens further or begins to converge."
+    return f"Track whether stronger demand in {focus} across {region} broadens beyond the markets already showing momentum."
+
+
+def _publication_group_key(section: str, obj: IntelligenceObject) -> Tuple[Any, ...]:
+    region_key = tuple(_publication_regions_for_object(obj)) or ("Global",)
+    if section == "Technology and Product Developments":
+        return (section, "technology", region_key)
+    product_key = tuple(_publication_products_for_object(obj)) or (_normalize_text(obj.core_theme or obj.title) or "Market",)
+    primary_type = obj.object_type
+    return (section, primary_type, product_key, region_key)
+
+
+def _build_publication_groups(
+    blueprint: ReportBlueprint,
+    ranked_objects: Sequence[IntelligenceObject],
+) -> Dict[str, List[Dict[str, Any]]]:
     object_map = {obj.object_id: obj for obj in ranked_objects}
-    lines: List[str] = [f"# {blueprint.report_title}", "", f"*Reporting period: {blueprint.reporting_period_label}*", ""]
-
-    exec_ids = [item.object_id for item in blueprint.executive_summary_items if item.object_id in object_map]
-    if exec_ids:
-        lines.extend(["## Executive Summary", ""])
-        for object_id in exec_ids[:4]:
-            obj = object_map[object_id]
-            lines.append(f"- {_publication_sentence(obj.title)}")
-        lines.append("")
-
+    grouped_sections: Dict[str, List[Dict[str, Any]]] = {}
     for publication_section, internal_sections in _publication_section_groups():
-        section_ids: List[str] = []
-        seen = set()
+        groups_by_key: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
         for internal_section in internal_sections:
             for object_id in blueprint.section_allocations.get(internal_section) or []:
-                if object_id in object_map and object_id not in seen:
-                    seen.add(object_id)
-                    section_ids.append(object_id)
-        if not section_ids:
+                obj = object_map.get(object_id)
+                if not obj:
+                    continue
+                key = _publication_group_key(publication_section, obj)
+                group = groups_by_key.get(key)
+                if not group:
+                    group = {
+                        "section": publication_section,
+                        "objects": [],
+                        "products": [],
+                        "regions": [],
+                        "companies": [],
+                        "directions": [],
+                        "object_types": [],
+                        "max_score": 0.0,
+                        "avg_score": 0.0,
+                        "contradiction": False,
+                        "generic": False,
+                    }
+                    groups_by_key[key] = group
+                group["objects"].append(obj)
+                group["products"].extend(_publication_products_for_object(obj))
+                group["regions"].extend(_publication_regions_for_object(obj))
+                group["companies"].extend(obj.related_companies)
+                group["directions"].append(obj.direction)
+                group["object_types"].append(obj.object_type)
+                group["contradiction"] = group["contradiction"] or obj.contradiction_flag
+        groups: List[Dict[str, Any]] = []
+        for group in groups_by_key.values():
+            objects = group["objects"]
+            group["products"] = _dedupe_keep_order(group["products"])
+            group["regions"] = _dedupe_keep_order(group["regions"])
+            group["companies"] = _dedupe_keep_order(group["companies"])
+            group["max_score"] = max(obj.strategic_relevance_score for obj in objects)
+            group["avg_score"] = round(mean(obj.strategic_relevance_score for obj in objects), 2)
+            group["generic"] = not group["products"] or not group["regions"]
+            groups.append(group)
+        groups.sort(key=_publication_group_sort_key)
+        grouped_sections[publication_section] = groups
+    return grouped_sections
+
+
+def _publication_scope_table_lines(spec: Optional[Dict[str, Any]]) -> List[str]:
+    return [
+        "## Report Scope",
+        "",
+        "| Scope Element | Selection |",
+        "| --- | --- |",
+        f"| Categories | {_scope_selection_value(spec, 'categories')} |",
+        f"| Regions | {_scope_selection_value(spec, 'regions')} |",
+        f"| Value Chain | {_scope_selection_value(spec, 'value_chain_links')} |",
+        "",
+    ]
+
+
+def _publication_executive_groups(section_groups: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    order = ["supply", "demand", "technology", "regulation"]
+    selected: List[Dict[str, Any]] = []
+    for bucket in order:
+        for groups in section_groups.values():
+            match = next((group for group in groups if _publication_exec_bucket(group) == bucket), None)
+            if match:
+                selected.append(match)
+                break
+    return selected
+
+
+def _render_publication_report_blueprint(
+    blueprint: ReportBlueprint,
+    ranked_objects: Sequence[IntelligenceObject],
+    spec: Optional[Dict[str, Any]],
+) -> str:
+    lines: List[str] = [f"# {blueprint.report_title}", "", f"*Reporting period: {blueprint.reporting_period_label}*", ""]
+    lines.extend(_publication_scope_table_lines(spec))
+
+    section_groups = _build_publication_groups(blueprint, ranked_objects)
+    executive_groups = _publication_executive_groups(section_groups)
+    if executive_groups:
+        lines.extend(["## Executive Summary", ""])
+        for group in executive_groups[:4]:
+            lines.append(f"- {_publication_exec_statement(group)}")
+        lines.append("")
+
+    for publication_section, _internal_sections in _publication_section_groups():
+        groups = section_groups.get(publication_section) or []
+        if not groups:
             continue
         lines.extend([f"## {publication_section}", ""])
-        for object_id in section_ids:
-            obj = object_map[object_id]
+        for group in groups:
             lines.extend(
                 [
-                    f"### {_publication_heading(obj.title)}",
+                    f"### {_publication_heading(_publication_group_title(group))}",
                     "",
-                    _publication_analysis_paragraph(obj),
+                    _publication_analysis_paragraph(group),
                     "",
                 ]
             )
 
-    watch_candidates: List[IntelligenceObject] = []
-    seen_watch = set()
-    for object_id in blueprint.key_development_ids + exec_ids:
-        obj = object_map.get(object_id)
-        if not obj or obj.object_id in seen_watch:
-            continue
-        seen_watch.add(obj.object_id)
-        watch_candidates.append(obj)
-        if len(watch_candidates) >= 5:
+    monitoring_groups: List[Dict[str, Any]] = []
+    seen_titles = set()
+    for publication_section, _internal_sections in _publication_section_groups():
+        for group in section_groups.get(publication_section) or []:
+            title = _publication_group_title(group).lower()
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            monitoring_groups.append(group)
+            if len(monitoring_groups) >= 5:
+                break
+        if len(monitoring_groups) >= 5:
             break
-    if watch_candidates:
-        lines.extend(["## What to Watch", ""])
-        for obj in watch_candidates[:5]:
-            lines.append(f"- {_what_to_watch_line(obj)}")
+    if monitoring_groups:
+        lines.extend(["## Monitoring Advice", ""])
+        for group in monitoring_groups[:5]:
+            lines.append(f"- {_publication_sentence(_publication_monitoring_line(group))}")
         lines.append("")
 
     if blueprint.appendix_references:
-        lines.extend(["## Source Notes", ""])
+        lines.extend(["## References", ""])
         for item in blueprint.appendix_references:
             lines.append(f"- {item.title} | {item.source_name} | {item.publication_date}")
         lines.append("")
@@ -1723,10 +2075,11 @@ def _render_diagnostic_report_blueprint(blueprint: ReportBlueprint, ranked_objec
 def render_report_blueprint(
     blueprint: ReportBlueprint,
     ranked_objects: Sequence[IntelligenceObject],
+    spec: Optional[Dict[str, Any]] = None,
     publication_mode: bool = True,
 ) -> str:
     if publication_mode:
-        return _render_publication_report_blueprint(blueprint, ranked_objects)
+        return _render_publication_report_blueprint(blueprint, ranked_objects, spec)
     return _render_diagnostic_report_blueprint(blueprint, ranked_objects)
 
 
@@ -1742,7 +2095,7 @@ def build_intelligence_report(
     resolved_objects = resolve_contradictions(base_objects, facts_by_id)
     ranked_objects = rank_intelligence_objects(resolved_objects, facts_by_id)
     blueprint = build_report_blueprint(ranked_objects, facts_by_id, spec, report_period_days)
-    report_text = render_report_blueprint(blueprint, ranked_objects)
+    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec)
 
     return {
         "report_text": report_text,
@@ -1779,7 +2132,7 @@ def build_intelligence_report_from_cluster_inputs(
     resolved_objects = resolve_contradictions(base_objects, facts_by_id)
     ranked_objects = rank_intelligence_objects(resolved_objects, facts_by_id)
     blueprint = build_report_blueprint(ranked_objects, facts_by_id, spec, report_period_days)
-    report_text = render_report_blueprint(blueprint, ranked_objects)
+    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec)
     metrics = build_report_metrics(
         filtered_signals_count=len(fallback_signals),
         facts=facts,
