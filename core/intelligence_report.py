@@ -8,6 +8,7 @@ Strategic Implications. Report is suitable for external distribution.
 
 from __future__ import annotations
 
+import base64
 import csv
 import json
 import re
@@ -30,6 +31,34 @@ REPORT_SECTIONS = [
     "Sustainability and Circular Economy",
     "Strategic Implications",
 ]
+
+
+def _load_publication_logo_data_uri() -> str:
+    repo_root = Path(__file__).resolve().parent.parent
+    candidate_paths = [
+        repo_root / "Background Documentation" / "PU Observatory logo V3.png",
+        repo_root / "PU Observatory logo.png",
+        repo_root / "Background Documentation" / "PU Observatory logo.png",
+    ]
+    mime_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }
+    for path in candidate_paths:
+        if not path.exists():
+            continue
+        suffix = path.suffix.lower()
+        mime_type = mime_map.get(suffix)
+        if not mime_type:
+            continue
+        try:
+            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+            return f"data:{mime_type};base64,{encoded}"
+        except OSError:
+            continue
+    return ""
 
 #
 # NOTE: Run 9 changes decouple category from report section.
@@ -1182,6 +1211,7 @@ def markdown_to_simple_html(
     publication_date = datetime.utcnow().strftime("%B %d, %Y")
     period_text = html.escape(reporting_period_label or "Current reporting window", quote=False)
     title_text = html.escape(title, quote=False)
+    logo_src = _load_publication_logo_data_uri()
     deploy_html = ""
     if not publication_mode:
         deploy_html = "".join(
@@ -1330,7 +1360,7 @@ def markdown_to_simple_html(
     <div class="report-shell">
         <div class="masthead">
             <div class="masthead-logo-wrap">
-                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAADiGGNhQlgAAOIYanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAANvpqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmRiMzU5MGYxLTJkZWEtNGE0Mi1iYjg3LTFkM2VjYWY1MjM3NwAAAAHBanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAA5Wp1bWIAAAApanVtZGNib3IAEQAQgAAAqgA4m3EDYzJwYS5hY3Rpb25zLnYyAAAAALRjYm9yoWdhY3Rpb25zgqNmYWN0aW9ubGMycGEuY3JlYXRlZG1zb2Z0d2FyZUFnZW50v2RuYW1lZkdQVC00b/9xZGlnaXRhbFNvdXJjZVR5cGV4Rmh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWGhZmFjdGlvbm5jMnBhLmNvbnZlcnRlZAAAAKtqdW1iAAAAKGp1bWRjYm9yABEAEIAAAKoAOJtxA2MycGEuaGFzaC5kYXRhAAAAAHtjYm9ypWpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZNyxkbmFtZW5qdW1iZiBtYW5pZmVzdGNhbGdmc2hhMjU2ZGhhc2hYIJereHhizg/H0mK/SB01vzCpI2wy35EoqksTMVitcmBxY3BhZEgAAAAAAAAAAAAAAe1qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAABvmNib3Kmamluc3RhbmNlSUR4LHhtcDppaWQ6Njk4YzI5NjMtNjkyYy00ZTRiLWI1MzQtYTUzMzMyNTY4M2M0" class="masthead-logo" alt="PU Observatory logo">
+                {f'<img src="{logo_src}" class="masthead-logo" alt="PU Observatory logo">' if logo_src else ''}
             </div>
             <div class="masthead-title">
                 <h1>{title_text}</h1>
