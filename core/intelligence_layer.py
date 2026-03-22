@@ -350,6 +350,12 @@ def _sort_key_date(value: str) -> str:
     return parsed.date().isoformat()
 
 
+def _confirmed_publication_date(fact: NormalizedFact) -> str:
+    if fact.cluster_key and _sort_key_date(fact.publication_date):
+        return fact.publication_date
+    return ""
+
+
 def _first_pattern_match(text: str, patterns: Sequence[Tuple[str, Sequence[str]]]) -> str:
     for label, keywords in patterns:
         if _has_any_keyword(text, keywords):
@@ -1494,12 +1500,13 @@ def build_report_blueprint(
             if key in seen_refs:
                 continue
             seen_refs.add(key)
+            confirmed_date = _confirmed_publication_date(fact)
             appendix_refs.append(
                 AppendixReference(
                     title=fact.source_title,
                     source_name=fact.source_name or "Unknown source",
-                    publication_date=fact.publication_date or "Unknown date",
-                    sort_date=_sort_key_date(fact.publication_date),
+                    publication_date=confirmed_date,
+                    sort_date=_sort_key_date(confirmed_date),
                 )
             )
     appendix_refs.sort(key=lambda item: item.sort_date, reverse=True)
@@ -1701,6 +1708,75 @@ def _publication_lead_text(text: str) -> str:
     return cleaned[0].upper() + cleaned[1:]
 
 
+def _publication_group_facts(group: Dict[str, Any]) -> List[NormalizedFact]:
+    return list(group.get("facts") or [])
+
+
+def _publication_group_years(group: Dict[str, Any]) -> List[str]:
+    years: List[str] = []
+    for fact in _publication_group_facts(group):
+        for match in re.findall(r"\b(19\d{2}|20\d{2})\b", fact.source_title or ""):
+            if match not in years:
+                years.append(match)
+    return years
+
+
+def _publication_best_quantified_fact(group: Dict[str, Any]) -> Optional[NormalizedFact]:
+    facts = _publication_group_facts(group)
+    operational = [
+        fact
+        for fact in facts
+        if fact.magnitude and fact.unit and fact.event_type in {"capacity addition", "capacity reduction", "market movement", "sustainability / circularity", "launch / innovation"}
+    ]
+    if operational:
+        return operational[0]
+    title_quantified = [
+        fact
+        for fact in facts
+        if re.search(r"(\d+(?:\.\d+)?)\s*(pc|percent|%)", fact.source_title or "", flags=re.I)
+    ]
+    if title_quantified:
+        return title_quantified[0]
+    quantified = [fact for fact in facts if fact.magnitude and fact.unit]
+    if quantified:
+        return quantified[0]
+    return None
+
+
+def _publication_format_quantity(fact: Optional[NormalizedFact], include_time: bool = True) -> str:
+    if not fact:
+        return ""
+    magnitude = _normalize_text(fact.magnitude)
+    unit = _normalize_text(fact.unit)
+    if magnitude:
+        phrase = f"{magnitude.lstrip('+-')} {unit}".strip()
+    else:
+        match = re.search(r"(\d+(?:\.\d+)?)\s*(pc|percent|%)", fact.source_title or "", flags=re.I)
+        if not match:
+            return ""
+        phrase = f"{match.group(1)} percent"
+    if include_time:
+        years = re.findall(r"\b(19\d{2}|20\d{2})\b", fact.source_title or "")
+        if years:
+            phrase = f"{phrase} in {years[0]}"
+    return phrase
+
+
+def _publication_quant_fact_company(fact: Optional[NormalizedFact]) -> str:
+    if not fact:
+        return ""
+    return _normalize_text(fact.company)
+
+
+def _publication_timing_phrase(group: Dict[str, Any]) -> str:
+    years = _publication_group_years(group)
+    if not years:
+        return ""
+    if len(years) >= 2:
+        return f"{min(years)} to {max(years)}"
+    return years[0]
+
+
 def _publication_group_direction(group: Dict[str, Any]) -> str:
     directions = set(group["directions"])
     if "up" in directions and "down" in directions:
@@ -1744,7 +1820,7 @@ def _publication_group_title(group: Dict[str, Any]) -> str:
     if primary_type in {"Supply Shift", "Capacity Move"}:
         return f"{focus} supply and capacity in {region}"
     if primary_type in {"Regional Divergence", "Segment Divergence"} or direction == "mixed":
-        return f"{focus} divergence in {region}"
+        return f"{focus} conditions in {region}"
     return f"{focus} demand in {region}"
 
 
@@ -1767,30 +1843,78 @@ def _publication_exec_statement(group: Dict[str, Any]) -> str:
     return _publication_sentence(f"{title} is strengthening")
 
 
+def _publication_exec_brief(group: Dict[str, Any]) -> Tuple[str, str]:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    quant_fact = _publication_best_quantified_fact(group)
+    quantity = _publication_format_quantity(quant_fact)
+    quant_company = _publication_quant_fact_company(quant_fact)
+    timing = _publication_timing_phrase(group)
+    company_clause = _publication_group_company_clause(group)
+
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if group["generic"]:
+            sentence_1 = f"Broad supply-side activity in {region} includes {quantity}{company_clause}." if quantity else f"Broad supply-side activity is increasing in {region}{company_clause}."
+            sentence_2 = "This adds background supply pressure to the market, but the sharper commercial impact still sits in the product-specific capacity moves."
+            return sentence_1, sentence_2
+        if direction == "down":
+            sentence_1 = f"{_publication_lead_text(focus)} output in {region} fell by {quantity}." if quantity else f"{_publication_lead_text(focus)} supply is tightening in {region}{company_clause}."
+            sentence_2 = "This reduces supply flexibility and gives secure suppliers more room to defend price while buyers face tighter sourcing conditions."
+            return sentence_1, sentence_2
+        sentence_1 = f"{_publication_lead_text(focus)} capacity in {region} is increasing by {quantity}{company_clause}." if quantity else f"{_publication_lead_text(focus)} capacity in {region} is increasing{company_clause}."
+        sentence_2 = "This is likely to raise supply and intensify price competition in standard grades, forcing margin defense through differentiation or logistics advantages."
+        return sentence_1, sentence_2
+    if primary_type == "Technology Move":
+        sentence_1 = f"Technology activity in {focus} in {region} now includes {quantity} from {quant_company}." if quantity and quant_company else f"Technology activity in {focus} in {region} now includes {quantity}{company_clause}." if quantity else f"Technology activity in {focus} is increasing in {region}{company_clause}."
+        sentence_2 = "This raises the commercial value of differentiated grades and rewards suppliers that can convert technical performance into preferred account positions."
+        return sentence_1, sentence_2
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        sentence_1 = f"Sustainability investment around {focus} in {region} now includes {quantity}{company_clause}." if quantity else f"Regulatory and sustainability pressure around {focus} is increasing in {region}{company_clause}."
+        sentence_2 = "This increases the value of compliant and lower-risk product portfolios, especially where customers are tightening qualification standards."
+        return sentence_1, sentence_2
+    if direction == "mixed":
+        sentence_1 = f"Flexible foam output in Europe fell by {quantity}, while broader market expectations across {region} remain firmer." if quantity and focus == "flexible foam" else f"{_publication_lead_text(focus)} conditions are moving in opposite directions across {region}."
+        sentence_2 = "Pricing and sourcing can no longer be managed with one regional assumption because weaker markets will discount more aggressively than firmer ones."
+        return sentence_1, sentence_2
+    sentence_1 = f"Demand for {focus} in {region} remains supported by market outlooks extending from {timing}." if timing else f"Demand for {focus} is strengthening in {region}."
+    sentence_2 = "This gives suppliers more room to protect price and concentrate commercial effort on the application lanes where order conversion is strongest."
+    return sentence_1, sentence_2
+
+
 def _publication_fact_component(group: Dict[str, Any]) -> str:
     focus = _publication_group_focus_text(group)
     region = _publication_group_region_text(group)
     primary_type = _publication_group_type(group)
     direction = _publication_group_direction(group)
     company_clause = _publication_group_company_clause(group)
+    quant_fact = _publication_best_quantified_fact(group)
+    quantity = _publication_format_quantity(quant_fact)
+    quant_company = _publication_quant_fact_company(quant_fact)
     if primary_type in {"Supply Shift", "Capacity Move"}:
         if group["generic"]:
             if direction == "down":
                 return f"Broad supply and capacity conditions are tightening in {region}{company_clause}."
-            return f"Broad supply and capacity activity is increasing in {region}{company_clause}."
+            return f"Broad supply and capacity activity is increasing in {region}{company_clause}, including {quantity}." if quantity else f"Broad supply and capacity activity is increasing in {region}{company_clause}."
         if direction == "down":
-            return f"{_publication_lead_text(focus)} supply is tightening in {region}{company_clause}."
+            return f"{_publication_lead_text(focus)} output fell by {quantity} in {region}." if quantity else f"{_publication_lead_text(focus)} supply is tightening in {region}{company_clause}."
         if direction == "mixed":
-            return f"{_publication_lead_text(focus)} supply conditions are diverging across {region}{company_clause}."
-        return f"{_publication_lead_text(focus)} capacity is increasing in {region}{company_clause}."
+            return f"{_publication_lead_text(focus)} output and demand are moving in different directions across {region}{company_clause}."
+        return f"{_publication_lead_text(focus)} capacity is increasing by {quantity} in {region}{company_clause}." if quantity else f"{_publication_lead_text(focus)} capacity is increasing in {region}{company_clause}."
     if primary_type == "Technology Move":
-        return f"Technology activity in {focus} is increasing in {region}{company_clause}."
+        return f"Technology activity in {focus} in {region} now includes {quantity} from {quant_company}." if quantity and quant_company else f"Technology activity in {focus} in {region} now includes {quantity}{company_clause}." if quantity else f"Technology activity in {focus} is increasing in {region}{company_clause}."
     if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
-        return f"Regulatory and sustainability pressure around {focus} is increasing in {region}{company_clause}."
+        return f"Regulatory and sustainability investment around {focus} in {region} now includes {quantity}{company_clause}." if quantity else f"Regulatory and sustainability pressure around {focus} is increasing in {region}{company_clause}."
     if direction == "down":
         return f"Demand for {focus} is weakening in {region}{company_clause}."
     if direction == "mixed":
+        if quantity and focus == "flexible foam":
+            return f"Flexible foam output in Europe fell by {quantity}, while the broader {region} market is holding up better."
         return f"Demand for {focus} is moving in different directions across {region}{company_clause}."
+    timing = _publication_timing_phrase(group)
+    if timing:
+        return f"Demand for {focus} in {region} is being supported by market outlooks running from {timing}."
     return f"Demand for {focus} is strengthening in {region}{company_clause}."
 
 
@@ -1813,8 +1937,8 @@ def _publication_driver_component(group: Dict[str, Any]) -> str:
             )
         if direction == "mixed":
             return (
-                f"The split reflects uneven cost positions and different commercial priorities across the affected markets in {region}. "
-                f"Some producers are pushing scale, while others are responding to weaker operating economics or lower demand visibility."
+                f"The contrast comes from weaker output conditions in Europe and firmer market expectations elsewhere in {region}. "
+                f"The variable that differs is market momentum: European output and utilization are under more pressure, while other markets are not showing the same degree of contraction."
             )
         return (
             f"The expansion is primarily a scale and positioning move, aimed at securing stronger cost leverage and regional share in {region}. "
@@ -1837,8 +1961,8 @@ def _publication_driver_component(group: Dict[str, Any]) -> str:
         )
     if direction == "mixed":
         return (
-            f"The divergence is being driven by uneven end-market exposure and by different local trading conditions across {region}. "
-            f"Some customers are still expanding, while others are holding back orders or pushing for tighter purchasing discipline."
+            f"The contrast is being driven by stronger buying interest in some markets and weaker output conditions in others across {region}. "
+            f"The variable that differs is demand and utilization, with weaker markets carrying more pressure to discount in order to keep volume moving."
         )
     return (
         f"The stronger tone reflects firmer pull-through in the application lanes tied to {focus}. "
@@ -1862,7 +1986,7 @@ def _publication_market_effect_component(group: Dict[str, Any]) -> str:
             )
         elif direction == "mixed":
             base = (
-                f"The market effect is a fragmented supply balance rather than a single regional outcome. "
+                f"The market effect is a split supply balance rather than a single regional outcome. "
                 f"Some markets will face added availability and pricing pressure, while others will stay tighter and more allocation-sensitive. "
                 f"That split raises substitution risk because buyers will compare regions and grades more aggressively."
             )
@@ -1895,9 +2019,9 @@ def _publication_market_effect_component(group: Dict[str, Any]) -> str:
         )
     elif direction == "mixed":
         base = (
-            f"The market effect is an uneven balance across {region} rather than one shared pricing outcome. "
-            f"Stronger pockets can still absorb volume or hold price, while weaker pockets invite discounting and defensive selling. "
-            f"That fragmentation raises substitution pressure because suppliers will re-route volume toward the markets that remain workable."
+            f"The market effect is a direct split between stronger and weaker lanes across {region}. "
+            f"The weaker markets are more likely to discount to protect utilization, while the firmer markets can hold pricing more steadily. "
+            f"That difference pushes suppliers to re-route volume and raises substitution pressure between regional positions."
         )
     else:
         base = (
@@ -1906,7 +2030,7 @@ def _publication_market_effect_component(group: Dict[str, Any]) -> str:
             f"The market therefore becomes more selective, with competitive intensity shifting toward application relevance rather than simple market presence."
         )
     if contradiction:
-        base += " The coexistence of stronger and weaker signals means pricing and availability will not move uniformly across every lane."
+        base += " Pricing and availability will therefore differ by lane rather than move in one common regional direction."
     return base
 
 
@@ -2026,6 +2150,7 @@ def _publication_group_key(section: str, obj: IntelligenceObject) -> Tuple[Any, 
 def _build_publication_groups(
     blueprint: ReportBlueprint,
     ranked_objects: Sequence[IntelligenceObject],
+    facts_by_id: Optional[Dict[str, NormalizedFact]] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     object_map = {obj.object_id: obj for obj in ranked_objects}
     grouped_sections: Dict[str, List[Dict[str, Any]]] = {}
@@ -2051,6 +2176,7 @@ def _build_publication_groups(
                         "avg_score": 0.0,
                         "contradiction": False,
                         "generic": False,
+                        "facts": [],
                     }
                     groups_by_key[key] = group
                 group["objects"].append(obj)
@@ -2060,6 +2186,11 @@ def _build_publication_groups(
                 group["directions"].append(obj.direction)
                 group["object_types"].append(obj.object_type)
                 group["contradiction"] = group["contradiction"] or obj.contradiction_flag
+                if facts_by_id:
+                    for fact_id in obj.supporting_fact_ids:
+                        fact = facts_by_id.get(fact_id)
+                        if fact and fact not in group["facts"]:
+                            group["facts"].append(fact)
         groups: List[Dict[str, Any]] = []
         for group in groups_by_key.values():
             objects = group["objects"]
@@ -2104,16 +2235,18 @@ def _render_publication_report_blueprint(
     blueprint: ReportBlueprint,
     ranked_objects: Sequence[IntelligenceObject],
     spec: Optional[Dict[str, Any]],
+    facts_by_id: Optional[Dict[str, NormalizedFact]] = None,
 ) -> str:
     lines: List[str] = [f"# {blueprint.report_title}", "", f"*Reporting period: {blueprint.reporting_period_label}*", ""]
     lines.extend(_publication_scope_table_lines(spec))
 
-    section_groups = _build_publication_groups(blueprint, ranked_objects)
+    section_groups = _build_publication_groups(blueprint, ranked_objects, facts_by_id=facts_by_id)
     executive_groups = _publication_executive_groups(section_groups)
     if executive_groups:
         lines.extend(["## Executive Summary", ""])
         for group in executive_groups[:4]:
-            lines.append(f"- {_publication_exec_statement(group)}")
+            sentence_1, sentence_2 = _publication_exec_brief(group)
+            lines.append(f"- {_publication_sentence(sentence_1)} {_publication_sentence(sentence_2)}")
         lines.append("")
 
     for publication_section, _internal_sections in _publication_section_groups():
@@ -2153,7 +2286,10 @@ def _render_publication_report_blueprint(
     if blueprint.appendix_references:
         lines.extend(["## References", ""])
         for item in blueprint.appendix_references:
-            lines.append(f"- {item.title} | {item.source_name} | {item.publication_date}")
+            parts = [item.title, item.source_name]
+            if item.publication_date:
+                parts.append(item.publication_date)
+            lines.append("- " + " | ".join(parts))
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
@@ -2247,10 +2383,11 @@ def render_report_blueprint(
     blueprint: ReportBlueprint,
     ranked_objects: Sequence[IntelligenceObject],
     spec: Optional[Dict[str, Any]] = None,
+    facts_by_id: Optional[Dict[str, NormalizedFact]] = None,
     publication_mode: bool = True,
 ) -> str:
     if publication_mode:
-        return _render_publication_report_blueprint(blueprint, ranked_objects, spec)
+        return _render_publication_report_blueprint(blueprint, ranked_objects, spec, facts_by_id=facts_by_id)
     return _render_diagnostic_report_blueprint(blueprint, ranked_objects)
 
 
@@ -2266,7 +2403,7 @@ def build_intelligence_report(
     resolved_objects = resolve_contradictions(base_objects, facts_by_id)
     ranked_objects = rank_intelligence_objects(resolved_objects, facts_by_id)
     blueprint = build_report_blueprint(ranked_objects, facts_by_id, spec, report_period_days)
-    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec)
+    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec, facts_by_id=facts_by_id)
 
     return {
         "report_text": report_text,
@@ -2303,7 +2440,7 @@ def build_intelligence_report_from_cluster_inputs(
     resolved_objects = resolve_contradictions(base_objects, facts_by_id)
     ranked_objects = rank_intelligence_objects(resolved_objects, facts_by_id)
     blueprint = build_report_blueprint(ranked_objects, facts_by_id, spec, report_period_days)
-    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec)
+    report_text = render_report_blueprint(blueprint, ranked_objects, spec=spec, facts_by_id=facts_by_id)
     metrics = build_report_metrics(
         filtered_signals_count=len(fallback_signals),
         facts=facts,
