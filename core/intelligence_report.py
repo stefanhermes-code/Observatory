@@ -1106,6 +1106,7 @@ def markdown_to_simple_html(
     lines = md_text.splitlines()
     html_parts: List[str] = []
     i = 0
+    active_h2: Optional[str] = None
 
     def _escape(text: str) -> str:
         return html.escape(text, quote=False)
@@ -1137,6 +1138,8 @@ def markdown_to_simple_html(
             level = len(stripped) - len(stripped.lstrip("#"))
             level = max(1, min(level, 3))
             text = stripped[level:].strip()
+            if level == 2:
+                active_h2 = text
             html_parts.append(f"<h{level}>{_inline(text)}</h{level}>")
             i += 1
             continue
@@ -1181,6 +1184,34 @@ def markdown_to_simple_html(
             html_parts.append("<ul>")
             html_parts.extend(list_items)
             html_parts.append("</ul>")
+            continue
+
+        if active_h2 == "References":
+            block_lines: List[str] = []
+            while i < len(lines):
+                current = lines[i]
+                curr_stripped = current.strip()
+                if not curr_stripped:
+                    i += 1
+                    if block_lines:
+                        break
+                    continue
+                if curr_stripped.startswith("#"):
+                    break
+                block_lines.append(curr_stripped)
+                i += 1
+            if block_lines:
+                title_line = block_lines[0]
+                source_line = block_lines[1] if len(block_lines) > 1 else ""
+                meta_lines = block_lines[2:] if len(block_lines) > 2 else []
+                block_html = ['<div class="reference-entry">']
+                block_html.append(f'<p class="reference-title">{_inline(title_line)}</p>')
+                if source_line:
+                    block_html.append(f'<p class="reference-source">{_inline(source_line)}</p>')
+                for meta_line in meta_lines:
+                    block_html.append(f'<p class="reference-meta">{_inline(meta_line)}</p>')
+                block_html.append("</div>")
+                html_parts.append("\n".join(block_html))
             continue
 
         # Paragraph: collect consecutive text lines
@@ -1353,6 +1384,29 @@ def markdown_to_simple_html(
         }}
         a:hover {{
             text-decoration: underline;
+        }}
+        .reference-entry {{
+            margin: 0 0 18px;
+            padding: 0 0 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .reference-entry:last-child {{
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: 0;
+        }}
+        .reference-title,
+        .reference-source,
+        .reference-meta {{
+            margin: 0 0 4px;
+        }}
+        .reference-title {{
+            font-weight: 600;
+            color: #10263d;
+        }}
+        .reference-meta {{
+            color: #5c6773;
+            font-size: 14px;
         }}
     </style>
 </head>

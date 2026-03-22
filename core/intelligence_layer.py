@@ -356,6 +356,98 @@ def _confirmed_publication_date(fact: NormalizedFact) -> str:
     return ""
 
 
+def _standardize_reference_source_name(source_name: str) -> str:
+    cleaned = _normalize_text(source_name)
+    if not cleaned:
+        return ""
+    lower = cleaned.lower()
+    source_map = [
+        ("argusmedia", "Argus Media"),
+        ("covestro", "Covestro"),
+        ("basf", "BASF"),
+        ("reedintelligence", "Reed Intelligence"),
+        ("strategicmarketresearch", "Strategic Market Research"),
+        ("everchem specialty chemicals", "Everchem Specialty Chemicals"),
+        ("urethane blog (everchem)", "Everchem Specialty Chemicals"),
+        ("rubber journal asia", "Rubber Journal Asia"),
+        ("british plastics & rubber", "British Plastics & Rubber"),
+        ("dow", "Dow"),
+        ("globenewswire", "GlobeNewswire"),
+        ("prnewswire", "PR Newswire"),
+        ("linkedin", "LinkedIn"),
+        ("360researchreports", "360 Research Reports"),
+        ("360iresearch", "360iResearch"),
+        ("globalinsightservices", "Global Insight Services"),
+        ("marketgrowthreports", "Market Growth Reports"),
+        ("marketresearchfuture", "Market Research Future"),
+        ("fortunebusinessinsights", "Fortune Business Insights"),
+        ("businessresearchinsights", "Business Research Insights"),
+        ("mordorintelligence", "Mordor Intelligence"),
+        ("databridgemarketresearch", "Data Bridge Market Research"),
+        ("researchandmarkets", "Research and Markets"),
+        ("industryresearch", "Industry Research"),
+        ("usdanalytics", "USD Analytics"),
+        ("grandviewresearch", "Grand View Research"),
+        ("kenresearch", "Ken Research"),
+        ("multibriefs", "MultiBriefs"),
+        ("apnnews", "APN News"),
+        ("wiseguyreports", "WiseGuyReports"),
+        ("specialchem", "SpecialChem"),
+        ("scribd", "Scribd"),
+        ("clocate", "Clocate"),
+        ("momentive", "Momentive"),
+        ("osti", "OSTI"),
+        ("ube", "UBE"),
+        ("plastmatch", "Plastmatch"),
+        ("pu magazine", "PU Magazine"),
+        ("ialconsultants", "IAL Consultants"),
+        ("pfa", "Polyurethane Foam Association"),
+    ]
+    for needle, label in source_map:
+        if needle in lower:
+            return label
+    cleaned = re.sub(r"\s*[–-]\s*(press releases|news category|content rss|investor events).*$", "", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s*\((rss|news)\)\s*$", "", cleaned, flags=re.I)
+    return cleaned
+
+
+def _clean_reference_title(title: str, source_name: str) -> str:
+    cleaned = _normalize_text(title)
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"^\d{1,2}/\d{1,2}/\d{4}\s*:\s*", "", cleaned)
+    standardized_source = _standardize_reference_source_name(source_name).lower()
+    generic_tails = {
+        "latest market news",
+        "news category",
+        "content rss",
+        "rss",
+        "feedblitz (news)",
+    }
+    parts = [part.strip() for part in cleaned.split("|") if part.strip()]
+    while len(parts) > 1:
+        tail = parts[-1].lower()
+        if tail in generic_tails:
+            parts.pop()
+            continue
+        if standardized_source and (tail == standardized_source or tail in standardized_source or standardized_source in tail):
+            parts.pop()
+            continue
+        break
+    cleaned = " | ".join(parts).strip(" ,|:-")
+    if cleaned.lower().endswith(" by"):
+        return ""
+    if re.fullmatch(r"\+?\d[\d\s().:-]{6,}", cleaned):
+        return ""
+    if re.fullmatch(r"(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},\s+\d{4}", cleaned, flags=re.I):
+        return ""
+    if re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}", cleaned):
+        return ""
+    if len(re.sub(r"[^A-Za-z]", "", cleaned)) < 4:
+        return ""
+    return cleaned
+
+
 def _first_pattern_match(text: str, patterns: Sequence[Tuple[str, Sequence[str]]]) -> str:
     for label, keywords in patterns:
         if _has_any_keyword(text, keywords):
@@ -1489,27 +1581,34 @@ def build_report_blueprint(
         for obj in _limit_section_objects(reportable_candidates, max_items=MAX_EXECUTIVE_SUMMARY_ITEMS)
     ]
 
-    appendix_refs: List[AppendixReference] = []
-    seen_refs = set()
+    appendix_ref_map: Dict[Tuple[str, str], AppendixReference] = {}
     for obj in eligible_objects:
         for fact_id in obj.supporting_fact_ids:
             fact = facts_by_id.get(fact_id)
             if not fact:
                 continue
-            key = (fact.source_title.lower(), fact.source_name.lower())
-            if key in seen_refs:
+            clean_title = _clean_reference_title(fact.source_title, fact.source_name)
+            clean_source = _standardize_reference_source_name(fact.source_name) or "Unknown source"
+            if not clean_title:
                 continue
-            seen_refs.add(key)
             confirmed_date = _confirmed_publication_date(fact)
-            appendix_refs.append(
-                AppendixReference(
-                    title=fact.source_title,
-                    source_name=fact.source_name or "Unknown source",
-                    publication_date=confirmed_date,
-                    sort_date=_sort_key_date(confirmed_date),
-                )
+            key = (clean_title.lower(), clean_source.lower())
+            existing = appendix_ref_map.get(key)
+            if existing:
+                if not existing.publication_date and confirmed_date:
+                    existing.publication_date = confirmed_date
+                    existing.sort_date = _sort_key_date(confirmed_date)
+                continue
+            appendix_ref_map[key] = AppendixReference(
+                title=clean_title,
+                source_name=clean_source,
+                publication_date=confirmed_date,
+                sort_date=_sort_key_date(confirmed_date),
             )
-    appendix_refs.sort(key=lambda item: item.sort_date, reverse=True)
+    appendix_refs = sorted(
+        appendix_ref_map.values(),
+        key=lambda item: (item.title.lower(), item.source_name.lower(), item.publication_date or ""),
+    )
     appendix_refs = appendix_refs[:MAX_APPENDIX_REFERENCES]
 
     if isinstance(report_period_days, int) and report_period_days > 0:
@@ -2286,11 +2385,11 @@ def _render_publication_report_blueprint(
     if blueprint.appendix_references:
         lines.extend(["## References", ""])
         for item in blueprint.appendix_references:
-            parts = [item.title, item.source_name]
+            lines.append(item.title)
+            lines.append(item.source_name)
             if item.publication_date:
-                parts.append(item.publication_date)
-            lines.append("- " + " | ".join(parts))
-        lines.append("")
+                lines.append(f"Publication date: {item.publication_date}")
+            lines.append("")
     return "\n".join(lines).strip() + "\n"
 
 
