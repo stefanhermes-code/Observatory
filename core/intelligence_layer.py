@@ -1687,6 +1687,20 @@ def _publication_group_companies_text(group: Dict[str, Any]) -> str:
     return companies
 
 
+def _publication_group_company_clause(group: Dict[str, Any]) -> str:
+    companies = _publication_group_companies_text(group)
+    if not companies:
+        return ""
+    return f" from {companies}"
+
+
+def _publication_lead_text(text: str) -> str:
+    cleaned = _normalize_text(text)
+    if not cleaned:
+        return ""
+    return cleaned[0].upper() + cleaned[1:]
+
+
 def _publication_group_direction(group: Dict[str, Any]) -> str:
     directions = set(group["directions"])
     if "up" in directions and "down" in directions:
@@ -1753,74 +1767,231 @@ def _publication_exec_statement(group: Dict[str, Any]) -> str:
     return _publication_sentence(f"{title} is strengthening")
 
 
-def _publication_analysis_sentences(group: Dict[str, Any]) -> List[str]:
+def _publication_fact_component(group: Dict[str, Any]) -> str:
     focus = _publication_group_focus_text(group)
     region = _publication_group_region_text(group)
-    companies = _publication_group_companies_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    company_clause = _publication_group_company_clause(group)
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if group["generic"]:
+            if direction == "down":
+                return f"Broad supply and capacity conditions are tightening in {region}{company_clause}."
+            return f"Broad supply and capacity activity is increasing in {region}{company_clause}."
+        if direction == "down":
+            return f"{_publication_lead_text(focus)} supply is tightening in {region}{company_clause}."
+        if direction == "mixed":
+            return f"{_publication_lead_text(focus)} supply conditions are diverging across {region}{company_clause}."
+        return f"{_publication_lead_text(focus)} capacity is increasing in {region}{company_clause}."
+    if primary_type == "Technology Move":
+        return f"Technology activity in {focus} is increasing in {region}{company_clause}."
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return f"Regulatory and sustainability pressure around {focus} is increasing in {region}{company_clause}."
+    if direction == "down":
+        return f"Demand for {focus} is weakening in {region}{company_clause}."
+    if direction == "mixed":
+        return f"Demand for {focus} is moving in different directions across {region}{company_clause}."
+    return f"Demand for {focus} is strengthening in {region}{company_clause}."
+
+
+def _publication_driver_component(group: Dict[str, Any]) -> str:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    generic = group["generic"]
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if direction == "down":
+            return (
+                f"The pullback reflects weaker operating confidence and a lower willingness to carry underused capacity in {region}. "
+                f"Producers are protecting margin and utilization rather than defending headline volume in {focus}."
+            )
+        if generic:
+            return (
+                f"This reflects a broader background trend rather than a product-specific shift. "
+                f"The underlying driver is competitive positioning across the regional supply base, with producers adjusting scale where they see better cost position or demand capture."
+            )
+        if direction == "mixed":
+            return (
+                f"The split reflects uneven cost positions and different commercial priorities across the affected markets in {region}. "
+                f"Some producers are pushing scale, while others are responding to weaker operating economics or lower demand visibility."
+            )
+        return (
+            f"The expansion is primarily a scale and positioning move, aimed at securing stronger cost leverage and regional share in {region}. "
+            f"Where producers have integration, logistics reach, or stronger local demand exposure, additional capacity becomes a competitive tool rather than a simple replacement of existing assets."
+        )
+    if primary_type == "Technology Move":
+        return (
+            f"The driver is product differentiation and the push toward applications that reward better formulation, processing, or sustainability performance. "
+            f"In {region}, innovation is being used to defend margin and create a clearer technical gap versus standard grades."
+        )
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return (
+            f"The pressure comes from tightening compliance expectations and from customer demand for lower-risk, better-positioned product portfolios. "
+            f"Once those requirements move from policy language into procurement and product qualification, they directly alter which formulations remain commercially viable in {region}."
+        )
+    if direction == "down":
+        return (
+            f"The weaker tone points to softer offtake in the end markets linked to {focus}, not just to a change in headline sentiment. "
+            f"Buyers are committing volume less aggressively, which reduces order visibility and makes replacement demand less dependable in {region}."
+        )
+    if direction == "mixed":
+        return (
+            f"The divergence is being driven by uneven end-market exposure and by different local trading conditions across {region}. "
+            f"Some customers are still expanding, while others are holding back orders or pushing for tighter purchasing discipline."
+        )
+    return (
+        f"The stronger tone reflects firmer pull-through in the application lanes tied to {focus}. "
+        f"Buyers with active downstream demand are creating a more reliable order pattern in {region}, which gives suppliers clearer volume visibility than a generic forecast would."
+    )
+
+
+def _publication_market_effect_component(group: Dict[str, Any]) -> str:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
     primary_type = _publication_group_type(group)
     direction = _publication_group_direction(group)
     contradiction = group["contradiction"]
     generic = group["generic"]
-
     if primary_type in {"Supply Shift", "Capacity Move"}:
-        if generic and direction == "down":
-            sentence_1 = f"Broad supply and capacity conditions are tightening in {region}."
-            sentence_3 = "Availability is becoming more uneven, but the current signals remain broad rather than tightly anchored to one product lane."
-            sentence_4 = "Supply planning should therefore use this as supporting context while relying on more specific product and regional signals for front-line decisions."
-        elif generic:
-            sentence_1 = f"Broad supply and capacity activity is increasing in {region}."
-            sentence_3 = "The expansion points to wider supply-side movement, but the current signal remains broader than the lead section developments."
-            sentence_4 = "Supply planning should therefore treat this as supporting context and keep product-specific signals at the center of decision-making."
-        elif direction == "down":
-            sentence_1 = f"Supply and capacity conditions in {focus} are tightening in {region}."
-            sentence_3 = "Availability is therefore becoming more uneven, and buyers should not assume that regional supply will remain interchangeable."
-            sentence_4 = f"Supply planning should therefore focus on continuity, allocation risk, and alternative sourcing options in {region}."
-        elif direction == "mixed":
-            sentence_1 = f"Supply and capacity conditions in {focus} are diverging across {region}."
-            sentence_3 = "Expansion and tightening are developing at the same time, so the supply picture is no longer uniform across the affected markets."
-            sentence_4 = f"Supply planning should therefore be set by regional conditions rather than a single market-wide assumption for {focus}."
-        else:
-            sentence_1 = f"Supply and capacity activity in {focus} is increasing in {region}."
-            sentence_3 = "The expansion points to changing availability, cost positioning, and competitive intensity in the markets now adding capacity."
-            sentence_4 = f"Supply planning should therefore be updated for the capacity shifts now visible in {region}."
-    elif primary_type == "Technology Move":
-        sentence_1 = f"Technology activity in {focus} is increasing in {region}."
-        sentence_3 = "Product and formulation work is moving faster than broad commercialization, so technical progress is visible before full market rollout."
-        sentence_4 = f"Product and business teams should therefore track {region} closely as a live source of formulation, application, and commercialization signals."
-    elif primary_type in {"Regulatory Shift", "Sustainability Shift"}:
-        sentence_1 = f"Regulatory and sustainability pressure around {focus} is increasing in {region}."
-        sentence_3 = "The pressure is moving closer to practical decisions on compliance, sourcing, and product positioning in the affected markets."
-        sentence_4 = f"Producers and downstream users should therefore factor regulatory timing and sustainability positioning more directly into planning for {focus}."
-    else:
         if direction == "down":
-            sentence_1 = f"Demand conditions in {focus} are weakening in {region}."
-            sentence_3 = "The softer direction points to weaker momentum and less consistent traction across the identified lanes."
-            sentence_4 = f"Commercial planning should therefore be more selective in {region} and avoid treating {focus} as a broad-based growth story."
+            base = (
+                f"The immediate effect is a tighter supply balance for {focus} in {region}. "
+                f"Availability becomes less dependable, and suppliers with secure output gain more room to defend pricing. "
+                f"Competitive intensity also changes because buyers have fewer interchangeable options when prompt supply is needed."
+            )
         elif direction == "mixed":
-            sentence_1 = f"Demand conditions in {focus} differ significantly across {region}."
-            sentence_3 = "Some markets are strengthening while others are losing momentum, so the demand picture is fragmented rather than uniform."
-            sentence_4 = f"Commercial planning should therefore be segmented by market and product lane rather than rolled into one headline view for {focus}."
+            base = (
+                f"The market effect is a fragmented supply balance rather than a single regional outcome. "
+                f"Some markets will face added availability and pricing pressure, while others will stay tighter and more allocation-sensitive. "
+                f"That split raises substitution risk because buyers will compare regions and grades more aggressively."
+            )
         else:
-            sentence_1 = f"Demand conditions in {focus} are strengthening in {region}."
-            sentence_3 = "The stronger direction points to firmer buyer activity and clearer commercial traction in the identified markets."
-            sentence_4 = f"Commercial planning should therefore prioritize the markets in {region} where demand for {focus} is showing the clearest momentum."
-
-    sentence_2 = f"The development is concentrated in {region} and centers on {focus}."
-    if companies:
-        sentence_2 = f"The development is concentrated in {region}, centers on {focus}, and includes activity from {companies}."
-    if generic and primary_type in {"Supply Shift", "Capacity Move"}:
-        sentence_2 = f"The development is concentrated in {region} and includes activity from {companies}." if companies else f"The development is concentrated in {region} and spans multiple supply-side signals."
-
+            base = (
+                f"The additional capacity lifts regional supply and raises the probability of pricing pressure, especially if the new volume seeks export outlets. "
+                f"Availability improves for buyers, while incumbent suppliers face tougher comparisons on delivered cost and service. "
+                f"Competitive intensity increases first in standard grades and then across adjacent product lanes as the extra volume works through the market."
+            )
+        if generic:
+            base += " The broader signal matters for context, but the strongest commercial effects will still come from the more specific product developments above."
+        return base
+    if primary_type == "Technology Move":
+        return (
+            f"The market effect is less about immediate tonnage and more about where future margin pools will be contested. "
+            f"Suppliers with stronger technical offers gain more room to differentiate, while older formulations face higher substitution risk. "
+            f"Competitive intensity increases because innovation shifts the basis of comparison from availability alone to application performance and product fit."
+        )
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return (
+            f"The market effect is a reshaping of supply eligibility, product availability, and customer preference. "
+            f"Materials that align with the tighter standard gain positional advantage, while slower-to-adapt offers face pricing pressure or weaker access to preferred accounts. "
+            f"Substitution effects become more likely as buyers move toward formulations that reduce compliance and reputation risk."
+        )
+    if direction == "down":
+        base = (
+            f"The softer demand environment weakens the regional balance for {focus} and reduces pricing support. "
+            f"Availability rises relative to offtake, which gives buyers more leverage in negotiations. "
+            f"Competitive intensity increases because suppliers need to fight harder for the volume that is still moving."
+        )
+    elif direction == "mixed":
+        base = (
+            f"The market effect is an uneven balance across {region} rather than one shared pricing outcome. "
+            f"Stronger pockets can still absorb volume or hold price, while weaker pockets invite discounting and defensive selling. "
+            f"That fragmentation raises substitution pressure because suppliers will re-route volume toward the markets that remain workable."
+        )
+    else:
+        base = (
+            f"Stronger demand tightens prompt availability in the most active grades and improves pricing discipline for suppliers with the right product fit. "
+            f"Producers with local reach gain clearer throughput opportunities, while weaker-positioned suppliers risk losing share even if headline market growth remains positive. "
+            f"The market therefore becomes more selective, with competitive intensity shifting toward application relevance rather than simple market presence."
+        )
     if contradiction:
-        sentence_3 = "Signals do not all point in the same direction, so the development needs to be read as an uneven market shift rather than a clean one-way move."
-    if generic and primary_type not in {"Supply Shift", "Capacity Move"}:
-        sentence_4 = f"This item should be read as supporting context and not as the lead signal for {focus} because product or regional anchoring remains broad."
+        base += " The coexistence of stronger and weaker signals means pricing and availability will not move uniformly across every lane."
+    return base
 
-    return [sentence_1, sentence_2, sentence_3, sentence_4]
+
+def _publication_commercial_implication_component(group: Dict[str, Any]) -> str:
+    focus = _publication_group_focus_text(group)
+    region = _publication_group_region_text(group)
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    generic = group["generic"]
+    if primary_type in {"Supply Shift", "Capacity Move"}:
+        if direction == "down":
+            implication = (
+                f"Sourcing teams exposed to {region} will need firmer supply cover and tighter allocation discipline for {focus}. "
+                f"Sellers with secure output can defend price more effectively, but margin capture will depend on disciplined account selection rather than blanket increases."
+            )
+        elif direction == "mixed":
+            implication = (
+                f"Procurement and pricing decisions will need to be set region by region rather than rolled into one supply assumption for {focus}. "
+                f"Commercial advantage will go to suppliers that can redirect volume quickly and quote differently by market instead of defending a single regional position."
+            )
+        else:
+            implication = (
+                f"Pricing teams competing against the new supply base in {region} will need sharper differentiation in service, logistics, or grade mix. "
+                f"Producers without that edge risk margin compression if they rely on legacy positioning while additional capacity resets customer price expectations."
+            )
+        if generic:
+            implication += f" For that reason, this item carries less analytical weight than the product-specific developments elsewhere in the section."
+        return implication
+    if primary_type == "Technology Move":
+        return (
+            f"Portfolio strategy in {region} will need to lean harder into differentiated grades, application support, and technical selling around {focus}. "
+            f"Commercial returns will depend less on volume alone and more on how effectively suppliers turn technical advantage into account-level preference."
+        )
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return (
+            f"Product portfolios exposed to {region} will need faster reformulation, cleaner compliance positioning, and clearer customer messaging around {focus}. "
+            f"Accounts with stricter qualification standards are likely to reward suppliers that can document compliance and sustainability performance more convincingly."
+        )
+    if direction == "down":
+        implication = (
+            f"Commercial teams in {region} will need tighter pricing discipline and a stronger portfolio focus on the accounts still converting volume in {focus}. "
+            f"Volume chasing in weaker lanes will erode margin faster than it rebuilds share."
+        )
+    elif direction == "mixed":
+        implication = (
+            f"Account strategy will need to separate resilient markets from weaker ones instead of using one pricing and volume plan across {region}. "
+            f"Margin protection will come from concentrating commercial effort where {focus} still has genuine pull-through."
+        )
+    else:
+        implication = (
+            f"Sales teams can push harder for price realization in the parts of {region} where demand for {focus} is converting cleanly, but volume allocation will need to stay tied to the strongest application lanes. "
+            f"The best commercial outcome will come from prioritizing fit, response time, and account coverage where demand is already converting into orders."
+        )
+    if generic:
+        implication += f" This reflects a broader background trend rather than a product-specific shift."
+    return implication
+
+
+def _publication_component_order(group: Dict[str, Any]) -> List[str]:
+    primary_type = _publication_group_type(group)
+    direction = _publication_group_direction(group)
+    if primary_type == "Technology Move":
+        return ["driver", "fact", "effect", "implication"]
+    if primary_type in {"Regulatory Shift", "Sustainability Shift"}:
+        return ["fact", "driver", "effect", "implication"]
+    if primary_type in {"Supply Shift", "Capacity Move"} and direction == "mixed":
+        return ["effect", "fact", "driver", "implication"]
+    if direction == "mixed":
+        return ["effect", "driver", "fact", "implication"]
+    return ["fact", "driver", "effect", "implication"]
+
+
+def _publication_analysis_components(group: Dict[str, Any]) -> Dict[str, str]:
+    return {
+        "fact": _publication_fact_component(group),
+        "driver": _publication_driver_component(group),
+        "effect": _publication_market_effect_component(group),
+        "implication": _publication_commercial_implication_component(group),
+    }
 
 
 def _publication_analysis_paragraph(group: Dict[str, Any]) -> str:
-    return " ".join(_publication_sentence(sentence) for sentence in _publication_analysis_sentences(group))
+    components = _publication_analysis_components(group)
+    ordered = [components[key] for key in _publication_component_order(group)]
+    return " ".join(_publication_sentence(text) for text in ordered if text)
 
 
 def _publication_monitoring_line(group: Dict[str, Any]) -> str:
