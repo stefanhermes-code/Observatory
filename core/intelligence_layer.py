@@ -66,15 +66,15 @@ END_USE_PATTERNS: List[Tuple[str, List[str]]] = [
 ]
 
 COUNTRY_TO_REGION = {
-    "China": "APAC",
-    "India": "APAC",
-    "Japan": "APAC",
-    "South Korea": "APAC",
-    "Indonesia": "APAC",
-    "Vietnam": "APAC",
-    "Thailand": "APAC",
-    "Malaysia": "APAC",
-    "Singapore": "APAC",
+    "China": "China",
+    "India": "India",
+    "Japan": "NE Asia",
+    "South Korea": "NE Asia",
+    "Indonesia": "SEA",
+    "Vietnam": "SEA",
+    "Thailand": "SEA",
+    "Malaysia": "SEA",
+    "Singapore": "SEA",
     "Turkey": "EMEA",
     "Germany": "EMEA",
     "France": "EMEA",
@@ -88,8 +88,8 @@ COUNTRY_TO_REGION = {
     "United States": "North America",
     "USA": "North America",
     "Canada": "North America",
-    "Mexico": "Americas",
-    "Brazil": "Americas",
+    "Mexico": "North America",
+    "Brazil": "South America",
 }
 
 COUNTRY_PATTERNS: List[Tuple[str, List[str]]] = [
@@ -118,10 +118,13 @@ COUNTRY_PATTERNS: List[Tuple[str, List[str]]] = [
 ]
 
 REGION_PATTERNS: List[Tuple[str, List[str]]] = [
-    ("APAC", [" apac ", " asia pacific ", " asia-pacific ", " asia "]),
-    ("EMEA", [" emea ", " europe ", " european ", " middle east ", " africa "]),
+    ("China", [" china ", " chinese ", " prc "]),
+    ("India", [" india ", " indian "]),
+    ("NE Asia", [" ne asia ", " northeast asia ", " japan ", " japanese ", " korea ", " korean ", " taiwan ", " hong kong "]),
+    ("SEA", [" sea ", " southeast asia ", " asean ", " singapore ", " malaysia ", " thailand ", " indonesia ", " vietnam ", " philippines "]),
+    ("EMEA", [" emea ", " europe ", " european ", " eu ", " uk ", " africa "]),
     ("North America", [" north america ", " united states ", " usa ", " canada "]),
-    ("Americas", [" americas ", " latin america ", " south america ", " brazil ", " mexico "]),
+    ("South America", [" south america ", " latin america ", " brazil ", " argentina ", " chile ", " colombia "]),
     ("Middle East", [" middle east ", " gulf ", " gcc "]),
 ]
 
@@ -1690,10 +1693,16 @@ def _broad_region_anchor(region: str) -> str:
         return ""
     if "china" in cleaned:
         return "China"
+    if cleaned == "india":
+        return "India"
+    if cleaned in {"ne asia", "northeast asia"}:
+        return "NE Asia"
+    if cleaned in {"sea", "southeast asia", "asean"}:
+        return "SEA"
     if cleaned in {"emea", "europe", "european union"} or "europe" in cleaned:
         return "EMEA"
-    if "asia" in cleaned or cleaned in {"apac", "sea", "ne asia", "india"}:
-        return cleaned.upper() if len(cleaned) <= 4 else _publication_heading(cleaned)
+    if cleaned == "apac" or cleaned == "asia":
+        return "NE Asia"
     if "north america" in cleaned:
         return "North America"
     if "south america" in cleaned or "latin america" in cleaned:
