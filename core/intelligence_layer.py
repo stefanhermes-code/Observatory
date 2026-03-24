@@ -354,7 +354,7 @@ def _sort_key_date(value: str) -> str:
 
 
 def _confirmed_publication_date(fact: NormalizedFact) -> str:
-    if fact.cluster_key and _sort_key_date(fact.publication_date):
+    if _sort_key_date(fact.publication_date):
         return fact.publication_date
     return ""
 
