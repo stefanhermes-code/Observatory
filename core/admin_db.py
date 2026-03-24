@@ -839,20 +839,23 @@ def get_tracked_companies(active_only: bool = True) -> List[Dict]:
 
 def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
     """
-    Upsert companies into tracked_companies from a list of dicts (e.g. from company_list.json).
+    Mirror companies into tracked_companies from a list of dicts (e.g. from company_list.json).
     Each dict: name, aliases (list), value_chain_position (list), regions (list), status, notes.
     Per-company categories are currently dormant and always cleared on seed.
-    Returns number of rows upserted.
+    Rows not present in the file are removed from the database.
+    Returns number of rows mirrored from the file.
     """
     if not companies:
         return 0
     supabase = get_supabase_client()
     now = datetime.utcnow().isoformat()
     rows = []
+    desired_names = set()
     for c in companies:
         name = (c.get("name") or "").strip()
-        if not name:
+        if not name or name in desired_names:
             continue
+        desired_names.add(name)
         status = (c.get("status") or "active").lower()
         if status not in ("active", "inactive"):
             status = "active"
@@ -870,6 +873,14 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
         return 0
     try:
         supabase.table("tracked_companies").upsert(rows, on_conflict="name").execute()
+        existing = supabase.table("tracked_companies").select("id,name").execute()
+        stale_ids = [
+            row.get("id")
+            for row in (existing.data or [])
+            if row.get("id") and (row.get("name") or "").strip() not in desired_names
+        ]
+        for stale_id in stale_ids:
+            supabase.table("tracked_companies").delete().eq("id", stale_id).execute()
         return len(rows)
     except Exception:
         return 0
