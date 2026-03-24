@@ -840,6 +840,7 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
     """
     Upsert companies into tracked_companies from a list of dicts (e.g. from company_list.json).
     Each dict: name, aliases (list), value_chain_position (list), regions (list), status, notes.
+    Per-company categories are currently dormant and always cleared on seed.
     Returns number of rows upserted.
     """
     if not companies:
@@ -859,7 +860,7 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
             "aliases": c.get("aliases") if isinstance(c.get("aliases"), list) else [],
             "value_chain_position": c.get("value_chain_position") if isinstance(c.get("value_chain_position"), list) else [],
             "regions": c.get("regions") if isinstance(c.get("regions"), list) else [],
-            "categories": c.get("categories") if isinstance(c.get("categories"), list) else [],
+            "categories": [],
             "status": status,
             "notes": (c.get("notes") or "") or None,
             "updated_at": now,
@@ -894,7 +895,7 @@ def create_tracked_company(
         "aliases": aliases or [],
         "value_chain_position": value_chain_position or [],
         "regions": regions or [],
-        "categories": categories or [],
+        "categories": [],
         "status": status,
         "notes": notes or None,
         "updated_at": datetime.utcnow().isoformat(),
@@ -916,7 +917,7 @@ def update_tracked_company(
     status: Optional[str] = None,
     notes: Optional[str] = None,
 ) -> Optional[Dict]:
-    """Update a tracked company by id."""
+    """Update a tracked company by id. Per-company categories are currently dormant."""
     supabase = get_supabase_client()
     update_data = {"updated_at": datetime.utcnow().isoformat()}
     if name is not None:
@@ -928,7 +929,7 @@ def update_tracked_company(
     if regions is not None:
         update_data["regions"] = regions
     if categories is not None:
-        update_data["categories"] = categories
+        update_data["categories"] = []
     if status is not None and status in ("active", "inactive"):
         update_data["status"] = status
     if notes is not None:

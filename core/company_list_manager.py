@@ -8,6 +8,31 @@ import json
 from typing import Optional, Dict, List
 from pathlib import Path
 
+from core.taxonomy import VALUE_CHAIN_LINKS
+
+
+VALUE_CHAIN_LABELS = {item["id"]: item["name"] for item in VALUE_CHAIN_LINKS}
+
+
+def _rebuild_categories(companies: List[Dict]) -> Dict[str, List[str]]:
+    """Rebuild the category map from active company records."""
+    categories: Dict[str, List[str]] = {}
+    for company in companies or []:
+        if company.get("status") != "active":
+            continue
+        name = (company.get("name") or "").strip()
+        if not name:
+            continue
+        for position in company.get("value_chain_position", []) or []:
+            label = (position or "").strip()
+            if not label:
+                continue
+            if label not in categories:
+                categories[label] = []
+            if name not in categories[label]:
+                categories[label].append(name)
+    return categories
+
 
 def load_company_list(file_path: Optional[str] = None) -> Dict:
     """
@@ -28,7 +53,12 @@ def load_company_list(file_path: Optional[str] = None) -> Dict:
         raise FileNotFoundError(f"Company list file not found: {file_path}")
     
     with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = json.load(f)
+
+    if isinstance(data, dict):
+        companies = data.get("companies") if isinstance(data.get("companies"), list) else []
+        data["categories"] = _rebuild_categories(companies)
+    return data
 
 
 def format_company_list_for_display(company_data: Dict) -> str:
@@ -61,7 +91,7 @@ def format_company_list_for_display(company_data: Dict) -> str:
             lines.append(f"**Also known as:** {aliases}")
         
         if company.get("value_chain_position"):
-            positions = ", ".join(company["value_chain_position"])
+            positions = ", ".join(VALUE_CHAIN_LABELS.get(pos, pos) for pos in company["value_chain_position"])
             lines.append(f"**Value Chain Position:** {positions}")
         
         if company.get("regions"):
@@ -80,7 +110,7 @@ def format_company_list_for_display(company_data: Dict) -> str:
     
     categories = company_data.get("categories", {})
     for category, companies in categories.items():
-        lines.append(f"**{category}:** {', '.join(companies)}")
+        lines.append(f"**{VALUE_CHAIN_LABELS.get(category, category)}:** {', '.join(companies)}")
         lines.append("")
     
     return "\n".join(lines)
@@ -124,17 +154,7 @@ def update_company_list_file(
     data["last_updated"] = datetime.utcnow().strftime("%Y-%m-%d")
     
     # Rebuild categories
-    categories = {}
-    for company in companies:
-        if company.get("status") != "active":
-            continue
-        for position in company.get("value_chain_position", []):
-            if position not in categories:
-                categories[position] = []
-            if company["name"] not in categories[position]:
-                categories[position].append(company["name"])
-    
-    data["categories"] = categories
+    data["categories"] = _rebuild_categories(companies)
     
     # Save updated file
     with open(company_list_path, 'w', encoding='utf-8') as f:

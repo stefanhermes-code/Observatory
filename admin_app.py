@@ -731,13 +731,6 @@ elif page == "🏭 Industry list":
             format_func=lambda x: next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == x), x),
             key="add_tc_vcl",
         )
-        tc_categories = st.multiselect(
-            "Categories",
-            options=[c["id"] for c in PU_CATEGORIES],
-            default=[],
-            format_func=lambda x: next((c["name"] for c in PU_CATEGORIES if c["id"] == x), x),
-            key="add_tc_categories",
-        )
         tc_status = st.selectbox("Status", ["active", "inactive"], index=0)
         tc_notes = st.text_input("Notes", placeholder="Optional")
         if st.form_submit_button("Add company") and can_manage:
@@ -748,7 +741,6 @@ elif page == "🏭 Industry list":
                     aliases=aliases_list or None,
                     regions=tc_regions or None,
                     value_chain_position=tc_vcl or None,
-                    categories=tc_categories or None,
                     status=tc_status,
                     notes=tc_notes.strip() or None,
                 )
@@ -772,9 +764,6 @@ elif page == "🏭 Industry list":
                 vcl_raw = tc.get("value_chain_position") or []
                 vcl_labels = [next((l["name"] for l in VALUE_CHAIN_LINKS if l["id"] == v), v) for v in vcl_raw]
                 st.write("**Value chain:**", ", ".join(vcl_labels) or "—")
-                cat_raw = tc.get("categories") or []
-                cat_labels = [next((c["name"] for c in PU_CATEGORIES if c["id"] == cat), cat) for cat in cat_raw]
-                st.write("**Categories:**", ", ".join(cat_labels) or "—")
                 if tc.get("notes"):
                     st.caption(tc.get("notes"))
                 if can_manage:
@@ -794,15 +783,6 @@ elif page == "🏭 Industry list":
                             _reg_raw = tc.get("regions") or []
                             etc_regions_default = [r for r in _reg_raw if r in REGIONS]
                             etc_regions = st.multiselect("Regions", options=REGIONS, default=etc_regions_default, key=f"etc_regions_{tc.get('id')}")
-                            _cat_raw = tc.get("categories") or []
-                            etc_cat_default = [c["id"] for c in PU_CATEGORIES if c["id"] in _cat_raw or c["name"] in _cat_raw]
-                            etc_categories = st.multiselect(
-                                "Categories",
-                                options=[c["id"] for c in PU_CATEGORIES],
-                                default=etc_cat_default,
-                                format_func=lambda x: next((c["name"] for c in PU_CATEGORIES if c["id"] == x), x),
-                                key=f"etc_categories_{tc.get('id')}",
-                            )
                             etc_status = st.selectbox("Status", ["active", "inactive"], index=0 if (tc.get("status") or "active") == "active" else 1, key=f"etc_status_{tc.get('id')}")
                             etc_notes = st.text_input("Notes", value=tc.get("notes") or "", key=f"etc_notes_{tc.get('id')}")
                             if st.form_submit_button("Save"):
@@ -814,7 +794,6 @@ elif page == "🏭 Industry list":
                                         aliases=aliases_list,
                                         value_chain_position=etc_vcl,
                                         regions=etc_regions,
-                                        categories=etc_categories,
                                         status=etc_status,
                                         notes=etc_notes.strip() or None,
                                     )
