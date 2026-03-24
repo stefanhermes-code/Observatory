@@ -10,14 +10,10 @@
         "end_use"
       ],
       "regions": [
+        "EMEA",
         "China",
         "NE Asia",
-        "SEA",
-        "India",
-        "EMEA",
-        "Middle East",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Ireland/USA"
@@ -25,11 +21,16 @@
     {
       "name": "Air Liquide",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -41,14 +42,10 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
-        "South America"
+        "China",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -60,7 +57,10 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "China",
+        "NE Asia"
       ],
       "status": "active",
       "notes": ""
@@ -72,10 +72,8 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India"
+        "EMEA"
       ],
       "status": "active",
       "notes": ""
@@ -84,12 +82,10 @@
       "name": "Ashoka PU Foam",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "end_use"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -102,10 +98,7 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -113,15 +106,8 @@
     {
       "name": "Aster",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
-      "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
-      ],
+      "value_chain_position": [],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -143,6 +129,7 @@
         "BASF Polyurethane Systems"
       ],
       "value_chain_position": [
+        "raw_materials",
         "system_houses"
       ],
       "regions": [
@@ -168,13 +155,14 @@
         "system_houses"
       ],
       "regions": [
+        "EMEA",
+        "Middle East",
         "China",
         "NE Asia",
         "SEA",
         "India",
         "North America",
-        "South America",
-        "EMEA"
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -223,17 +211,9 @@
     {
       "name": "Boeing Company",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "North America",
-        "South America",
-        "EMEA",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -245,14 +225,7 @@
         "system_houses"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -261,17 +234,13 @@
       "name": "Carpenter Co.",
       "aliases": [],
       "value_chain_position": [
+        "raw_materials",
+        "system_houses",
         "foam_converters"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -297,7 +266,12 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -313,8 +287,6 @@
         "EMEA",
         "North America",
         "South America",
-        "China",
-        "NE Asia",
         "SEA",
         "India"
       ],
@@ -324,15 +296,8 @@
     {
       "name": "Colorex",
       "aliases": [],
-      "value_chain_position": [
-        "system_houses"
-      ],
-      "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
-      ],
+      "value_chain_position": [],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -384,13 +349,14 @@
         "system_houses"
       ],
       "regions": [
+        "EMEA",
+        "Middle East",
         "China",
         "NE Asia",
         "SEA",
         "India",
         "North America",
-        "South America",
-        "EMEA"
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -406,6 +372,7 @@
         "end_use"
       ],
       "regions": [
+        "Middle East",
         "EMEA"
       ],
       "status": "active",
@@ -414,15 +381,8 @@
     {
       "name": "Dorado Bathware (Example SME)",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
-      "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
-      ],
+      "value_chain_position": [],
+      "regions": [],
       "status": "active",
       "notes": "HQ: Thailand"
     },
@@ -433,7 +393,9 @@
         "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "NE Asia",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -445,7 +407,9 @@
         "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -454,17 +418,13 @@
       "name": "Dow",
       "aliases": [],
       "value_chain_position": [
-        "raw_materials"
+        "raw_materials",
+        "system_houses"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
         "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -477,13 +437,8 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
         "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -498,13 +453,9 @@
         "system_houses"
       ],
       "regions": [
-        "North America",
-        "South America",
         "EMEA",
-        "China",
-        "NE Asia",
         "SEA",
-        "India"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -517,13 +468,8 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
         "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -547,13 +493,9 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "EMEA",
         "North America",
-        "South America"
+        "EMEA",
+        "SEA"
       ],
       "status": "active",
       "notes": "HQ: Malaysia"
@@ -565,7 +507,10 @@
         "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "China",
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -578,16 +523,7 @@
       "value_chain_position": [
         "system_houses"
       ],
-      "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "EMEA",
-        "Middle East",
-        "North America",
-        "South America"
-      ],
+      "regions": [],
       "status": "active",
       "notes": "HQ: Australia"
     },
@@ -595,11 +531,10 @@
       "name": "Ergoflex",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
-      "regions": [
-        "EMEA"
-      ],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -610,7 +545,12 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "South America",
+        "China",
+        "NE Asia",
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -623,13 +563,11 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
+        "North America",
+        "South America",
         "China",
         "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "SEA"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -638,12 +576,10 @@
       "name": "Expanded Polymer Systems",
       "aliases": [],
       "value_chain_position": [
+        "raw_materials",
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -653,16 +589,14 @@
       "name": "Faurecia (FORVIA)",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "end_use"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
+        "North America",
         "China",
         "NE Asia",
-        "SEA",
-        "India",
-        "North America",
         "South America"
       ],
       "status": "active",
@@ -671,14 +605,9 @@
     {
       "name": "Flexipol",
       "aliases": [],
-      "value_chain_position": [
-        "foam_converters"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "EMEA"
       ],
       "status": "active",
       "notes": ""
@@ -722,14 +651,12 @@
     {
       "name": "Formosa Plastics",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India"
+        "China",
+        "North America",
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -738,16 +665,14 @@
       "name": "FORVIA (Faurecia)",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
+        "North America",
         "China",
         "NE Asia",
-        "SEA",
-        "India",
-        "North America",
         "South America"
       ],
       "status": "active",
@@ -764,11 +689,9 @@
       ],
       "regions": [
         "North America",
-        "EMEA",
         "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "India",
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -780,9 +703,6 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -795,8 +715,7 @@
         "foam_converters"
       ],
       "regions": [
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -810,14 +729,7 @@
         "foam_converters"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -841,10 +753,7 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -858,10 +767,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "NE Asia"
       ],
       "status": "active",
       "notes": "HQ: South Korea"
@@ -869,9 +775,7 @@
     {
       "name": "Harrison Spinks",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
+      "value_chain_position": [],
       "regions": [
         "EMEA"
       ],
@@ -885,10 +789,7 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -915,12 +816,12 @@
         "system_houses"
       ],
       "regions": [
+        "EMEA",
+        "Middle East",
         "China",
         "NE Asia",
         "SEA",
         "India",
-        "EMEA",
-        "Middle East",
         "North America",
         "South America"
       ],
@@ -931,6 +832,7 @@
       "name": "Huntsman Polyurethane Systems",
       "aliases": [],
       "value_chain_position": [
+        "raw_materials",
         "system_houses"
       ],
       "regions": [
@@ -949,11 +851,10 @@
     {
       "name": "Hypnos Beds",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -961,11 +862,10 @@
     {
       "name": "Hästens",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -977,14 +877,9 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
         "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Israel"
@@ -996,7 +891,14 @@
         "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "Middle East",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1009,12 +911,12 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
+        "North America",
         "China",
         "NE Asia",
         "SEA",
         "India",
-        "North America",
+        "Middle East",
         "South America"
       ],
       "status": "active",
@@ -1027,7 +929,8 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1039,11 +942,10 @@
         "foam_converters"
       ],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India",
-        "North America"
+        "China",
+        "North America",
+        "SEA"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1067,9 +969,6 @@
         "foam_converters"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1082,14 +981,7 @@
         "end_use"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1098,16 +990,11 @@
       "name": "Kingspan Group",
       "aliases": [],
       "value_chain_position": [
-        "end_use"
+        "foam_converters"
       ],
       "regions": [
         "EMEA",
-        "North America",
-        "South America",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Ireland"
@@ -1119,10 +1006,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "NE Asia"
       ],
       "status": "active",
       "notes": "HQ: South Korea"
@@ -1131,17 +1015,12 @@
       "name": "Lanxess AG",
       "aliases": [],
       "value_chain_position": [
-        "raw_materials"
+        "raw_materials",
+        "system_houses"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -1154,14 +1033,8 @@
         "end_use"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "EMEA",
-        "Middle East",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1169,14 +1042,11 @@
     {
       "name": "LG Chem",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India"
+        "North America",
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -1187,16 +1057,7 @@
       "value_chain_position": [
         "raw_materials"
       ],
-      "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
-      ],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -1207,9 +1068,6 @@
         "foam_converters"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1222,10 +1080,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "NE Asia"
       ],
       "status": "active",
       "notes": ""
@@ -1238,13 +1093,7 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1257,13 +1106,8 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
-        "South America"
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -1272,7 +1116,23 @@
       "name": "Magna International",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "end_use"
+      ],
+      "regions": [
+        "EMEA",
+        "North America",
+        "China"
+      ],
+      "status": "active",
+      "notes": "HQ: Canada"
+    },
+    {
+      "name": "Magniflex",
+      "aliases": [],
+      "value_chain_position": [
+        "foam_converters",
+        "end_use"
       ],
       "regions": [
         "EMEA",
@@ -1283,18 +1143,6 @@
         "India",
         "North America",
         "South America"
-      ],
-      "status": "active",
-      "notes": "HQ: Canada"
-    },
-    {
-      "name": "Magniflex",
-      "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
-      "regions": [
-        "EMEA"
       ],
       "status": "active",
       "notes": ""
@@ -1330,8 +1178,10 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
         "NE Asia",
+        "EMEA",
+        "North America",
+        "China",
         "SEA",
         "India"
       ],
@@ -1344,14 +1194,15 @@
         "Mitsui Chemicals, Inc."
       ],
       "value_chain_position": [
-        "raw_materials"
+        "raw_materials",
+        "system_houses"
       ],
       "regions": [
-        "China",
         "NE Asia",
         "SEA",
-        "India",
-        "EMEA"
+        "North America",
+        "EMEA",
+        "Middle East"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1363,13 +1214,8 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
+        "EMEA",
         "South America"
       ],
       "status": "active",
@@ -1386,11 +1232,8 @@
       ],
       "regions": [
         "EMEA",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America"
+        "North America",
+        "China"
       ],
       "status": "active",
       "notes": "HQ: Austria"
@@ -1402,13 +1245,11 @@
         "end_use"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
+        "North America",
         "China",
-        "NE Asia",
         "SEA",
         "India",
-        "North America",
+        "EMEA",
         "South America"
       ],
       "status": "active",
@@ -1417,11 +1258,10 @@
     {
       "name": "OCI",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1433,11 +1273,9 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
+        "Middle East",
         "SEA",
-        "India",
-        "Middle East"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: UAE"
@@ -1450,6 +1288,7 @@
       ],
       "regions": [
         "EMEA",
+        "North America",
         "China",
         "NE Asia",
         "SEA",
@@ -1465,9 +1304,11 @@
         "raw_materials"
       ],
       "regions": [
+        "SEA",
+        "Middle East",
+        "EMEA",
         "China",
         "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1477,10 +1318,13 @@
       "name": "Pikolin",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "SEA",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1489,13 +1333,10 @@
       "name": "Polytek Urethane",
       "aliases": [],
       "value_chain_position": [
-        "system_houses"
+        "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1507,10 +1348,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -1522,7 +1360,6 @@
         "system_houses"
       ],
       "regions": [
-        "North America",
         "South America"
       ],
       "status": "active",
@@ -1532,6 +1369,7 @@
       "name": "Purepol",
       "aliases": [],
       "value_chain_position": [
+        "system_houses",
         "foam_converters"
       ],
       "regions": [
@@ -1544,10 +1382,12 @@
       "name": "Recticel / Engineered Foams",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "system_houses"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1556,18 +1396,11 @@
       "name": "Recticel S.A.",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters",
-        "end_use"
+        "foam_converters"
       ],
       "regions": [
         "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Belgium"
@@ -1579,9 +1412,6 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1590,12 +1420,8 @@
     {
       "name": "Relyon",
       "aliases": [],
-      "value_chain_position": [
-        "end_use"
-      ],
-      "regions": [
-        "EMEA"
-      ],
+      "value_chain_position": [],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -1606,9 +1432,7 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
-        "North America",
-        "South America"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Spain"
@@ -1621,12 +1445,10 @@
       ],
       "regions": [
         "North America",
-        "South America",
-        "EMEA",
         "China",
         "NE Asia",
         "SEA",
-        "India"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1638,7 +1460,8 @@
         "system_houses"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -1653,7 +1476,12 @@
         "raw_materials"
       ],
       "regions": [
-        "Middle East"
+        "Middle East",
+        "EMEA",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Saudi Arabia"
@@ -1677,10 +1505,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -1689,15 +1514,11 @@
       "name": "Sekisui Chemical Co.",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "EMEA",
-        "North America"
+        "NE Asia"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1706,17 +1527,11 @@
       "name": "Serta Simmons Bedding",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
-        "North America",
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1728,9 +1543,6 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1743,17 +1555,11 @@
       ],
       "value_chain_position": [
         "raw_materials",
-        "system_houses"
+        "system_houses",
+        "foam_converters"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "China"
       ],
       "status": "active",
       "notes": "HQ: China"
@@ -1768,7 +1574,8 @@
         "end_use"
       ],
       "regions": [
-        "India"
+        "India",
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: India"
@@ -1781,13 +1588,10 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
         "China",
         "NE Asia",
         "SEA",
-        "India",
-        "North America",
-        "South America"
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1800,13 +1604,10 @@
       ],
       "regions": [
         "EMEA",
-        "Middle East",
         "China",
         "NE Asia",
         "SEA",
-        "India",
-        "North America",
-        "South America"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: UK / Netherlands"
@@ -1818,9 +1619,6 @@
         "foam_converters"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -1830,6 +1628,7 @@
       "name": "Silentnight",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
@@ -1854,15 +1653,13 @@
       "name": "Sinomax Group",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters",
-        "end_use"
+        "foam_converters"
       ],
       "regions": [
         "China",
-        "NE Asia",
         "SEA",
-        "India",
-        "North America"
+        "North America",
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Hong Kong/China"
@@ -1874,10 +1671,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -1889,10 +1683,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "NE Asia"
       ],
       "status": "active",
       "notes": ""
@@ -1904,9 +1695,10 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
+        "China",
+        "North America",
+        "EMEA",
         "India"
       ],
       "status": "active",
@@ -1918,6 +1710,7 @@
         "Sleep Number"
       ],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
@@ -1930,6 +1723,7 @@
       "name": "Sleepeezee",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
@@ -1941,12 +1735,8 @@
     {
       "name": "Solvay",
       "aliases": [],
-      "value_chain_position": [
-        "raw_materials"
-      ],
-      "regions": [
-        "EMEA"
-      ],
+      "value_chain_position": [],
+      "regions": [],
       "status": "active",
       "notes": ""
     },
@@ -1954,17 +1744,11 @@
       "name": "Spring Air",
       "aliases": [],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
+        "North America"
       ],
       "status": "active",
       "notes": ""
@@ -1976,14 +1760,11 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
-        "South America"
+        "South America",
+        "EMEA",
+        "China",
+        "SEA"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1995,10 +1776,7 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "NE Asia"
       ],
       "status": "active",
       "notes": ""
@@ -2019,8 +1797,8 @@
       "name": "Synthesia Technology",
       "aliases": [],
       "value_chain_position": [
-        "raw_materials",
-        "system_houses"
+        "system_houses",
+        "raw_materials"
       ],
       "regions": [
         "EMEA",
@@ -2049,9 +1827,6 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
         "India"
       ],
       "status": "active",
@@ -2064,31 +1839,34 @@
         "Tempur Sealy"
       ],
       "value_chain_position": [
+        "foam_converters",
         "end_use"
       ],
       "regions": [
         "North America",
-        "South America",
         "EMEA",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
     },
     {
-      "name": "The Vita Group",
-      "aliases": [],
+      "name": "Vita Group",
+      "aliases": [
+        "The Vita Group",
+        "Vitafoam",
+        "Vitafoam (Nigeria) PLC"
+      ],
       "value_chain_position": [
-        "foam_converters"
+        "foam_converters",
+        "end_use"
       ],
       "regions": [
-        "EMEA"
+        "EMEA",
+        "Middle East"
       ],
       "status": "active",
-      "notes": "HQ: UK"
+      "notes": "Consolidated record including Vitafoam (Nigeria) PLC."
     },
     {
       "name": "Tosoh Corporation",
@@ -2097,10 +1875,8 @@
         "raw_materials"
       ],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India"
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -2109,16 +1885,12 @@
       "name": "Toyota Boshoku Corp.",
       "aliases": [],
       "value_chain_position": [
-        "foam_converters",
-        "end_use"
+        "foam_converters"
       ],
       "regions": [
-        "China",
         "NE Asia",
-        "SEA",
-        "India",
         "North America",
-        "South America"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -2127,13 +1899,15 @@
       "name": "TS Tech",
       "aliases": [],
       "value_chain_position": [
-        "end_use"
+        "foam_converters"
       ],
       "regions": [
+        "North America",
+        "South America",
+        "EMEA",
         "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "India",
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -2145,7 +1919,9 @@
         "foam_converters"
       ],
       "regions": [
-        "North America"
+        "North America",
+        "EMEA",
+        "SEA"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -2157,11 +1933,10 @@
         "raw_materials"
       ],
       "regions": [
-        "EMEA",
-        "China",
-        "NE Asia",
+        "North America",
         "SEA",
-        "India"
+        "China",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: France/Thailand"
@@ -2169,42 +1944,12 @@
     {
       "name": "Vikudha Malaysia",
       "aliases": [],
-      "value_chain_position": [
-        "system_houses"
-      ],
+      "value_chain_position": [],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
-    },
-    {
-      "name": "Vita Group",
-      "aliases": [],
-      "value_chain_position": [
-        "foam_converters"
-      ],
-      "regions": [
-        "EMEA"
-      ],
-      "status": "active",
-      "notes": ""
-    },
-    {
-      "name": "Vitafoam (Nigeria) PLC",
-      "aliases": [],
-      "value_chain_position": [
-        "foam_converters",
-        "end_use"
-      ],
-      "regions": [
-        "EMEA"
-      ],
-      "status": "active",
-      "notes": "HQ: Nigeria"
     },
     {
       "name": "Wanhua (Systems)",
@@ -2213,10 +1958,7 @@
         "system_houses"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "China"
       ],
       "status": "active",
       "notes": ""
@@ -2227,13 +1969,13 @@
         "Wanhua Systems"
       ],
       "value_chain_position": [
+        "raw_materials",
         "system_houses"
       ],
       "regions": [
         "China",
-        "NE Asia",
-        "SEA",
-        "India",
+        "North America",
+        "South America",
         "EMEA"
       ],
       "status": "active",
@@ -2246,13 +1988,11 @@
         "Wanhua"
       ],
       "value_chain_position": [
-        "raw_materials"
+        "raw_materials",
+        "system_houses"
       ],
       "regions": [
         "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
         "South America",
         "EMEA"
@@ -2267,10 +2007,7 @@
         "foam_converters"
       ],
       "regions": [
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "SEA"
       ],
       "status": "active",
       "notes": ""
@@ -2282,13 +2019,10 @@
         "end_use"
       ],
       "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
         "North America",
+        "EMEA",
+        "China",
+        "India",
         "South America"
       ],
       "status": "active",
@@ -2314,12 +2048,7 @@
       ],
       "regions": [
         "North America",
-        "South America",
-        "EMEA",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Canada"
@@ -2331,89 +2060,91 @@
       "Ashoka PU Foam",
       "Carpenter Co.",
       "Dolidol (Uni Confort Maroc)",
+      "Ergoflex",
       "Faurecia (FORVIA)",
-      "Flexipol",
       "Foamcraft, Inc.",
       "FoamPartner",
       "Form Sünger (Erciyes Anadolu Holding)",
+      "FORVIA (Faurecia)",
       "Future Foam, Inc.",
       "General Plastics Mfg.",
       "INOAC Corp.",
       "Interplasp",
       "KareFoam",
+      "Kingspan Group",
       "Lear Corporation",
       "Livon Techno Foams",
       "Magna International",
+      "Magniflex",
       "Meenakshi Polymers",
       "NEVEON (Greiner)",
+      "Pikolin",
       "Purepol",
       "Recticel / Engineered Foams",
       "Recticel S.A.",
       "Rogers Corporation",
       "Sekisui Chemical Co.",
+      "Serta Simmons Bedding",
+      "Shandong INOV Polyurethane",
       "Sheela Foam Ltd.",
       "Shree Krishna Polyurethane (SKPI)",
+      "Silentnight",
       "Sinomax Group",
+      "Sleep Number Corporation",
+      "Sleepeezee",
+      "Spring Air",
       "Sunpreeth Engineers",
-      "The Vita Group",
-      "Toyota Boshoku Corp.",
-      "UFP Technologies, Inc.",
+      "Tempur Sealy International",
       "Vita Group",
-      "Vitafoam (Nigeria) PLC",
+      "Toyota Boshoku Corp.",
+      "TS Tech",
+      "UFP Technologies, Inc.",
       "Wansern Foam Industry",
       "Wisconsin Foam Products",
       "Woodbridge (Woodbridge Foam Corp)"
     ],
     "end_use": [
       "Adient plc",
+      "Ashoka PU Foam",
       "Auping",
       "Bensons for Beds",
       "Beter Bed (M line)",
-      "Boeing Company",
       "Casper",
       "Dolidol (Uni Confort Maroc)",
-      "Dorado Bathware (Example SME)",
       "Dorelan",
       "Dormeo (Studio Moderna)",
       "Dunlopillo",
       "Emma",
       "Ergoflex",
+      "Faurecia (FORVIA)",
       "FORVIA (Faurecia)",
-      "Harrison Spinks",
-      "Hypnos Beds",
-      "Hästens",
       "IKEA",
       "IKEA (Ingka Group)",
       "Kingsdown",
-      "Kingspan Group",
       "Lear Corporation",
+      "Magna International",
       "Magniflex",
       "Nike, Inc.",
       "Pikolin",
-      "Recticel S.A.",
-      "Relyon",
       "Serta Simmons Bedding",
       "Sheela Foam Ltd.",
       "Silentnight",
       "Simba",
-      "Sinomax Group",
       "Sleep Number Corporation",
       "Sleepeezee",
       "Spring Air",
       "Tempur Sealy International",
-      "Toyota Boshoku Corp.",
-      "TS Tech",
-      "Vitafoam (Nigeria) PLC",
+      "Vita Group",
       "Whirlpool Corporation"
     ],
     "raw_materials": [
-      "Air Liquide",
       "Albemarle Corporation",
       "Arkema",
       "Asahi Kasei",
-      "Aster",
+      "BASF (PU Systems)",
       "BASF SE",
       "BCI Holding (Baalbaki Chem. Ind.)",
+      "Carpenter Co.",
       "Clariant",
       "COIM S.p.A.",
       "Covestro AG",
@@ -2422,15 +2153,15 @@
       "Emery Oleochemicals",
       "Evonik",
       "Evonik Industries",
-      "Formosa Plastics",
+      "Expanded Polymer Systems",
       "GNFC (Guj. Narmada Valley Fert.)",
       "Hanwha Solutions",
       "Huntsman Corporation",
+      "Huntsman Polyurethane Systems",
       "ICL Group",
       "INEOS",
       "Kumho Mitsui Chemicals",
       "Lanxess AG",
-      "LG Chem",
       "Linde",
       "Lotte Chemical",
       "Lubrizol",
@@ -2439,27 +2170,28 @@
       "Mitsubishi Chemical Group",
       "Mitsui Chemicals",
       "Momentive Performance Materials",
-      "OCI",
       "Petronas Chemicals (Perstorp)",
       "PETRONAS Chemicals Group (PCG)",
+      "Polytek Urethane",
       "PTT Global Chemical (PTTGC)",
       "Reliance Industries",
       "Repsol S.A.",
       "SABIC",
       "Sadara Chemical Co.",
       "SCG Chemicals (SCGC)",
+      "Sekisui Chemical Co.",
       "Shandong INOV Polyurethane",
       "Shell Chemicals",
       "Shell Plc (Shell Chemicals)",
       "Sinopec",
       "SK Chemicals",
       "SKC Co. (SK pucore)",
-      "Solvay",
       "Stepan Company",
       "Sumitomo Chemical",
       "Synthesia Technology",
       "Tosoh Corporation",
       "Vencorex",
+      "Wanhua (Wanhua Chemical)",
       "Wanhua Chemical Group"
     ],
     "system_houses": [
@@ -2468,11 +2200,12 @@
       "BASF SE",
       "BCI Holding (Baalbaki Chem. Ind.)",
       "Carlisle Polyurethane Systems (Carlisle Companies)",
+      "Carpenter Co.",
       "COIM S.p.A.",
-      "Colorex",
       "Covestro (BaySystems)",
       "Covestro (Systems)",
       "Covestro AG",
+      "Dow",
       "Dow (PU Systems)",
       "Dow Chemical Company",
       "Dow Polyurethane Systems",
@@ -2485,18 +2218,21 @@
       "Huntsman (Dubai systems house)",
       "Huntsman Corporation",
       "Huntsman Polyurethane Systems",
+      "Lanxess AG",
+      "Mitsui Chemicals",
       "Pearl Polyurethane Systems",
-      "Polytek Urethane",
       "Purcom Química",
+      "Purepol",
+      "Recticel / Engineered Foams",
       "RÜHL PUROMER",
       "Shakun Industries",
       "Shandong INOV Polyurethane",
       "Synthesia Technology",
       "Systemhouse Group",
       "Tandy Innovative Chemicals",
-      "Vikudha Malaysia",
       "Wanhua (Systems)",
-      "Wanhua (Wanhua Chemical)"
+      "Wanhua (Wanhua Chemical)",
+      "Wanhua Chemical Group"
     ]
   }
 }
