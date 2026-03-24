@@ -22,7 +22,9 @@ from core.generator_db import (
     create_newsletter_run,
     update_run_status,
     get_specification_history,
-    get_last_successful_run
+    get_last_successful_run,
+    get_latest_running_run,
+    merge_run_metadata,
 )
 from core.generator_execution import (
     execute_generator,
@@ -444,6 +446,34 @@ elif page == "📰 Generate Report":
         "Gathering intelligence and creating your report. A full run can take up to 10 minutes, depending on your choices."
     )
 
+    if st.session_state.gen_phase == 0:
+        resumable_run = get_latest_running_run(
+            spec_id,
+            st.session_state.selected_workspace,
+            st.session_state.user_email,
+        )
+        recovery_meta = ((resumable_run or {}).get("metadata") or {}).get("controller_recovery", {})
+        if recovery_meta.get("phase") == "phase1_ready":
+            recovered_run_spec = recovery_meta.get("run_specification")
+            recovered_spec = recovery_meta.get("spec_snapshot")
+            recovered_evidence = recovery_meta.get("evidence_summary")
+            if isinstance(recovered_run_spec, dict) and isinstance(recovered_spec, dict):
+                st.info("Resuming an unfinished run after a session reset.")
+                st.session_state.gen_phase = 1
+                st.session_state.gen_run_id = resumable_run.get("id")
+                st.session_state.gen_evidence_summary = recovered_evidence or {}
+                st.session_state.gen_run_spec = recovered_run_spec
+                st.session_state.gen_spec = recovered_spec
+                st.session_state.gen_params = {
+                    "spec_id": recovery_meta.get("spec_id") or spec_id,
+                    "workspace_id": recovery_meta.get("workspace_id") or st.session_state.selected_workspace,
+                    "user_email": recovery_meta.get("user_email") or st.session_state.user_email,
+                    "cadence_override": recovery_meta.get("cadence_override"),
+                    "lookback_override": recovery_meta.get("lookback_override"),
+                }
+                st.session_state.gen_error = None
+                st.rerun()
+
     # Generate button (only when idle)
     if st.session_state.gen_phase == 0 and st.button("🚀 Generate Report Now", type="primary", width="stretch"):
         if len(selected_categories) == 0:
@@ -496,6 +526,23 @@ elif page == "📰 Generate Report":
             "cadence_override": override_cadence,
             "lookback_override": lookback_override,
         }
+        merge_run_metadata(
+            run_id,
+            {
+                "controller_recovery": {
+                    "phase": "phase1_ready",
+                    "spec_id": spec_id,
+                    "workspace_id": st.session_state.selected_workspace,
+                    "user_email": st.session_state.user_email,
+                    "cadence_override": override_cadence,
+                    "lookback_override": lookback_override,
+                    "run_specification": run_spec,
+                    "spec_snapshot": spec_for_phase,
+                    "evidence_summary": evidence_summary,
+                    "updated_at": datetime.utcnow().isoformat(),
+                }
+            },
+        )
         st.session_state.gen_error = None
         st.rerun()
 
@@ -508,6 +555,23 @@ elif page == "📰 Generate Report":
             st.error("❌ Session was reset. Please start again by clicking Generate Report.")
             st.session_state.gen_phase = 0
             st.stop()
+        merge_run_metadata(
+            run_id,
+            {
+                "controller_recovery": {
+                    "phase": "phase1_running",
+                    "spec_id": params.get("spec_id"),
+                    "workspace_id": params.get("workspace_id"),
+                    "user_email": params.get("user_email"),
+                    "cadence_override": params.get("cadence_override"),
+                    "lookback_override": params.get("lookback_override"),
+                    "run_specification": run_spec,
+                    "spec_snapshot": st.session_state.get("gen_spec") or {},
+                    "evidence_summary": st.session_state.get("gen_evidence_summary") or {},
+                    "updated_at": datetime.utcnow().isoformat(),
+                }
+            },
+        )
         with st.status("Step 2: Validating and verifying intelligence", expanded=True) as status:
             st.write("This step can also take a few minutes; the page will refresh automatically when it is done.")
             try:
@@ -526,15 +590,40 @@ elif page == "📰 Generate Report":
                 st.session_state.gen_phase = 0
                 status.update(label="Failed", state="error")
                 st.rerun()
+            status.update(label="Done", state="complete")
 
-        st.session_state.gen_writer_output = writer_output
-        st.session_state.gen_extraction_result = extraction_result
-        st.session_state.gen_signal_extraction_result = signal_extraction_result
-        st.session_state.gen_signal_clustering_result = signal_clustering_result
-        st.session_state.gen_signal_classification_result = signal_classification_result
-        st.session_state.gen_doctrine_result = doctrine_result
-        st.session_state.gen_audit_counts = audit_counts
-        st.session_state.gen_phase = 2
+        with st.status("Step 3: Writing the Intelligence Report", expanded=True) as status:
+            st.write("Once the report is finished you can download it.")
+            st.write("This step is usually quick (seconds), and then your report preview will appear below.")
+            try:
+                result_data = run_phase_render_and_save(
+                    run_id=run_id,
+                    workspace_id=params.get("workspace_id"),
+                    spec_id=params.get("spec_id"),
+                    user_email=params.get("user_email"),
+                    spec=st.session_state.get("gen_spec") or {},
+                    run_specification=run_spec,
+                    writer_output=writer_output,
+                    extraction_result=extraction_result or {},
+                    evidence_summary=st.session_state.get("gen_evidence_summary") or {},
+                    signal_extraction_result=signal_extraction_result,
+                    signal_clustering_result=signal_clustering_result,
+                    signal_classification_result=signal_classification_result,
+                    doctrine_result=doctrine_result,
+                    cadence_override=params.get("cadence_override"),
+                    audit_counts=audit_counts,
+                )
+            except Exception as e:
+                from core.generator_db import update_run_status
+                update_run_status(run_id, "failed", error_message=str(e))
+                st.session_state.gen_error = str(e)
+                st.session_state.gen_phase = 0
+                status.update(label="Failed", state="error")
+                st.rerun()
+            status.update(label="Done", state="complete")
+
+        st.session_state.gen_result_data = result_data
+        st.session_state.gen_phase = 3
         st.rerun()
 
     # Phase 2 done: render and save, then show result

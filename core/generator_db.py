@@ -278,6 +278,46 @@ def get_last_successful_run(spec_id: str) -> Optional[Dict]:
     return result.data[0] if result.data else None
 
 
+def get_run_by_id(run_id: str) -> Optional[Dict]:
+    """Fetch a single run by id."""
+    if not run_id:
+        return None
+    supabase = get_supabase_client()
+    result = supabase.table("newsletter_runs")\
+        .select("*")\
+        .eq("id", run_id)\
+        .limit(1)\
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def get_latest_running_run(spec_id: str, workspace_id: str, user_email: str) -> Optional[Dict]:
+    """Get the latest running run for a specification/workspace/user."""
+    supabase = get_supabase_client()
+    result = supabase.table("newsletter_runs")\
+        .select("*")\
+        .eq("specification_id", spec_id)\
+        .eq("workspace_id", workspace_id)\
+        .eq("user_email", user_email)\
+        .eq("status", "running")\
+        .order("created_at", desc=True)\
+        .limit(1)\
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def merge_run_metadata(run_id: str, metadata_patch: Dict[str, Any]) -> None:
+    """Merge metadata into a run row without changing its status."""
+    if not run_id or not metadata_patch:
+        return
+    supabase = get_supabase_client()
+    existing = get_run_by_id(run_id) or {}
+    current_metadata = existing.get("metadata") if isinstance(existing.get("metadata"), dict) else {}
+    merged_metadata = dict(current_metadata)
+    merged_metadata.update(metadata_patch)
+    supabase.table("newsletter_runs").update({"metadata": merged_metadata}).eq("id", run_id).execute()
+
+
 def get_candidate_articles_for_run(run_id: str) -> List[Dict]:
     """V2: Get all candidate_articles for a run (for extraction and writer)."""
     supabase = get_supabase_client()
