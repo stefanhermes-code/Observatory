@@ -19,23 +19,6 @@
       "notes": "HQ: Ireland/USA"
     },
     {
-      "name": "Air Liquide",
-      "aliases": [],
-      "value_chain_position": [],
-      "regions": [
-        "EMEA",
-        "Middle East",
-        "China",
-        "NE Asia",
-        "SEA",
-        "India",
-        "North America",
-        "South America"
-      ],
-      "status": "active",
-      "notes": ""
-    },
-    {
       "name": "Albemarle Corporation",
       "aliases": [],
       "value_chain_position": [
@@ -104,12 +87,18 @@
       "notes": ""
     },
     {
-      "name": "Aster",
-      "aliases": [],
-      "value_chain_position": [],
-      "regions": [],
+      "name": "Aster Chemical",
+      "aliases": [
+        "Aster"
+      ],
+      "value_chain_position": [
+        "raw_materials"
+      ],
+      "regions": [
+        "SEA"
+      ],
       "status": "active",
-      "notes": ""
+      "notes": "Former Shell company in Singapore."
     },
     {
       "name": "Auping",
@@ -211,7 +200,9 @@
     {
       "name": "Boeing Company",
       "aliases": [],
-      "value_chain_position": [],
+      "value_chain_position": [
+        "end_use"
+      ],
       "regions": [
         "North America"
       ],
@@ -605,7 +596,9 @@
     {
       "name": "Flexipol",
       "aliases": [],
-      "value_chain_position": [],
+      "value_chain_position": [
+        "foam_converters"
+      ],
       "regions": [
         "EMEA"
       ],
@@ -775,7 +768,9 @@
     {
       "name": "Harrison Spinks",
       "aliases": [],
-      "value_chain_position": [],
+      "value_chain_position": [
+        "end_use"
+      ],
       "regions": [
         "EMEA"
       ],
@@ -851,7 +846,9 @@
     {
       "name": "Hypnos Beds",
       "aliases": [],
-      "value_chain_position": [],
+      "value_chain_position": [
+        "end_use"
+      ],
       "regions": [
         "EMEA",
         "North America"
@@ -862,7 +859,9 @@
     {
       "name": "Hästens",
       "aliases": [],
-      "value_chain_position": [],
+      "value_chain_position": [
+        "end_use"
+      ],
       "regions": [
         "EMEA",
         "North America"
@@ -1735,8 +1734,12 @@
     {
       "name": "Solvay",
       "aliases": [],
-      "value_chain_position": [],
-      "regions": [],
+      "value_chain_position": [
+        "raw_materials"
+      ],
+      "regions": [
+        "EMEA"
+      ],
       "status": "active",
       "notes": ""
     },
@@ -2062,6 +2065,7 @@
       "Dolidol (Uni Confort Maroc)",
       "Ergoflex",
       "Faurecia (FORVIA)",
+      "Flexipol",
       "Foamcraft, Inc.",
       "FoamPartner",
       "Form Sünger (Erciyes Anadolu Holding)",
@@ -2109,6 +2113,7 @@
       "Auping",
       "Bensons for Beds",
       "Beter Bed (M line)",
+      "Boeing Company",
       "Casper",
       "Dolidol (Uni Confort Maroc)",
       "Dorelan",
@@ -2118,6 +2123,9 @@
       "Ergoflex",
       "Faurecia (FORVIA)",
       "FORVIA (Faurecia)",
+      "Harrison Spinks",
+      "Hypnos Beds",
+      "Hästens",
       "IKEA",
       "IKEA (Ingka Group)",
       "Kingsdown",
@@ -2141,6 +2149,7 @@
       "Albemarle Corporation",
       "Arkema",
       "Asahi Kasei",
+      "Aster Chemical",
       "BASF (PU Systems)",
       "BASF SE",
       "BCI Holding (Baalbaki Chem. Ind.)",
@@ -2186,6 +2195,7 @@
       "Sinopec",
       "SK Chemicals",
       "SKC Co. (SK pucore)",
+      "Solvay",
       "Stepan Company",
       "Sumitomo Chemical",
       "Synthesia Technology",
