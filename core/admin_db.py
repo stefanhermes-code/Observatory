@@ -841,7 +841,7 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
     """
     Mirror companies into tracked_companies from a list of dicts (e.g. from company_list.json).
     Each dict: name, aliases (list), value_chain_position (list), regions (list), status, notes.
-    Per-company categories are currently dormant and always cleared on seed.
+    Per-company categories are dormant and not stored in tracked_companies.
     Rows not present in the file are removed from the database.
     Returns number of rows mirrored from the file.
     """
@@ -864,7 +864,6 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
             "aliases": c.get("aliases") if isinstance(c.get("aliases"), list) else [],
             "value_chain_position": c.get("value_chain_position") if isinstance(c.get("value_chain_position"), list) else [],
             "regions": normalize_company_regions(c.get("regions") if isinstance(c.get("regions"), list) else []),
-            "categories": [],
             "status": status,
             "notes": (c.get("notes") or "") or None,
             "updated_at": now,
@@ -907,7 +906,6 @@ def create_tracked_company(
         "aliases": aliases or [],
         "value_chain_position": value_chain_position or [],
         "regions": normalize_company_regions(regions or []),
-        "categories": [],
         "status": status,
         "notes": notes or None,
         "updated_at": datetime.utcnow().isoformat(),
@@ -940,8 +938,6 @@ def update_tracked_company(
         update_data["value_chain_position"] = value_chain_position
     if regions is not None:
         update_data["regions"] = normalize_company_regions(regions)
-    if categories is not None:
-        update_data["categories"] = []
     if status is not None and status in ("active", "inactive"):
         update_data["status"] = status
     if notes is not None:
