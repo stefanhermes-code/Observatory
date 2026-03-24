@@ -8,10 +8,69 @@ import json
 from typing import Optional, Dict, List
 from pathlib import Path
 
-from core.taxonomy import VALUE_CHAIN_LINKS
+from core.taxonomy import VALUE_CHAIN_LINKS, REGIONS
 
 
 VALUE_CHAIN_LABELS = {item["id"]: item["name"] for item in VALUE_CHAIN_LINKS}
+VALID_REGIONS = set(REGIONS)
+
+
+def normalize_company_regions(regions: Optional[List[str]]) -> List[str]:
+    """Normalize company regions to the official specification region vocabulary only."""
+    raw_regions = regions or []
+    normalized: List[str] = []
+
+    def add_region(name: str) -> None:
+        if name in VALID_REGIONS and name not in normalized:
+            normalized.append(name)
+
+    for region in raw_regions:
+        text = (region or "").strip()
+        if not text:
+            continue
+        lower = text.lower()
+
+        if lower in {"global", "global export", "global sales"}:
+            for item in REGIONS:
+                add_region(item)
+            continue
+        if lower in {"apac", "asia", "asia-pacific"}:
+            for item in ("China", "NE Asia", "SEA", "India"):
+                add_region(item)
+            continue
+        if lower in {"americas", "latin america", "latam"}:
+            add_region("North America")
+            add_region("South America")
+            continue
+        if lower in {"north america", "na", "usa", "us", "united states", "canada", "mexico"}:
+            add_region("North America")
+            continue
+        if lower in {"south asia", "india"}:
+            add_region("India")
+            continue
+        if lower in {"middle east"}:
+            add_region("Middle East")
+            continue
+        if lower in {"europe", "eu", "uk", "emea", "africa"}:
+            add_region("EMEA")
+            continue
+        if lower in {"china"}:
+            add_region("China")
+            continue
+        if lower in {"ne asia", "northeast asia", "japan", "korea", "taiwan", "hong kong"}:
+            add_region("NE Asia")
+            continue
+        if lower in {"sea", "southeast asia", "asean", "singapore", "malaysia", "thailand", "indonesia", "vietnam", "philippines"}:
+            add_region("SEA")
+            continue
+        if lower in {"south america", "brazil", "argentina", "chile", "colombia"}:
+            add_region("South America")
+            continue
+
+        if text in VALID_REGIONS:
+            add_region(text)
+
+    return normalized
 
 
 def _rebuild_categories(companies: List[Dict]) -> Dict[str, List[str]]:
@@ -57,6 +116,8 @@ def load_company_list(file_path: Optional[str] = None) -> Dict:
 
     if isinstance(data, dict):
         companies = data.get("companies") if isinstance(data.get("companies"), list) else []
+        for company in companies:
+            company["regions"] = normalize_company_regions(company.get("regions"))
         data["categories"] = _rebuild_categories(companies)
     return data
 
@@ -150,6 +211,8 @@ def update_company_list_file(
         }
     
     # Update companies
+    for company in companies:
+        company["regions"] = normalize_company_regions(company.get("regions"))
     data["companies"] = companies
     data["last_updated"] = datetime.utcnow().strftime("%Y-%m-%d")
     

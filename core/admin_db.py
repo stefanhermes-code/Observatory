@@ -11,6 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from core.company_timezone import guess_timezone_from_country_city
+from core.company_list_manager import normalize_company_regions
 
 # Load environment variables from .env file
 load_dotenv()
@@ -859,7 +860,7 @@ def seed_tracked_companies_from_list(companies: List[Dict]) -> int:
             "name": name,
             "aliases": c.get("aliases") if isinstance(c.get("aliases"), list) else [],
             "value_chain_position": c.get("value_chain_position") if isinstance(c.get("value_chain_position"), list) else [],
-            "regions": c.get("regions") if isinstance(c.get("regions"), list) else [],
+            "regions": normalize_company_regions(c.get("regions") if isinstance(c.get("regions"), list) else []),
             "categories": [],
             "status": status,
             "notes": (c.get("notes") or "") or None,
@@ -894,7 +895,7 @@ def create_tracked_company(
         "name": name,
         "aliases": aliases or [],
         "value_chain_position": value_chain_position or [],
-        "regions": regions or [],
+        "regions": normalize_company_regions(regions or []),
         "categories": [],
         "status": status,
         "notes": notes or None,
@@ -927,7 +928,7 @@ def update_tracked_company(
     if value_chain_position is not None:
         update_data["value_chain_position"] = value_chain_position
     if regions is not None:
-        update_data["regions"] = regions
+        update_data["regions"] = normalize_company_regions(regions)
     if categories is not None:
         update_data["categories"] = []
     if status is not None and status in ("active", "inactive"):

@@ -10,10 +10,14 @@
         "end_use"
       ],
       "regions": [
-        "asia",
-        "europe",
-        "global",
-        "na"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "Middle East",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Ireland/USA"
@@ -37,7 +41,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -61,7 +72,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -73,7 +87,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -85,7 +102,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -97,7 +117,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -123,7 +146,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "BASF systems business"
@@ -138,8 +168,12 @@
         "system_houses"
       ],
       "regions": [
-        "APAC",
-        "Americas",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America",
         "EMEA"
       ],
       "status": "active",
@@ -157,7 +191,6 @@
       ],
       "regions": [
         "Middle East",
-        "Africa",
         "EMEA"
       ],
       "status": "active",
@@ -194,9 +227,13 @@
         "end_use"
       ],
       "regions": [
-        "Americas",
+        "North America",
+        "South America",
         "EMEA",
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -208,7 +245,14 @@
         "system_houses"
       ],
       "regions": [
-        "global export"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -220,9 +264,14 @@
         "foam_converters"
       ],
       "regions": [
-        "global",
-        "americas",
-        "emea"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -261,9 +310,13 @@
         "system_houses"
       ],
       "regions": [
-        "Europe",
-        "Americas",
-        "Asia"
+        "EMEA",
+        "North America",
+        "South America",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Italy"
@@ -275,7 +328,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -287,7 +343,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -299,7 +362,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -314,8 +384,12 @@
         "system_houses"
       ],
       "regions": [
-        "APAC",
-        "Americas",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America",
         "EMEA"
       ],
       "status": "active",
@@ -332,7 +406,7 @@
         "end_use"
       ],
       "regions": [
-        "Africa"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Morocco"
@@ -344,7 +418,10 @@
         "end_use"
       ],
       "regions": [
-        "Asia"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Thailand"
@@ -380,7 +457,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -392,7 +476,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -407,9 +498,13 @@
         "system_houses"
       ],
       "regions": [
-        "Americas",
+        "North America",
+        "South America",
         "EMEA",
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -421,7 +516,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -445,9 +547,13 @@
         "raw_materials"
       ],
       "regions": [
-        "Asia",
-        "Europe",
-        "Americas"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Malaysia"
@@ -473,8 +579,14 @@
         "system_houses"
       ],
       "regions": [
-        "APAC",
-        "Global"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "Middle East",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Australia"
@@ -510,7 +622,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -522,7 +641,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -534,7 +656,14 @@
         "foam_converters"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: France"
@@ -546,7 +675,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -594,7 +726,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -606,7 +741,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -623,7 +765,10 @@
       "regions": [
         "North America",
         "EMEA",
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -635,7 +780,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -647,7 +795,8 @@
         "foam_converters"
       ],
       "regions": [
-        "Americas"
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -661,8 +810,14 @@
         "foam_converters"
       ],
       "regions": [
-        "Global",
-        "Americas"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -674,7 +829,7 @@
         "raw_materials"
       ],
       "regions": [
-        "South Asia"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: India"
@@ -686,7 +841,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -700,7 +858,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: South Korea"
@@ -724,7 +885,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -751,10 +915,14 @@
         "system_houses"
       ],
       "regions": [
-        "APAC",
-        "Global",
-        "Americas",
-        "EMEA"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "Middle East",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -766,7 +934,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -802,7 +977,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Israel"
@@ -826,7 +1008,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Sweden"
@@ -850,7 +1039,10 @@
         "foam_converters"
       ],
       "regions": [
-        "Asia",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
         "North America"
       ],
       "status": "active",
@@ -875,7 +1067,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -887,7 +1082,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -900,8 +1102,12 @@
       ],
       "regions": [
         "EMEA",
-        "Americas",
-        "APAC"
+        "North America",
+        "South America",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Ireland"
@@ -913,7 +1119,10 @@
         "raw_materials"
       ],
       "regions": [
-        "Asia-Pacific"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: South Korea"
@@ -925,8 +1134,14 @@
         "raw_materials"
       ],
       "regions": [
-        "global",
-        "emea"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Germany"
@@ -939,10 +1154,14 @@
         "end_use"
       ],
       "regions": [
-        "asia",
-        "europe",
-        "global",
-        "na"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "Middle East",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -954,7 +1173,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -966,7 +1188,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -978,7 +1207,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -990,7 +1222,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1002,7 +1237,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1014,7 +1256,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1026,7 +1275,14 @@
         "foam_converters"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Canada"
@@ -1050,7 +1306,7 @@
         "raw_materials"
       ],
       "regions": [
-        "South Asia"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: India"
@@ -1062,7 +1318,7 @@
         "foam_converters"
       ],
       "regions": [
-        "South Asia"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: India"
@@ -1074,7 +1330,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1088,7 +1347,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
         "EMEA"
       ],
       "status": "active",
@@ -1101,7 +1363,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1117,7 +1386,10 @@
       ],
       "regions": [
         "EMEA",
-        "APAC",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
         "North America"
       ],
       "status": "active",
@@ -1130,7 +1402,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1154,8 +1433,11 @@
         "system_houses"
       ],
       "regions": [
-        "asia",
-        "middle east"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "Middle East"
       ],
       "status": "active",
       "notes": "HQ: UAE"
@@ -1167,8 +1449,11 @@
         "raw_materials"
       ],
       "regions": [
-        "Europe",
-        "Asia"
+        "EMEA",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Malaysia/Sweden"
@@ -1180,7 +1465,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1204,7 +1492,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1216,7 +1507,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1228,7 +1522,8 @@
         "system_houses"
       ],
       "regions": [
-        "Latin America"
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Brazil"
@@ -1265,7 +1560,14 @@
         "end_use"
       ],
       "regions": [
-        "global sales"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Belgium"
@@ -1277,7 +1579,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1301,8 +1606,9 @@
         "raw_materials"
       ],
       "regions": [
-        "Europe",
-        "LatAm"
+        "EMEA",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Spain"
@@ -1314,9 +1620,13 @@
         "foam_converters"
       ],
       "regions": [
-        "Americas",
+        "North America",
+        "South America",
         "EMEA",
-        "Asia"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1367,7 +1677,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1379,9 +1692,12 @@
         "foam_converters"
       ],
       "regions": [
-        "Asia",
-        "Europe",
-        "NA"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "EMEA",
+        "North America"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1393,8 +1709,14 @@
         "end_use"
       ],
       "regions": [
-        "north america",
-        "global"
+        "North America",
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1406,7 +1728,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1421,7 +1746,14 @@
         "system_houses"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: China"
@@ -1448,7 +1780,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1460,7 +1799,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: UK / Netherlands"
@@ -1472,7 +1818,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1509,7 +1858,10 @@
         "end_use"
       ],
       "regions": [
-        "Asia",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
         "North America"
       ],
       "status": "active",
@@ -1522,7 +1874,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1534,7 +1889,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1546,7 +1904,10 @@
         "raw_materials"
       ],
       "regions": [
-        "Asia-Pacific"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: South Korea"
@@ -1596,7 +1957,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": ""
@@ -1608,7 +1976,14 @@
         "raw_materials"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1620,7 +1995,10 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1632,7 +2010,7 @@
         "foam_converters"
       ],
       "regions": [
-        "South Asia"
+        "India"
       ],
       "status": "active",
       "notes": "HQ: India"
@@ -1645,8 +2023,9 @@
         "system_houses"
       ],
       "regions": [
-        "Europe",
-        "Americas"
+        "EMEA",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Spain"
@@ -1670,7 +2049,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1685,9 +2067,13 @@
         "end_use"
       ],
       "regions": [
-        "Americas",
+        "North America",
+        "South America",
         "EMEA",
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1699,8 +2085,7 @@
         "foam_converters"
       ],
       "regions": [
-        "UK",
-        "EU"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: UK"
@@ -1712,8 +2097,10 @@
         "raw_materials"
       ],
       "regions": [
-        "asia",
-        "apac"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1726,9 +2113,12 @@
         "end_use"
       ],
       "regions": [
-        "asia",
-        "apac",
-        "americas"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: Japan"
@@ -1740,7 +2130,10 @@
         "end_use"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1764,8 +2157,11 @@
         "raw_materials"
       ],
       "regions": [
-        "Europe",
-        "Asia"
+        "EMEA",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: France/Thailand"
@@ -1777,7 +2173,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1802,7 +2201,7 @@
         "end_use"
       ],
       "regions": [
-        "Africa"
+        "EMEA"
       ],
       "status": "active",
       "notes": "HQ: Nigeria"
@@ -1814,7 +2213,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1828,7 +2230,10 @@
         "system_houses"
       ],
       "regions": [
-        "APAC",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
         "EMEA"
       ],
       "status": "active",
@@ -1844,8 +2249,12 @@
         "raw_materials"
       ],
       "regions": [
-        "APAC",
-        "Americas",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America",
         "EMEA"
       ],
       "status": "active",
@@ -1858,7 +2267,10 @@
         "foam_converters"
       ],
       "regions": [
-        "APAC"
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": ""
@@ -1870,7 +2282,14 @@
         "end_use"
       ],
       "regions": [
-        "Global"
+        "EMEA",
+        "Middle East",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India",
+        "North America",
+        "South America"
       ],
       "status": "active",
       "notes": "HQ: USA"
@@ -1894,9 +2313,13 @@
         "foam_converters"
       ],
       "regions": [
-        "Americas",
-        "Europe",
-        "Asia"
+        "North America",
+        "South America",
+        "EMEA",
+        "China",
+        "NE Asia",
+        "SEA",
+        "India"
       ],
       "status": "active",
       "notes": "HQ: Canada"
